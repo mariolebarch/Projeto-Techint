@@ -1858,6 +1858,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
         if(insErr) throw insErr;
         statusEl.className = 'settings-status ok';
         statusEl.textContent = 'Dados atualizados e publicados no Supabase (' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros) — todos que abrirem o painel verão essa base.';
+        sbSetStatus('ok', 'Conectado — snapshot publicado agora (' + file.name + ').');
       }catch(insErr){
         statusEl.className = 'settings-status error';
         statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
