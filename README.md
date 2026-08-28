@@ -20,9 +20,14 @@ Tem duas formas, e não são excludentes:
    → "Atualizar dados" → selecione o `.xlsx`. Todo o ETL roda no navegador
    (usa a biblioteca [SheetJS](https://sheetjs.com/) via CDN) e os dados
    ficam só na sessão de quem importou.
-2. **Supabase (dados centralizados)** — ver `supabase/`: quando configurado,
-   o painel carrega os dados de um banco compartilhado, então todo mundo que
-   abre o link vê a mesma base sem precisar importar a planilha de novo.
+2. **Supabase (dados centralizados)** — `dashboard.html` já vem conectado ao
+   projeto Supabase `dqomnopaigdikkesbbvj` (URL e chave `anon` estão no
+   próprio arquivo — isso é seguro, ver `supabase/README.md`). Ao abrir o
+   painel, ele tenta carregar automaticamente o snapshot mais recente do
+   banco; se não conseguir (rede bloqueada, banco vazio), cai para os dados
+   locais/embutidos sem quebrar. Fazendo login (Authentication → Users no
+   Supabase) pela engrenagem, uma nova importação de planilha também é
+   publicada no banco para todo mundo que abrir o link depois.
 
 ## Estrutura
 
@@ -51,6 +56,13 @@ Ou abra `dashboard.html` puro e importe a planilha pela engrenagem.
 
 ## Supabase (dados centralizados)
 
-Ver `supabase/README.md` para o passo a passo de provisionamento (rodar o
-`schema.sql` no seu projeto Supabase) e como apontar `dashboard.html` para
-ele.
+Projeto: `dqomnopaigdikkesbbvj`. Ver `supabase/README.md` para o passo a
+passo (rodar `schema.sql`, criar usuários autorizados a importar). O painel
+só lê automaticamente; para publicar uma planilha nova para todo mundo, é
+preciso estar logado (painel → engrenagem → "Entrar para publicar dados").
+
+Importante: dentro do preview do Artifact (claude.ai/code/artifact/...) a
+conexão com o Supabase pode ser bloqueada pelo sandbox da plataforma — o
+painel cai para os dados locais automaticamente nesse caso. A conexão real
+funciona ao abrir o `dashboard_final.html` (ou este `dashboard.html`) direto
+no navegador, fora do preview.

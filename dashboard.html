@@ -3,6 +3,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 <style>
 /* ============ TOKENS ============ */
@@ -120,6 +121,19 @@ button.settings-item:hover{background:var(--sand);}
 .settings-status{margin:6px 6px 2px; font-size:11.5px; padding:8px 9px; border-radius:7px; background:var(--sand); color:var(--text-secondary);}
 .settings-status.ok{background:var(--good-soft); color:var(--good);}
 .settings-status.error{background:var(--critical-soft); color:var(--critical);}
+
+.sb-block{padding:9px 10px; display:flex; flex-direction:column; gap:6px;}
+.sb-block .si-title{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600;}
+.sb-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-muted); flex:none;}
+.sb-dot.ok{background:var(--good);}
+.sb-dot.err{background:var(--critical);}
+.sb-status-text{font-size:11px; color:var(--text-muted);}
+.sb-auth-form{display:flex; flex-direction:column; gap:6px; margin-top:2px;}
+.sb-auth-form input{font-family:var(--font-body); font-size:12.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary);}
+.sb-auth-form button{font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--steel); background:var(--steel); color:var(--text-on-accent); cursor:pointer; font-weight:600;}
+.sb-auth-error{font-size:11px; color:var(--critical);}
+.sb-signed-in{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--text-secondary);}
+.sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
 
 /* Global filter bar */
 .global-filters{display:flex; gap:22px; align-items:flex-end; padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
@@ -393,6 +407,12 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <label class="switch"><input type="checkbox" id="theme-toggle"><span class="switch-slider"></span></label>
           </div>
           <div class="settings-status" id="settings-status" hidden></div>
+          <div class="settings-divider"></div>
+          <div class="sb-block">
+            <span class="si-title"><span class="sb-dot" id="sb-status-dot"></span>Fonte de dados (Supabase)</span>
+            <span class="sb-status-text" id="sb-status-text">Verificando conexão…</span>
+            <div id="sb-auth-box"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -586,6 +606,12 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 (function(){
 "use strict";
 let DATA = JSON.parse(document.getElementById('bundle-data').textContent);
+
+/* ---------- Supabase (fonte de dados centralizada, opcional) ---------- */
+const SUPABASE_URL = 'https://dqomnopaigdikkesbbvj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxb21ub3BhaWdkaWtrZXNiYnZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MDA3OTAsImV4cCI6MjEwMzI3Njc5MH0.O7bNNjF1l8si5b7ui8l3fUWD4ETtc5im_-nl2jYjVA8';
+const sb = (window.supabase && window.supabase.createClient) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let sbSession = null;
 const fmtInt = n => n.toLocaleString('pt-BR');
 const fmtPct = n => (n*100).toFixed(0) + '%';
 const fmtPct1 = n => (n*100).toFixed(1) + '%';
@@ -1798,10 +1824,11 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   statusEl.hidden = false; statusEl.className = 'settings-status'; statusEl.textContent = 'Lendo ' + file.name + '…';
 
   const reader = new FileReader();
-  reader.onload = function(ev){
+  reader.onload = async function(ev){
+    let bundle;
     try{
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
-      const bundle = parseWorkbookToBundle(wb);
+      bundle = parseWorkbookToBundle(wb);
       DATA = bundle;
       state.date = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
       state.contrato = 'all';
@@ -1816,19 +1843,110 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       console.error(err);
       statusEl.className = 'settings-status error';
       statusEl.textContent = 'Erro ao processar o arquivo: ' + (err && err.message ? err.message : err);
+      e.target.value = '';
+      return;
     }
+
+    if(sb && sbSession){
+      statusEl.textContent += ' Publicando no Supabase…';
+      try{
+        const { error: insErr } = await sb.from('painel_snapshots').insert({
+          bundle, source_filename: file.name, imported_by: sbSession.user.email,
+        });
+        if(insErr) throw insErr;
+        statusEl.className = 'settings-status ok';
+        statusEl.textContent = 'Dados atualizados e publicados no Supabase (' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros) — todos que abrirem o painel verão essa base.';
+      }catch(insErr){
+        statusEl.className = 'settings-status error';
+        statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
+      }
+    } else if(sb){
+      statusEl.textContent += ' (só localmente — faça login no Supabase abaixo para publicar para todos.)';
+    }
+    e.target.value = '';
   };
   reader.onerror = function(){
     statusEl.className = 'settings-status error';
     statusEl.textContent = 'Não foi possível ler o arquivo.';
+    e.target.value = '';
   };
   reader.readAsArrayBuffer(file);
-  e.target.value = '';
 });
+
+function sbSetStatus(dotCls, text){
+  const dot = document.getElementById('sb-status-dot');
+  const txt = document.getElementById('sb-status-text');
+  if(dot) dot.className = 'sb-dot ' + (dotCls||'');
+  if(txt) txt.textContent = text;
+}
+
+function renderSbAuthBox(){
+  const box = document.getElementById('sb-auth-box');
+  if(!box) return;
+  if(!sb){ box.innerHTML = ''; return; }
+  if(sbSession && sbSession.user){
+    box.innerHTML = `<div class="sb-signed-in"><span>Conectado como ${escHtml(sbSession.user.email)}</span><button type="button" id="sb-signout-btn">Sair</button></div>`;
+    document.getElementById('sb-signout-btn').addEventListener('click', async ()=>{
+      try{ await sb.auth.signOut(); }catch(e){}
+      sbSession = null;
+      renderSbAuthBox();
+    });
+  } else {
+    box.innerHTML = `<div class="sb-auth-form">
+        <input type="email" id="sb-email" placeholder="e-mail" autocomplete="username">
+        <input type="password" id="sb-password" placeholder="senha" autocomplete="current-password">
+        <button type="button" id="sb-signin-btn">Entrar para publicar dados</button>
+        <span class="sb-auth-error" id="sb-auth-error" hidden></span>
+      </div>`;
+    document.getElementById('sb-signin-btn').addEventListener('click', async ()=>{
+      const email = document.getElementById('sb-email').value.trim();
+      const password = document.getElementById('sb-password').value;
+      const errEl = document.getElementById('sb-auth-error');
+      errEl.hidden = true;
+      if(!email || !password) return;
+      try{
+        const { data, error } = await sb.auth.signInWithPassword({email, password});
+        if(error) throw error;
+        sbSession = data.session;
+        renderSbAuthBox();
+      }catch(err){
+        errEl.textContent = err && err.message ? err.message : 'Falha ao entrar.';
+        errEl.hidden = false;
+      }
+    });
+  }
+}
+
+async function sbInit(){
+  if(!sb){ sbSetStatus('err', 'Biblioteca do Supabase não carregou (bloqueio de rede deste preview?) — usando dados locais.'); return; }
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    sbSession = session;
+  }catch(e){}
+  renderSbAuthBox();
+
+  try{
+    const { data, error } = await sb.from('painel_snapshots').select('bundle,created_at,source_filename').order('created_at', {ascending:false}).limit(1).maybeSingle();
+    if(error) throw error;
+    if(data && data.bundle){
+      DATA = data.bundle;
+      state.date = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
+      renderAll();
+      renderQualidade();
+      const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
+      sbSetStatus('ok', 'Conectado — snapshot de ' + when + (data.source_filename ? ' (' + data.source_filename + ')' : '') + '.');
+    } else {
+      sbSetStatus('ok', 'Conectado ao Supabase — nenhum dado publicado ainda, usando os dados locais.');
+    }
+  }catch(e){
+    sbSetStatus('err', 'Sem conexão com o Supabase (pode ser bloqueio de rede deste preview) — usando dados locais.');
+  }
+}
 
 initTheme();
 renderAll();
 renderQualidade();
+sbInit();
 
 })();
 </script>
