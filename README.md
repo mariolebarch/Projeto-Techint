@@ -66,3 +66,25 @@ conexão com o Supabase pode ser bloqueada pelo sandbox da plataforma — o
 painel cai para os dados locais automaticamente nesse caso. A conexão real
 funciona ao abrir o `dashboard_final.html` (ou este `dashboard.html`) direto
 no navegador, fora do preview.
+
+## Link público (GitHub Pages)
+
+`docs/index.html` é uma build pronta para publicar: mesmo `dashboard.html`,
+mas com o bundle embutido **vazio** (sem nenhum dado de colaborador) —
+funciona porque ele carrega os dados de verdade direto do Supabase assim
+que abre. Isso dá um link público estável, sem depender de enviar um
+arquivo `.html` toda vez que os dados mudam.
+
+Para ativar (só precisa fazer uma vez):
+
+1. Neste repositório no GitHub → **Settings → Pages**.
+2. Em **Source**, selecione **Deploy from a branch**.
+3. Branch: `claude/painel-confronto-dados-civpok` — pasta: **/docs**.
+4. **Save**.
+
+Depois de alguns minutos o painel fica disponível em:
+`https://mariolebarch.github.io/Projeto-Techint/`
+
+Esse link não muda mesmo quando os dados no Supabase são atualizados —
+só reflete a base mais recente automaticamente, sem precisar republicar
+nada.
