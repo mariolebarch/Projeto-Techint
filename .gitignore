@@ -1,0 +1,14 @@
+# Dados reais de colaboradores (nomes, matrículas) nunca devem ir para este
+# repositório público — nem a planilha de origem, nem o bundle extraído,
+# nem o HTML final já com os dados embutidos.
+*.xlsx
+*.xlsm
+bundle*.json
+dashboard_final.html
+preview*.html
+
+# Artefatos de teste local / screenshots
+*.png
+node_modules/
+__pycache__/
+*.pyc

@@ -1,0 +1,1834 @@
+<title>Confronto Efetivo x Empilhamento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --ink:#121212;
+  --steel:#0f4c81;
+  --steel-strong:#002b5c;
+  --steel-soft:#e1e9f0;
+  --slate:#6c6966;
+  --sand:#e5e0da;
+  --paper:#ffffff;
+  --border:#c6c2be;
+  --border-soft:#ddd9d2;
+
+  --text-primary:#121212;
+  --text-secondary:#6c6966;
+  --text-muted:#aba7a2;
+  --text-on-accent:#ffffff;
+
+  --good:#3f7a1e; --good-soft:#e8f5dc;
+  --warning:#9c6f10; --warning-soft:#fbf1d2;
+  --critical:#c81a21; --critical-soft:#fbe0df;
+  --info:#0b5d91; --info-soft:#ddeef9;
+
+  --table-accent:#4e9466;
+  --chart-moa:#007dc3;
+  --pci-chart:#8cc83c;
+  --pci-chart-soft:#eaf6d9;
+
+  --heat-0:#ede9e1;
+  --heat-1:#cfe8b8;
+  --heat-2:#a8d480;
+  --heat-3:#7dc24c;
+  --heat-4:#4e9466;
+  --heat-5:#1b4d3a;
+
+  --shadow: 0 1px 2px rgba(23,29,36,.06), 0 4px 14px rgba(23,29,36,.06);
+  --radius: 10px;
+  --font-display:'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
+    --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
+    --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
+    --good:#8ed45a; --good-soft:#1e3315;
+    --warning:#f0c64c; --warning-soft:#332812;
+    --critical:#f0564f; --critical-soft:#3a1512;
+    --info:#4fa3d9; --info-soft:#12293a;
+    --table-accent:#5fae7a; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
+    --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#4e9466; --heat-5:#8ed45a;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
+  --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
+  --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
+  --good:#8ed45a; --good-soft:#1e3315;
+  --warning:#f0c64c; --warning-soft:#332812;
+  --critical:#f0564f; --critical-soft:#3a1512;
+  --info:#4fa3d9; --info-soft:#12293a;
+  --table-accent:#5fae7a; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
+  --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#4e9466; --heat-5:#8ed45a;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+::selection{background:var(--steel-soft);}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance;margin:0;color:var(--text-primary);}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+a{color:var(--steel);}
+button{font-family:inherit;}
+
+.app{max-width:1360px;margin:0 auto;padding:0 24px 64px;}
+
+.masthead{padding:28px 0 20px; border-bottom:3px solid var(--ink); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead-title{display:flex; flex-direction:column; gap:4px;}
+.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--steel); font-weight:600;}
+.masthead h1{font-size:clamp(28px,4vw,42px); line-height:.96;}
+.masthead-sub{color:var(--text-secondary); font-size:14px; max-width:60ch;}
+.masthead-actions{display:flex; align-items:center; gap:10px;}
+.action-wrap{position:relative; display:flex;}
+.gear-btn{width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--paper); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); transition:transform .2s, color .2s, border-color .2s; position:relative;}
+.gear-btn:hover{color:var(--steel-strong); border-color:var(--steel);}
+.gear-btn[aria-expanded="true"]{color:var(--steel-strong); border-color:var(--steel);}
+#settings-btn[aria-expanded="true"]{transform:rotate(35deg);}
+.alert-btn.has-alerts{color:var(--warning); border-color:var(--warning);}
+.alert-badge{position:absolute; top:-4px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--critical); color:#fff; font-family:var(--font-mono); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1;}
+.alert-panel{width:340px; max-height:420px; overflow-y:auto;}
+.alert-panel .callout{margin-top:0;}
+.alert-panel .callout + .callout{margin-top:10px;}
+.alert-empty{padding:14px 10px; font-size:12.5px; color:var(--text-muted); text-align:center;}
+.settings-panel{position:absolute; top:calc(100% + 10px); right:0; z-index:40; width:280px; background:var(--paper); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:8px;}
+.settings-panel:not([hidden]){display:flex; flex-direction:column;}
+.settings-panel-head{font-family:var(--font-display); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); padding:8px 10px 6px;}
+.settings-item{display:flex; align-items:center; gap:12px; width:100%; border:none; background:none; padding:9px 10px; border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);}
+button.settings-item:hover{background:var(--sand);}
+.si-icon{font-size:18px; width:26px; text-align:center; flex:none; color:var(--steel);}
+.si-text{display:flex; flex-direction:column; gap:1px; flex:1;}
+.si-title{font-size:13px; font-weight:600;}
+.si-sub{font-size:11px; color:var(--text-muted);}
+.settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
+.settings-theme-row{cursor:default;}
+.switch{position:relative; display:inline-block; width:40px; height:22px; flex:none;}
+.switch input{opacity:0; width:0; height:0;}
+.switch-slider{position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:background .2s;}
+.switch-slider::before{content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.switch input:checked + .switch-slider{background:var(--steel);}
+.switch input:checked + .switch-slider::before{transform:translateX(18px);}
+.switch input:focus-visible + .switch-slider{outline:2px solid var(--steel); outline-offset:2px;}
+.settings-status{margin:6px 6px 2px; font-size:11.5px; padding:8px 9px; border-radius:7px; background:var(--sand); color:var(--text-secondary);}
+.settings-status.ok{background:var(--good-soft); color:var(--good);}
+.settings-status.error{background:var(--critical-soft); color:var(--critical);}
+
+/* Global filter bar */
+.global-filters{display:flex; gap:22px; align-items:flex-end; padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+.global-filters .field label{color:var(--steel-strong);}
+.global-filters .hint{font-size:11.5px; color:var(--text-muted); align-self:center; margin-left:auto;}
+
+/* Tabs */
+.tabbar{display:flex; gap:2px; margin-top:14px; border-bottom:1px solid var(--border); overflow-x:auto;}
+.tabbtn{appearance:none; border:none; background:transparent; cursor:pointer; padding:11px 16px; font-family:var(--font-display); font-weight:700; font-size:14.5px; text-transform:uppercase; letter-spacing:.02em; color:var(--text-muted); border-bottom:3px solid transparent; white-space:nowrap;}
+.tabbtn:hover{color:var(--text-primary);}
+.tabbtn[aria-selected="true"]{color:var(--steel-strong); border-bottom-color:var(--steel);}
+.tabbtn:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--steel); outline-offset:1px;}
+
+.view{display:none; padding-top:22px;}
+.view.active{display:block;}
+
+.card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
+.card + .card{margin-top:16px;}
+.ov-grid > .card, .two-col > .card{margin-top:0;}
+.card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+.card-head h3{font-size:17px;}
+.card-note{font-size:12.5px; color:var(--text-muted);}
+
+.kpi-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:12px;}
+@media (max-width:1080px){.kpi-grid{grid-template-columns:repeat(3,1fr);}}
+@media (max-width:600px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
+.kpi::before{content:"";position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--steel);}
+.kpi.good::before{background:var(--good);} .kpi.warning::before{background:var(--warning);} .kpi.critical::before{background:var(--critical);}
+.kpi .kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-weight:600;}
+.kpi .kpi-value{font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1;}
+.kpi .kpi-sub{font-size:12px; color:var(--text-secondary);}
+
+.callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
+.callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
+.callout h4{font-size:14.5px; margin-bottom:3px; color:var(--text-primary); text-transform:none;}
+.callout p{margin:0; font-size:13.5px; color:var(--text-secondary);}
+.callout.critical{border-color:var(--critical); background:var(--critical-soft);}
+.callout.critical .glyph{color:var(--critical); border-color:var(--critical);}
+.callout.info{border-color:var(--info); background:var(--info-soft);}
+.callout.info .glyph{color:var(--info); border-color:var(--info);}
+
+.filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+.field{display:flex; flex-direction:column; gap:4px;}
+.field label{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600;}
+select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary); min-width:150px;}
+.search-input{min-width:200px;}
+.date-toggle{display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden;}
+.date-toggle button{border:none; background:var(--sand); color:var(--text-secondary); padding:7px 14px; cursor:pointer; font-family:var(--font-mono); font-size:13px; font-weight:500;}
+.date-toggle button.active{background:var(--steel); color:var(--text-on-accent);}
+.date-toggle button:not(:last-child){border-right:1px solid var(--border);}
+
+/* Multi-select OS filter */
+.msel{position:relative; display:inline-block;}
+.msel-btn{font-family:var(--font-body); font-size:13.5px; padding:7px 30px 7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary); min-width:170px; max-width:260px; text-align:left; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative;}
+.msel-btn::after{content:"▾"; position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--text-muted); pointer-events:none;}
+.msel-btn:hover{border-color:var(--steel);}
+.msel.open .msel-btn{border-color:var(--steel);}
+.msel-panel{display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:30; width:280px; max-height:320px; overflow-y:auto; background:var(--paper); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow); padding:6px;}
+.msel.open .msel-panel{display:block;}
+.msel-actions{display:flex; gap:14px; padding:4px 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px;}
+.msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
+.msel-actions button:hover{text-decoration:underline;}
+.msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
+.msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
+.msel-item:hover{background:var(--sand);}
+.msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
+.msel-item .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.msel-empty{padding:10px 6px; font-size:12.5px; color:var(--text-muted);}
+
+.table-scroll{overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
+table{border-collapse:collapse; width:100%; font-size:13.5px;}
+thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
+thead th.num-col, td.num-col{text-align:right;}
+thead th:hover{filter:brightness(1.12);}
+tbody td{padding:8px 12px; border-top:1px solid var(--border-soft); vertical-align:middle;}
+tbody tr.os-row td{background:var(--steel-soft); border-top:2px solid var(--border); padding-top:10px; padding-bottom:10px;}
+tbody tr:hover td{background:var(--border-soft);}
+tbody tr.os-row:hover td{background:var(--steel-soft);}
+.cargo-cell{color:var(--text-secondary);}
+.os-title{font-weight:400; color:var(--text-secondary); font-size:12.5px;}
+.os-head-line{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+.os-head-line .os-name{font-weight:700; font-family:var(--font-mono);}
+.os-mini-bar{flex:1; min-width:140px; max-width:280px; height:10px; background:var(--paper); border:1px solid var(--border); border-radius:4px; overflow:hidden; position:relative;}
+.os-mini-bar .fill-plan{position:absolute; inset:0; background:var(--slate); opacity:.4;}
+.os-mini-bar .fill-real{position:absolute; top:0; bottom:0; left:0; background:var(--steel);}
+.os-mini-nums{font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); white-space:nowrap;}
+
+.chip{display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap;}
+.chip.good{background:var(--good-soft); color:var(--good);}
+.chip.warning{background:var(--warning-soft); color:var(--warning);}
+.chip.critical{background:var(--critical-soft); color:var(--critical);}
+.chip.info{background:var(--info-soft); color:var(--info);}
+.chip.pci{background:var(--border-soft); color:var(--slate);}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+.badge-contrato{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:5px; font-weight:700; letter-spacing:.03em;}
+.badge-contrato.MOA{background:var(--info-soft); color:var(--info);}
+.badge-contrato.PCI{background:var(--pci-chart-soft); color:var(--good);}
+
+.empty-state{padding:30px; text-align:center; color:var(--text-muted); font-size:13.5px;}
+
+/* Heatmap / matrix (shared) */
+.heat-wrap{overflow-x:auto;}
+.heatmap{border-collapse:separate; border-spacing:2px; font-size:11.5px;}
+.heatmap th{position:sticky; background:var(--paper); font-weight:600; color:var(--text-secondary); font-size:10.5px; text-transform:none;}
+.heatmap th.rowlabel{position:sticky; left:0; z-index:2; text-align:left; padding:4px 10px 4px 2px; background:var(--paper); min-width:190px;}
+.heatmap thead th{top:0; z-index:1; padding:3px 2px; text-align:center; cursor:default;}
+.heatmap thead th.wk-first{border-left:2px solid var(--border);}
+.heatmap thead tr.wk-row th{font-family:var(--font-mono); font-size:10px; color:var(--text-muted); letter-spacing:.06em;}
+.heat-cell{width:26px; height:24px; text-align:center; border-radius:4px; font-family:var(--font-mono); font-size:11px; color:var(--text-primary); position:relative;}
+.heat-cell[data-lvl="0"]{color:var(--text-muted);}
+.heat-cell.today{box-shadow:inset 0 0 0 2px var(--critical);}
+.heat-legend{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); margin-top:10px; flex-wrap:wrap;}
+.heat-legend .sw{width:14px; height:14px; border-radius:3px;}
+
+/* Accordion (planejamento por OS) */
+.acc{border:1px solid var(--border-soft); border-radius:9px; margin-bottom:10px; overflow:hidden; background:var(--paper);}
+.acc summary{cursor:pointer; padding:11px 14px; background:var(--sand); display:flex; align-items:center; gap:10px; list-style:none; flex-wrap:wrap;}
+.acc summary::-webkit-details-marker{display:none;}
+.acc summary::before{content:"▸"; display:inline-block; transition:transform .15s; font-size:11px; color:var(--steel); flex:none;}
+.acc[open] summary::before{transform:rotate(90deg);}
+.acc summary .acc-os{font-family:var(--font-mono); font-weight:700; font-size:14px;}
+.acc summary .acc-titulo{font-size:12.5px; color:var(--text-secondary); flex:1; min-width:160px;}
+.acc summary .acc-total{font-family:var(--font-mono); font-size:12px; color:var(--text-muted); margin-left:auto;}
+.acc-body{padding:12px 14px;}
+mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3px; padding:0 2px;}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; margin-top:16px;}
+@media (max-width:900px){.two-col{grid-template-columns:1fr;}}
+.ab-table-scroll{height:520px; overflow-y:auto;}
+.eq-list{max-height:520px; overflow-y:auto; padding-right:4px;}
+.eq-list .bar-row .label{width:200px;}
+
+.foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
+
+.ov-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; align-items:start;}
+@media (max-width:1000px){.ov-grid{grid-template-columns:1fr;}}
+.bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
+.bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border);}
+.bar-fill{height:100%; background:var(--steel); border-radius:4px;}
+.bar-fill.plan{background:var(--slate); opacity:.55;}
+.bar-val{width:44px; text-align:right; font-family:var(--font-mono); font-size:12px; flex:none;}
+
+.pair-table td, .pair-table th{font-size:13px;}
+.pair-table td.arrow-col{color:var(--text-muted); text-align:center; width:30px;}
+.mono-tag{font-family:var(--font-mono); font-size:12px; background:var(--steel-soft); color:var(--steel-strong); padding:1px 7px; border-radius:5px;}
+
+.small-btn{border:1px solid var(--border); background:var(--sand); border-radius:7px; padding:6px 11px; font-size:12.5px; cursor:pointer; color:var(--text-secondary);}
+.small-btn:hover{border-color:var(--steel); color:var(--steel-strong);}
+.small-btn.active{background:var(--steel); border-color:var(--steel); color:var(--text-on-accent);}
+
+/* Absenteeism rows */
+.ab-row{cursor:pointer;}
+.ab-row td:first-child{display:flex; align-items:center; gap:8px;}
+.ab-row .chev{font-size:10px; color:var(--text-muted); transition:transform .15s; display:inline-block;}
+.ab-row.expanded .chev{transform:rotate(90deg);}
+.ab-detail td{background:var(--sand); padding:10px 14px;}
+.person-chip{display:inline-flex; flex-direction:column; gap:1px; background:var(--paper); border:1px solid var(--border-soft); border-radius:7px; padding:5px 9px; font-size:11.5px; margin:3px 5px 3px 0;}
+.person-chip .n{font-weight:600; color:var(--text-primary);}
+.person-chip .m{font-family:var(--font-mono); color:var(--text-muted); font-size:10.5px;}
+
+.stat-strip{display:flex; gap:22px; flex-wrap:wrap; margin-bottom:14px;}
+.stat-strip .s{display:flex; flex-direction:column; gap:2px;}
+.stat-strip .s .v{font-family:var(--font-mono); font-size:19px; font-weight:600;}
+.stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+
+.ov-table-name{font-weight:600;}
+tr.cf-os-row{cursor:pointer;}
+tr.cf-os-row td:first-child{position:relative;}
+tr.cf-os-row.expanded td{background:var(--steel-soft);}
+tr.cf-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+tr.cf-detail-row td{background:var(--sand); border-top:none;}
+tr.cf-detail-row .cf-cargo-name{color:var(--text-secondary); padding-left:34px; position:relative;}
+tr.cf-detail-row .cf-cargo-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
+td.confronto-col{min-width:170px;}
+td.confronto-col .os-mini-bar{display:block; width:100%; max-width:none;}
+td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
+
+/* Donut chart */
+.donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
+.donut-center-label{font-family:var(--font-mono); font-weight:600;}
+.donut-legend{display:flex; flex-direction:column; gap:12px; flex:1; min-width:200px;}
+.donut-legend-row{display:flex; align-items:center; gap:10px;}
+.donut-legend-row .sw{width:12px; height:12px; border-radius:3px; flex:none;}
+.donut-legend-row .txt{display:flex; flex-direction:column; gap:1px;}
+.donut-legend-row .txt .n{font-weight:600; font-size:13.5px;}
+.donut-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
+
+/* Colab. por OS — dynamic accordion + data bars */
+.colab-acc-wrap{display:flex; flex-direction:column; gap:10px;}
+.colab-acc{border:1px solid var(--border-soft); border-radius:9px; overflow:hidden; background:var(--paper);}
+.colab-acc summary{cursor:pointer; padding:9px 14px; background:var(--sand); display:flex; align-items:center; gap:10px; list-style:none;}
+.colab-acc summary::-webkit-details-marker{display:none;}
+.colab-acc summary::before{content:"▸"; display:inline-block; transition:transform .15s; font-size:10px; color:var(--slate); flex:none;}
+.colab-acc[open] summary::before{transform:rotate(90deg);}
+.colab-acc summary .cg-label{font-weight:700; font-size:12.5px; text-transform:uppercase; letter-spacing:.05em;}
+.colab-acc summary .cg-count{margin-left:auto; font-family:var(--font-mono); font-size:12.5px; color:var(--text-secondary);}
+.colab-acc-body{padding:8px 14px 10px;}
+.colab-row{display:flex; align-items:center; gap:10px; padding:4px 0;}
+.colab-row .os{width:64px; flex:none; font-family:var(--font-mono); font-size:12.5px; font-weight:600; color:var(--text-primary);}
+.colab-row .track{flex:1; height:11px; background:var(--sand); border:1px solid var(--border-soft); border-radius:4px; overflow:hidden; position:relative;}
+.colab-row .fill{position:absolute; inset:0; border-radius:3px; transition:width .2s;}
+.colab-row .val{width:30px; text-align:right; font-family:var(--font-mono); font-size:12.5px; font-weight:600; flex:none;}
+.colab-grand-bar{display:flex; align-items:center; justify-content:space-between; padding:11px 16px; background:var(--ink); color:var(--sand); border-radius:9px; font-weight:700; font-size:14px;}
+.colab-grand-bar .v{font-family:var(--font-mono); font-size:18px;}
+:root[data-theme="dark"] .colab-grand-bar{background:var(--steel-strong); color:var(--text-on-accent);}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .colab-grand-bar{background:var(--steel-strong); color:var(--text-on-accent);} }
+
+/* S-curve (Empilhado x Real) — deliberately dark/tech panel in both themes */
+.scurve-card{background:#0a1016; border:1px solid #1c2b35; box-shadow:0 0 0 1px rgba(79,166,224,.08), 0 24px 60px -24px rgba(0,0,0,.7);}
+.scurve-card .card-head h3{color:#eaf6ff;}
+.scurve-card .card-note{color:#7286a0;}
+.scurve-kpis{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:16px;}
+.scurve-kpis .sk{display:flex; flex-direction:column; gap:3px;}
+.scurve-kpis .sk .v{font-family:var(--font-mono); font-size:22px; font-weight:700; color:#eaf6ff; text-shadow:0 0 12px rgba(143,212,232,.25);}
+.scurve-kpis .sk .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:#7286a0;}
+.scurve-wrap{width:100%; overflow-x:auto;}
+.scurve-wrap svg{display:block; width:100%; height:auto;}
+.scurve-grid-line{stroke:#182530; stroke-width:1; shape-rendering:crispEdges;}
+.scurve-axis-label{fill:#5e7285; font-family:var(--font-mono); font-size:10px;}
+.scurve-axis-label.today{fill:#f0564f;}
+.scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
+.scurve-line-planned{stroke:#4fa3d9; stroke-width:2.5; filter:drop-shadow(0 0 5px rgba(79,163,217,.65));}
+.scurve-line-real{stroke:#8ed45a; stroke-width:3; filter:drop-shadow(0 0 7px rgba(142,212,90,.8));}
+.scurve-area-real{fill:url(#scurveGradReal); opacity:.55;}
+.scurve-dot-real{fill:#0a1016; stroke:#8ed45a; stroke-width:2.5; filter:drop-shadow(0 0 5px rgba(142,212,90,.9));}
+.scurve-dot-today{fill:#8ed45a; animation:scurvePulse 1.8s ease-in-out infinite;}
+@keyframes scurvePulse{ 0%,100%{opacity:1; r:6;} 50%{opacity:.45; r:10;} }
+.scurve-legend{display:flex; gap:24px; flex-wrap:wrap; margin-top:14px;}
+.scurve-legend .sl-item{display:flex; align-items:center; gap:9px; font-family:var(--font-mono); font-size:12px; color:#c2d2df;}
+.scurve-legend .sl-sw{width:24px; height:3px; border-radius:2px; flex:none;}
+.scurve-legend .sl-sw.planned{background:#4fa3d9; box-shadow:0 0 6px rgba(79,163,217,.7);}
+.scurve-legend .sl-sw.real{background:#8ed45a; box-shadow:0 0 6px rgba(142,212,90,.8);}
+</style>
+
+<div class="app">
+
+  <header class="masthead">
+    <div class="masthead-title">
+      <span class="eyebrow">Painel de Confronto &middot; Mão de Obra</span>
+      <h1>Efetivo &times; Empilhamento Semanal</h1>
+    </div>
+    <div class="masthead-actions">
+      <div class="action-wrap">
+        <button class="gear-btn alert-btn" id="alerts-btn" type="button" title="Avisos" aria-label="Avisos" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="alert-badge" id="alert-badge" hidden>0</span>
+        </button>
+        <div class="settings-panel alert-panel" id="alerts-panel" hidden>
+          <div class="settings-panel-head">Avisos</div>
+          <div id="alerts-list"></div>
+        </div>
+      </div>
+      <div class="action-wrap">
+        <button class="gear-btn" id="settings-btn" type="button" title="Configurações" aria-label="Configurações" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div class="settings-panel" id="settings-panel" hidden>
+          <div class="settings-panel-head">Configurações</div>
+          <button class="settings-item" id="settings-upload-btn" type="button">
+            <span class="si-icon">⭱</span>
+            <span class="si-text"><span class="si-title">Atualizar dados</span><span class="si-sub">Importar nova planilha .xlsx</span></span>
+          </button>
+          <input type="file" id="settings-file-input" accept=".xlsx" hidden>
+          <div class="settings-divider"></div>
+          <div class="settings-item settings-theme-row">
+            <span class="si-icon" id="theme-icon">◐</span>
+            <span class="si-text"><span class="si-title">Modo escuro</span><span class="si-sub" id="theme-sub">Desativado</span></span>
+            <label class="switch"><input type="checkbox" id="theme-toggle"><span class="switch-slider"></span></label>
+          </div>
+          <div class="settings-status" id="settings-status" hidden></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="global-filters">
+    <div class="field"><label>Data</label><select id="date-select-global"></select></div>
+    <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
+    <span class="hint">Esses dois filtros afetam todas as abas abaixo.</span>
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
+    <button class="tabbtn" data-tab="confronto" aria-selected="false">Confronto Diário</button>
+    <button class="tabbtn" data-tab="planejamento" aria-selected="false">Planejamento Semanal</button>
+    <button class="tabbtn" data-tab="ausencias" aria-selected="false">Ausências &amp; Absenteísmo</button>
+    <button class="tabbtn" data-tab="apoio" aria-selected="false">Apoio Distribuído</button>
+  </nav>
+
+  <!-- ================= VISÃO GERAL ================= -->
+  <section class="view active" id="view-visao">
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="ov-grid">
+      <div class="card">
+        <div class="card-head"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span></div>
+        <div id="ov-contrato-chart"></div>
+        <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Colaboradores presentes por OS</h4></div>
+        <div id="ov-colab-table"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>Colaboradores por Supervisor / Encarregado &times; OS</h3>
+          <div class="filters">
+            <div class="field"><label>Agrupar por</label><div class="date-toggle" id="eq-mode"></div></div>
+            <div class="field"><label>Buscar nome</label><input class="search-input" id="eq-search" placeholder="ex: Gilson"></div>
+          </div>
+        </div>
+        <p class="card-note" style="margin-bottom:10px;">Contagem de presentes por OS na data e contrato selecionados. Ordenado pelo total de pessoas.</p>
+        <div id="eq-list" class="eq-list"></div>
+        <div class="empty-state" id="eq-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CONFRONTO ================= -->
+  <section class="view" id="view-confronto">
+    <div class="card">
+      <div class="card-head">
+        <h3>Confronto OS &times; Função</h3>
+        <div class="filters">
+          <div class="field"><label>OS</label><div class="msel" id="cf-os-msel"></div></div>
+          <div class="field"><label>Disciplina</label><select id="cf-disc"></select></div>
+          <div class="field"><label>Situação</label><select id="cf-status">
+            <option value="all">Todas</option>
+            <option value="good">OK</option>
+            <option value="warning">Divergência leve</option>
+            <option value="critical">Divergência</option>
+            <option value="info">Fora do plano</option>
+            <option value="pci">Contrato PCI</option>
+          </select></div>
+        </div>
+      </div>
+      <p class="card-note" style="margin-bottom:10px;">Dê dois cliques em uma linha de OS para ver o detalhamento por função.</p>
+      <div class="stat-strip" id="cf-stats"></div>
+      <div class="table-scroll">
+        <table id="cf-table">
+          <thead id="cf-thead"></thead>
+          <tbody id="cf-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="cf-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
+    </div>
+  </section>
+
+  <!-- ================= PLANEJAMENTO ================= -->
+  <section class="view" id="view-planejamento">
+    <div class="card">
+      <div class="card-head">
+        <h3>Empilhamento por OS &middot; Sem. 32&ndash;35 / 2026</h3>
+        <div class="filters">
+          <div class="field"><label>OS</label><div class="msel" id="hm-os-msel"></div></div>
+          <div class="field"><label>Buscar função</label><input class="search-input" id="hm-search" placeholder="ex: soldador"></div>
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="scurve-toggle-btn" type="button">&#128200; Empilhado x Real</button></div>
+        </div>
+      </div>
+      <div id="plan-empilhamento-body">
+        <p class="card-note" style="margin-bottom:12px;">Cada bloco corresponde a uma OS, igual à aba Emp Semanal — facilita conferir linha a linha. A coluna com contorno vermelho é a data selecionada no filtro global.</p>
+        <div id="plan-accordions"></div>
+        <div class="empty-state" id="plan-empty" style="display:none;">Contrato PCI não possui empilhamento cadastrado na Emp Semanal.</div>
+        <div class="heat-legend">
+          <span>Efetivo empilhado:</span>
+          <span class="sw" style="background:var(--heat-0)"></span><span>0</span>
+          <span class="sw" style="background:var(--heat-1)"></span>
+          <span class="sw" style="background:var(--heat-2)"></span>
+          <span class="sw" style="background:var(--heat-3)"></span>
+          <span class="sw" style="background:var(--heat-4)"></span>
+          <span class="sw" style="background:var(--heat-5)"></span><span>máx da OS</span>
+          <span style="margin-left:14px; display:inline-flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;box-shadow:inset 0 0 0 2px var(--critical);display:inline-block;"></span> data selecionada no filtro global</span>
+        </div>
+      </div>
+    </div>
+    <div class="card scurve-card" id="scurve-card" hidden>
+      <div class="card-head">
+        <h3>Curva S &middot; Empilhado &times; Real</h3>
+        <span class="card-note">Acumulado de pessoas&middot;dia — previsto (Emp Semanal) vs. apontado (Efetivo)</span>
+      </div>
+      <div id="scurve-kpis" class="scurve-kpis"></div>
+      <div id="scurve-chart" class="scurve-wrap"></div>
+      <div id="scurve-legend" class="scurve-legend"></div>
+    </div>
+  </section>
+
+  <!-- ================= AUSÊNCIAS & ABSENTEÍSMO ================= -->
+  <section class="view" id="view-ausencias">
+    <div class="card">
+      <div class="card-head"><h3>Absenteísmo do dia</h3></div>
+      <div class="stat-strip" id="ab-stats"></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Absenteísmo por Função</h3><span class="card-note">Clique numa linha para ver os ausentes</span></div>
+        <div class="table-scroll ab-table-scroll">
+          <table>
+            <thead><tr><th>Função</th><th class="num-col">Escalados</th><th class="num-col">Faltas</th><th style="min-width:140px;">Absenteísmo</th></tr></thead>
+            <tbody id="ab-cargo-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Absenteísmo por Disciplina</h3><span class="card-note">Clique numa linha para ver os ausentes</span></div>
+        <div class="table-scroll ab-table-scroll">
+          <table>
+            <thead><tr><th>Disciplina</th><th class="num-col">Escalados</th><th class="num-col">Faltas</th><th style="min-width:140px;">Absenteísmo</th></tr></thead>
+            <tbody id="ab-disc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= APOIO DISTRIBUÍDO ================= -->
+  <section class="view" id="view-apoio">
+    <div class="card">
+      <div class="card-head"><h3>Apontamento das Disciplinas de Apoio</h3><span class="card-note">Solda &middot; Pintura &middot; Topografia &middot; Movimentação de Carga &middot; Andaime</span></div>
+      <div class="stat-strip" id="apoio-stats"></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>Detalhado por OS</h3><span class="card-note">Onde o apoio está alocado</span></div>
+        <div id="apoio-os-list" style="max-height:520px; overflow-y:auto;"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Análise por Função</h3><span class="card-note">Presentes por função, todas as OS</span></div>
+        <div id="apoio-cargo-list" style="max-height:520px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= QUALIDADE ================= -->
+  <section class="view" id="view-qualidade">
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h3>De-Para de Funções</h3><span class="card-note" id="dp-count"></span></div>
+        <div class="table-scroll">
+          <table class="pair-table">
+            <thead><tr><th>Emp Semanal</th><th class="arrow-col"></th><th>Efetivo (correto)</th></tr></thead>
+            <tbody id="dp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>OS por contrato</h3></div>
+        <p class="card-note" style="margin-bottom:10px;">Classificação aplicada: OS 35732, 37131, 37132 e 37581 = contrato <b>PCI</b> (sem empilhamento); demais OS = contrato <b>MOA</b>.</p>
+        <div id="qual-mismatch"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Premissas aplicadas no cruzamento</h3></div>
+      <ul id="qual-notes" style="margin:0; padding-left:20px; font-size:13.5px; color:var(--text-secondary); display:flex; flex-direction:column; gap:8px;"></ul>
+    </div>
+  </section>
+
+  <div class="foot-note">
+    Painel gerado a partir de <span class="mono-tag">Apontamento_x_Empilhamento.xlsx</span> (abas Efetivo, Emp Semanal e Depara_Função). Datas da Emp Semanal calculadas por calendário ISO de 2026 (semana/dia da semana → data).
+  </div>
+</div>
+
+<script id="bundle-data" type="application/json">__DATA_JSON__</script>
+<script>
+(function(){
+"use strict";
+let DATA = JSON.parse(document.getElementById('bundle-data').textContent);
+const fmtInt = n => n.toLocaleString('pt-BR');
+const fmtPct = n => (n*100).toFixed(0) + '%';
+const fmtPct1 = n => (n*100).toFixed(1) + '%';
+
+function osLabel(osKey){ return osKey === 'Apoio' ? 'Apoio' : osKey; }
+function osTitulo(osKey){ const m = DATA.os_meta[osKey]; if(!m) return ''; return m.titulo || (m.somente_efetivo ? 'Sem plano cadastrado' : ''); }
+function osSortVal(osKey){ if(osKey === 'Apoio') return -1; const n = parseInt(osKey,10); return isNaN(n) ? 999999 : n; }
+function contratoOfOs(osKey){ const m = DATA.os_meta[String(osKey)]; return m ? m.contrato : 'MOA'; }
+function escHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function relLuminance(hex){
+  hex = (hex||'').replace('#','').trim();
+  if(hex.length!==6) return 1;
+  const r=parseInt(hex.slice(0,2),16)/255, g=parseInt(hex.slice(2,4),16)/255, b=parseInt(hex.slice(4,6),16)/255;
+  const lin = c => c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4);
+  return 0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b);
+}
+function heatTextColors(){
+  const cs = getComputedStyle(document.documentElement);
+  const colors = [];
+  for(let lvl=0; lvl<=5; lvl++){
+    const hex = cs.getPropertyValue('--heat-'+lvl).trim();
+    colors.push(relLuminance(hex) > 0.42 ? '#121212' : '#ffffff');
+  }
+  return colors;
+}
+function highlightMatch(text, term){
+  if(!term) return escHtml(text);
+  const idx = text.toLowerCase().indexOf(term.toLowerCase());
+  if(idx===-1) return escHtml(text);
+  return escHtml(text.slice(0,idx)) + '<mark>' + escHtml(text.slice(idx, idx+term.length)) + '</mark>' + escHtml(text.slice(idx+term.length));
+}
+
+/* ---------- state ---------- */
+const state = {
+  date: DATA.datas_apontamento[DATA.datas_apontamento.length-1],
+  contrato: 'all',
+  cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
+  hm: {os:new Set(), search:'', scurve:false},
+  eq: {mode:'supervisor', search:''},
+};
+
+function fmtDateLabel(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dias=['dom','seg','ter','qua','qui','sex','sáb'];
+  return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+' ('+dias[d.getDay()]+')';
+}
+function fmtDateLabelFull(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' — '+dias[d.getDay()];
+}
+
+/* ---------- filtered accessors (contrato-aware) ---------- */
+function passContrato(c){ return state.contrato==='all' || c===state.contrato; }
+function efetivoForDate(date){ return DATA.efetivo.filter(r => r.data===date && r.os!==null && passContrato(r.contrato)); }
+function planForDate(date){ return DATA.emp_semanal.filter(r => r.data===date && passContrato(contratoOfOs(r.os))); }
+function planAll(){ return DATA.emp_semanal.filter(r => passContrato(contratoOfOs(r.os))); }
+
+/* ---------- confronto build ---------- */
+function buildConfronto(date){
+  const ef = efetivoForDate(date);
+  const plan = planForDate(date);
+  const map = new Map();
+
+  ef.forEach(r=>{
+    const os = String(r.os);
+    const key = os+'|'+r.cargo;
+    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
+    const row = map.get(key);
+    if(r.presente) row.apontado++; else row.ausente++;
+  });
+  plan.forEach(r=>{
+    const os = String(r.os);
+    const key = os+'|'+r.cargo;
+    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
+    map.get(key).planejado += r.qtd_planejada;
+  });
+
+  return Array.from(map.values()).map(r=>{
+    const diferenca = r.apontado - r.planejado;
+    const meta = DATA.os_meta[r.os] || {};
+    let status;
+    if(meta.contrato === 'PCI') status = 'pci';
+    else if(r.planejado === 0 && r.apontado > 0) status = 'info';
+    else if(r.planejado > 0 && r.apontado === 0) status = 'critical';
+    else if(diferenca === 0) status = 'good';
+    else if(Math.abs(diferenca) <= Math.max(1, Math.round(r.planejado*0.15))) status = 'warning';
+    else status = 'critical';
+    return Object.assign(r, {diferenca, status, titulo: meta.titulo || '', disciplina: meta.disciplina || '', contrato: meta.contrato || 'MOA'});
+  });
+}
+const STATUS_LABEL = {good:'OK', warning:'Divergência leve', critical:'Divergência', info:'Fora do plano', pci:'Contrato PCI'};
+
+/* ---------- global filter controls ---------- */
+function renderGlobalFilters(){
+  const dsel = document.getElementById('date-select-global');
+  if(dsel.options.length !== DATA.datas_apontamento.length){
+    dsel.innerHTML = '';
+    DATA.datas_apontamento.forEach(d=>{
+      const opt = document.createElement('option'); opt.value=d; opt.textContent=fmtDateLabelFull(d);
+      dsel.appendChild(opt);
+    });
+  }
+  dsel.value = state.date;
+  const cbox = document.getElementById('contrato-toggle-global');
+  cbox.innerHTML = '';
+  [['all','Todos'],['MOA','MOA'],['PCI','PCI']].forEach(([val,label])=>{
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    if(state.contrato===val) btn.classList.add('active');
+    btn.addEventListener('click', ()=>{ state.contrato=val; renderAll(); });
+    cbox.appendChild(btn);
+  });
+}
+
+/* ---------- KPIs & Visão Geral ---------- */
+function renderKPIs(){
+  const ef = efetivoForDate(state.date);
+  const total = ef.length;
+  const presentes = ef.filter(r=>r.presente).length;
+  const ausentes = total - presentes;
+  const pct = total? presentes/total : 0;
+
+  const rows = buildConfronto(state.date);
+  const totalPlanejado = rows.reduce((a,r)=>a+r.planejado,0);
+  const semPlano = rows.filter(r=>r.status==='info').reduce((a,r)=>a+r.apontado,0);
+  const naoIniciado = rows.filter(r=>r.planejado>0 && r.apontado===0).reduce((a,r)=>a+r.planejado,0);
+
+  const planSub = state.contrato==='PCI' ? 'contrato PCI não possui plano' : 'soma do dia, OS no filtro';
+  const kpis = [
+    {label:'Efetivo apontado', value:fmtInt(total), sub:fmtDateLabel(state.date), cls:''},
+    {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
+    {label:'Ausentes', value:fmtInt(ausentes), sub:pct<0.85?'atenção à cobertura':'dentro do esperado', cls: ausentes>total*0.15?'critical':'warning'},
+    {label:'Empilhado (Emp. Semanal)', value:fmtInt(totalPlanejado), sub:planSub, cls:''},
+    {label:'Fora do plano', value:fmtInt(semPlano), sub:'apontados sem previsão (MOA)', cls: semPlano>0?'warning':'good'},
+    {label:'Empilhado sem apontar', value:fmtInt(naoIniciado), sub:'previsto e não confirmado', cls: naoIniciado>0?'critical':'good'},
+  ];
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  kpis.forEach(k=>{
+    const el = document.createElement('div');
+    el.className = 'kpi '+k.cls;
+    el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    grid.appendChild(el);
+  });
+
+  renderCallouts(rows, ef);
+  renderContratoChart(ef);
+  renderOsColabTable(ef);
+}
+
+function renderCallouts(rows, ef){
+  const box = document.getElementById('alerts-list');
+  box.innerHTML = '';
+
+  const anomalousMoa = Object.entries(DATA.os_meta).filter(([k,m])=> m.somente_efetivo && m.contrato==='MOA');
+  if(anomalousMoa.length>0 && state.contrato!=='PCI'){
+    const headcount = ef.filter(r => anomalousMoa.some(([k])=>k===String(r.os))).length;
+    if(headcount>0){
+      const el = document.createElement('div');
+      el.className = 'callout critical';
+      el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(headcount)} pessoas em OS do contrato MOA sem plano na Emp Semanal</h4><p>OS ${anomalousMoa.map(([k])=>k).join(', ')} têm apontamento no Efetivo mas não constam na Emp Semanal — provável atraso de cadastro do plano.</p></div>`;
+      box.appendChild(el);
+    }
+  }
+  const pciHeadcount = ef.filter(r=>r.contrato==='PCI').length;
+  if(pciHeadcount>0){
+    const el = document.createElement('div');
+    el.className = 'callout info';
+    el.innerHTML = `<span class="glyph">i</span><div><h4>${fmtInt(pciHeadcount)} pessoas no contrato PCI (sem empilhamento por natureza)</h4><p>PCI não possui plano na Emp Semanal — isso é esperado, não é uma divergência. Use o filtro de Contrato para isolar MOA e ver só o que tem plano.</p></div>`;
+    box.appendChild(el);
+  }
+  const naoApontados = rows.filter(r=>r.planejado>0 && r.apontado===0);
+  if(naoApontados.length>0){
+    const totalGap = naoApontados.reduce((a,r)=>a+r.planejado,0);
+    const el = document.createElement('div');
+    el.className = 'callout';
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(totalGap)} vagas empilhadas sem nenhum apontamento em ${fmtDateLabel(state.date)}</h4><p>${naoApontados.length} combinações OS/função previstas na Emp Semanal ainda não aparecem no Efetivo desta data.</p></div>`;
+    box.appendChild(el);
+  }
+
+  const count = box.children.length;
+  const badge = document.getElementById('alert-badge');
+  const alertsBtn = document.getElementById('alerts-btn');
+  if(count>0){
+    badge.hidden = false; badge.textContent = count;
+    alertsBtn.classList.add('has-alerts');
+  } else {
+    badge.hidden = true;
+    alertsBtn.classList.remove('has-alerts');
+    box.innerHTML = '<div class="alert-empty">Nenhum aviso para os filtros atuais.</div>';
+  }
+}
+
+function renderContratoChart(ef){
+  const box = document.getElementById('ov-contrato-chart');
+  const contratos = ['MOA','PCI'];
+  const stats = contratos.map(c=>{
+    const rows = ef.filter(r=>contratoOfOs(String(r.os))===c);
+    const presentes = rows.filter(r=>r.presente).length;
+    return {c, total: rows.length, presentes, ausentes: rows.length-presentes};
+  });
+  const grand = stats.reduce((a,s)=>a+s.presentes,0);
+  const colorStyle = c => c==='MOA' ? 'var(--chart-moa)' : 'var(--pci-chart)';
+
+  const r=46, cx=60, cy=60, sw=18;
+  const C = 2*Math.PI*r;
+  const gap = grand>0 ? 3 : 0;
+
+  let segmentsSvg = '';
+  if(grand===0){
+    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--border-soft);" stroke-width="${sw}"/>`;
+  } else {
+    let offset = 0;
+    stats.forEach(s=>{
+      if(s.presentes<=0) return;
+      const share = s.presentes/grand;
+      const len = Math.max(share*C - gap, 0);
+      segmentsSvg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${colorStyle(s.c)};" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += share*C;
+    });
+  }
+
+  const svg = `<svg width="140" height="140" viewBox="0 0 120 120" role="img" aria-label="Presentes por contrato: MOA e PCI">
+      ${segmentsSvg}
+      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:22px; fill:var(--text-primary);">${fmtInt(grand)}</text>
+      <text x="60" y="73" text-anchor="middle" style="font-size:9.5px; fill:var(--text-muted); font-family:var(--font-body);">presentes</text>
+    </svg>`;
+
+  const legend = stats.map(s=>{
+    return `<div class="donut-legend-row">
+      <span class="sw" style="background:${colorStyle(s.c)}"></span>
+      <span class="txt"><span class="n">${s.c}</span><span class="d">${fmtInt(s.presentes)} presentes</span></span>
+    </div>`;
+  }).join('');
+
+  box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div></div>`;
+}
+
+function renderOsColabTable(ef){
+  const box = document.getElementById('ov-colab-table');
+  const byOs = new Map();
+  ef.forEach(r=>{
+    if(!r.presente) return;
+    const os = String(r.os);
+    byOs.set(os, (byOs.get(os)||0) + 1);
+  });
+
+  if(byOs.size===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+
+  const maxVal = Math.max(1, ...byOs.values());
+  const groups = [['PCI','PCI','var(--pci-chart)'],['MOA','MOA','var(--chart-moa)']];
+  let grandTotal = 0;
+
+  const groupsHtml = groups.map(([contrato,label,color])=>{
+    const entries = Array.from(byOs.entries())
+      .filter(([os])=>contratoOfOs(os)===contrato)
+      .sort((a,b)=>b[1]-a[1]);
+    if(entries.length===0) return '';
+    const subtotal = entries.reduce((a,[,v])=>a+v,0);
+    grandTotal += subtotal;
+    const rowsHtml = entries.map(([os,v])=>`
+      <div class="colab-row">
+        <span class="os">${escHtml(osLabel(os))}</span>
+        <span class="track"><span class="fill" style="width:${100*v/maxVal}%; background:${color};"></span></span>
+        <span class="val">${v}</span>
+      </div>`).join('');
+    return `<details class="colab-acc" open>
+        <summary><span class="cg-label">${label}</span><span class="badge-contrato ${contrato}">${entries.length} OS</span><span class="cg-count">${subtotal} colab.</span></summary>
+        <div class="colab-acc-body">${rowsHtml}</div>
+      </details>`;
+  }).join('');
+
+  box.innerHTML = `<div class="colab-acc-wrap">${groupsHtml}
+    <div class="colab-grand-bar"><span>Total Geral</span><span class="v">${grandTotal}</span></div>
+  </div>`;
+}
+
+/* ---------- Confronto table ---------- */
+function populateSelect(sel, options, allLabel, current){
+  sel.innerHTML = '';
+  const optAll = document.createElement('option'); optAll.value='all'; optAll.textContent=allLabel;
+  sel.appendChild(optAll);
+  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o.value; opt.textContent=o.label; sel.appendChild(opt); });
+  sel.value = current || 'all';
+}
+
+function buildOsMultiSelect(containerId, osOptions, selectedSet, onChange, allLabel){
+  const container = document.getElementById(containerId);
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  function updateBtnLabel(){
+    if(selectedSet.size===0) btn.textContent = allLabel;
+    else if(selectedSet.size<=2) btn.textContent = Array.from(selectedSet).map(v=>osLabel(v)).join(', ');
+    else btn.textContent = selectedSet.size + ' OS selecionadas';
+  }
+
+  if(osOptions.length===0){
+    panel.innerHTML = '<div class="msel-empty">Nenhuma OS disponível.</div>';
+    updateBtnLabel();
+    return;
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="none">Limpar</button>`;
+  panel.appendChild(actions);
+
+  [['PCI','PCI'],['MOA','MOA']].forEach(([contrato,label])=>{
+    const items = osOptions.filter(o=>o.contrato===contrato);
+    if(items.length===0) return;
+    const groupLabel = document.createElement('div'); groupLabel.className='msel-group-label'; groupLabel.textContent=label;
+    panel.appendChild(groupLabel);
+    items.forEach(o=>{
+      const row = document.createElement('label'); row.className='msel-item';
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = selectedSet.has(o.value);
+      cb.addEventListener('change', ()=>{
+        if(cb.checked) selectedSet.add(o.value); else selectedSet.delete(o.value);
+        updateBtnLabel();
+        onChange();
+      });
+      const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent=o.label; lbl.title=o.label;
+      row.appendChild(cb); row.appendChild(lbl);
+      panel.appendChild(row);
+    });
+  });
+
+  updateBtnLabel();
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    osOptions.forEach(o=>selectedSet.add(o.value));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); onChange();
+  });
+  actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
+    selectedSet.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    updateBtnLabel(); onChange();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+}
+document.addEventListener('click', (e)=>{ document.querySelectorAll('.msel.open').forEach(m=>{ if(!m.contains(e.target)) m.classList.remove('open'); }); });
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') document.querySelectorAll('.msel.open').forEach(m=>m.classList.remove('open')); });
+
+function renderConfrontoControls(){
+  const visibleOs = Object.keys(DATA.os_meta).filter(k=>passContrato(DATA.os_meta[k].contrato)).sort((a,b)=>osSortVal(a)-osSortVal(b));
+  const osOptions = visibleOs.map(k=>({value:k,label:osLabel(k)+(DATA.os_meta[k].titulo? ' — '+DATA.os_meta[k].titulo.slice(0,34):''), contrato:DATA.os_meta[k].contrato}));
+
+  const validSet = new Set(visibleOs);
+  Array.from(state.cf.os).forEach(v=>{ if(!validSet.has(v)) state.cf.os.delete(v); });
+  Array.from(state.hm.os).forEach(v=>{ if(!validSet.has(v)) state.hm.os.delete(v); });
+
+  buildOsMultiSelect('cf-os-msel', osOptions, state.cf.os, ()=>renderConfrontoTable(), 'Todas as OS');
+  buildOsMultiSelect('hm-os-msel', osOptions, state.hm.os, ()=>renderPlanejamento(), 'Todas as OS');
+
+  const discs = Array.from(new Set(visibleOs.map(k=>DATA.os_meta[k].disciplina).filter(Boolean))).sort();
+  populateSelect(document.getElementById('cf-disc'), discs.map(d=>({value:d,label:d})), 'Todas as disciplinas', state.cf.disc);
+}
+
+function aggregateStatus(os, planejado, apontado, diferenca){
+  const contrato = contratoOfOs(os);
+  if(contrato === 'PCI') return 'pci';
+  if(planejado === 0 && apontado > 0) return 'info';
+  if(planejado > 0 && apontado === 0) return 'critical';
+  if(diferenca === 0) return 'good';
+  if(Math.abs(diferenca) <= Math.max(1, Math.round(planejado*0.15))) return 'warning';
+  return 'critical';
+}
+
+function renderConfrontoTable(){
+  const f = state.cf;
+  let rows = buildConfronto(state.date);
+  if(f.os.size) rows = rows.filter(r=>f.os.has(r.os));
+  if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
+
+  const thead = document.getElementById('cf-thead');
+  const tbody = document.getElementById('cf-tbody');
+
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, planejado:0, apontado:0, ausente:0, contrato:r.contrato, titulo:r.titulo, cargos:[]});
+    const o = byOs.get(r.os);
+    o.planejado += r.planejado; o.apontado += r.apontado; o.ausente += r.ausente;
+    o.cargos.push(r);
+  });
+  let osRows = Array.from(byOs.values()).map(o=>{
+    const diferenca = o.apontado - o.planejado;
+    return Object.assign(o, {diferenca, status: aggregateStatus(o.os, o.planejado, o.apontado, diferenca)});
+  });
+  if(f.status!=='all') osRows = osRows.filter(o=>o.status===f.status);
+  osRows.sort((a,b)=>osSortVal(a.os)-osSortVal(b.os));
+
+  const validOs = new Set(osRows.map(o=>o.os));
+  Array.from(f.expanded).forEach(k=>{ if(!validOs.has(k)) f.expanded.delete(k); });
+
+  const stats = osRows.reduce((a,o)=>{a.planejado+=o.planejado; a.apontado+=o.apontado; return a;}, {planejado:0,apontado:0});
+  document.getElementById('cf-stats').innerHTML = `
+    <div class="s"><span class="v num">${stats.planejado}</span><span class="k">Empilhado</span></div>
+    <div class="s"><span class="v num">${stats.apontado}</span><span class="k">Apontado</span></div>
+    <div class="s"><span class="v num">${stats.apontado-stats.planejado>=0?'+':''}${stats.apontado-stats.planejado}</span><span class="k">Diferença</span></div>
+    <div class="s"><span class="v num">${osRows.length}</span><span class="k">OS no resumo</span></div>`;
+
+  thead.innerHTML = `<tr>
+      <th>OS</th><th>Contrato</th><th>Título</th><th style="min-width:180px;">Confronto</th>
+      <th class="num-col">Empilhado</th><th class="num-col">Apontado</th><th class="num-col">Diferença</th><th>Situação</th>
+    </tr>`;
+  tbody.innerHTML = '';
+  document.getElementById('cf-empty').style.display = osRows.length? 'none':'block';
+  osRows.forEach(o=>{
+    const localMax = Math.max(1, o.planejado, o.apontado);
+    const diffStr = (o.diferenca>0?'+':'')+o.diferenca;
+    const expanded = f.expanded.has(o.os);
+    const tr = document.createElement('tr');
+    tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
+    tr.title = 'Duplo clique para ' + (expanded ? 'recolher' : 'detalhar por função');
+    tr.innerHTML = `
+      <td class="ov-table-name">OS ${escHtml(osLabel(o.os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
+      <td><span class="badge-contrato ${o.contrato}">${o.contrato}</span></td>
+      <td class="cargo-cell">${escHtml(o.titulo)}</td>
+      <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*o.planejado/localMax}%"></span><span class="fill-real" style="width:${100*o.apontado/localMax}%"></span></span><span class="os-mini-nums">emp ${o.planejado} &middot; real ${o.apontado}</span></td>
+      <td class="num-col num">${o.planejado}</td>
+      <td class="num-col num">${o.apontado}</td>
+      <td class="num-col num">${diffStr}</td>
+      <td><span class="chip ${o.status}">${STATUS_LABEL[o.status]}</span></td>`;
+    tr.addEventListener('dblclick', ()=>{
+      if(f.expanded.has(o.os)) f.expanded.delete(o.os); else f.expanded.add(o.os);
+      renderConfrontoTable();
+    });
+    tbody.appendChild(tr);
+
+    if(expanded){
+      const cargos = o.cargos.slice().sort((a,b)=>a.cargo.localeCompare(b.cargo));
+      cargos.forEach(c=>{
+        const cLocalMax = Math.max(1, c.planejado, c.apontado);
+        const cDiffStr = (c.diferenca>0?'+':'')+c.diferenca;
+        const dtr = document.createElement('tr');
+        dtr.className = 'cf-detail-row';
+        dtr.innerHTML = `
+          <td class="cf-cargo-name" colspan="3">${escHtml(c.cargo)}</td>
+          <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*c.planejado/cLocalMax}%"></span><span class="fill-real" style="width:${100*c.apontado/cLocalMax}%"></span></span><span class="os-mini-nums">emp ${c.planejado} &middot; real ${c.apontado}</span></td>
+          <td class="num-col num">${c.planejado}</td>
+          <td class="num-col num">${c.apontado}</td>
+          <td class="num-col num">${cDiffStr}</td>
+          <td><span class="chip ${c.status}">${STATUS_LABEL[c.status]}</span></td>`;
+        tbody.appendChild(dtr);
+      });
+    }
+  });
+}
+
+/* ---------- Equipes (Supervisor / Encarregado) ---------- */
+function renderEquipes(){
+  const field = state.eq.mode === 'supervisor' ? 'supervisor' : 'encarregado';
+  const ef = efetivoForDate(state.date).filter(r=>r.presente);
+  const search = state.eq.search.toLowerCase();
+
+  const byName = new Map();
+  ef.forEach(r=>{
+    const name = r[field] || '(sem responsável)';
+    const os = String(r.os);
+    if(!byName.has(name)) byName.set(name, {});
+    const rec = byName.get(name);
+    rec[os] = (rec[os]||0)+1;
+  });
+
+  let names = Array.from(byName.keys());
+  if(search) names = names.filter(n=>n.toLowerCase().includes(search));
+  names.sort((a,b)=>{
+    const ta = Object.values(byName.get(a)).reduce((x,y)=>x+y,0);
+    const tb = Object.values(byName.get(b)).reduce((x,y)=>x+y,0);
+    return tb-ta;
+  });
+
+  const box = document.getElementById('eq-list');
+  document.getElementById('eq-empty').style.display = names.length? 'none':'block';
+  box.innerHTML = '';
+  if(names.length===0) return;
+
+  const max = Math.max(1, ...names.map(n=>Object.values(byName.get(n)).reduce((a,b)=>a+b,0)));
+  names.forEach(n=>{
+    const rec = byName.get(n);
+    const total = Object.values(rec).reduce((a,b)=>a+b,0);
+    const osBreakdown = Object.entries(rec).sort((a,b)=>osSortVal(a[0])-osSortVal(b[0])).map(([os,v])=>'OS '+osLabel(os)+': '+v).join(' · ');
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.title = n + ' — ' + osBreakdown;
+    row.innerHTML = `<span class="label">${highlightMatch(n, state.eq.search)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:var(--steel);"></span></span>
+      <span class="bar-val num">${total}</span>`;
+    box.appendChild(row);
+  });
+}
+
+/* ---------- Planejamento por OS (accordion) ---------- */
+function renderPlanejamento(){
+  const box = document.getElementById('plan-accordions');
+  const plan = planAll();
+  const empty = document.getElementById('plan-empty');
+  if(state.contrato==='PCI'){ box.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  let osKeys = Array.from(new Set(plan.map(r=>String(r.os)))).sort((a,b)=>osSortVal(a)-osSortVal(b));
+  if(state.hm.os.size) osKeys = osKeys.filter(k=>state.hm.os.has(k));
+
+  const search = state.hm.search.trim().toLowerCase();
+  const dias = DATA.dias_grid;
+  const heatColors = heatTextColors();
+
+  box.innerHTML = '';
+  let anyBlock = false;
+  osKeys.forEach(osKey=>{
+    const osPlan = plan.filter(r=>String(r.os)===osKey);
+    let cargos = Array.from(new Set(osPlan.map(r=>r.cargo))).sort();
+    if(search) cargos = cargos.filter(c=>c.toLowerCase().includes(search));
+    if(search && cargos.length===0) return;
+    anyBlock = true;
+
+    const matrix = {};
+    cargos.forEach(c=>matrix[c]={});
+    osPlan.forEach(r=>{ if(cargos.includes(r.cargo)) matrix[r.cargo][r.data]=(matrix[r.cargo][r.data]||0)+r.qtd_planejada; });
+    let max=1;
+    cargos.forEach(c=>dias.forEach(d=>{max=Math.max(max, matrix[c][d.data]||0);}));
+    const totalOs = cargos.reduce((a,c)=>a+Object.values(matrix[c]).reduce((x,y)=>x+y,0),0);
+
+    const details = document.createElement('details');
+    details.className='acc'; details.open = true;
+    const meta = DATA.os_meta[osKey] || {};
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<span class="acc-os">OS ${escHtml(osLabel(osKey))}</span><span class="badge-contrato ${meta.contrato||'MOA'}">${meta.contrato||'MOA'}</span><span class="acc-titulo">${escHtml(meta.titulo||'')}</span><span class="acc-total">${cargos.length} função(ões) &middot; ${totalOs} pessoas&middot;semana no total</span>`;
+    details.appendChild(summary);
+
+    const body = document.createElement('div'); body.className='acc-body';
+    const wrap = document.createElement('div'); wrap.className='heat-wrap';
+    const table = document.createElement('table'); table.className='heatmap';
+
+    const thead = document.createElement('thead');
+    const rowWk = document.createElement('tr'); rowWk.className='wk-row';
+    const rowDia = document.createElement('tr');
+    const corner1 = document.createElement('th'); corner1.className='rowlabel';
+    const corner2 = document.createElement('th'); corner2.className='rowlabel'; corner2.textContent='Função';
+    rowWk.appendChild(corner1); rowDia.appendChild(corner2);
+    let curWeek=null;
+    dias.forEach((d,i)=>{
+      const thw = document.createElement('th');
+      if(d.semana!==curWeek){ thw.textContent='S'+d.semana; curWeek=d.semana; thw.className='wk-first'; }
+      rowWk.appendChild(thw);
+      const thd = document.createElement('th');
+      thd.textContent = d.dia[0];
+      if(i>0 && dias[i-1].semana!==d.semana) thd.classList.add('wk-first');
+      thd.title = d.data;
+      rowDia.appendChild(thd);
+    });
+    thead.appendChild(rowWk); thead.appendChild(rowDia);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    cargos.forEach(cargo=>{
+      const tr = document.createElement('tr');
+      const th = document.createElement('th'); th.className='rowlabel'; th.innerHTML = highlightMatch(cargo, search);
+      tr.appendChild(th);
+      dias.forEach(d=>{
+        const td = document.createElement('td');
+        const val = matrix[cargo][d.data]||0;
+        const lvl = val===0?0:Math.min(5, Math.ceil((val/max)*5));
+        td.className='heat-cell'; td.dataset.lvl=lvl; td.style.background=`var(--heat-${lvl})`; td.style.color=heatColors[lvl];
+        td.textContent = val||'';
+        if(d.data === state.date) td.classList.add('today');
+        td.title = cargo+' · '+d.data+' ('+d.dia+') · '+val;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table); body.appendChild(wrap); details.appendChild(body);
+    box.appendChild(details);
+  });
+  if(!anyBlock){ box.innerHTML = '<div class="empty-state">Nenhuma função encontrada para essa busca.</div>'; }
+  renderScurve();
+}
+
+/* ---------- Curva S: Empilhado x Real ---------- */
+function buildScurveSeries(){
+  const dias = DATA.dias_grid;
+  const plannedByDate = new Map();
+  planAll().forEach(r=>{ plannedByDate.set(r.data, (plannedByDate.get(r.data)||0) + r.qtd_planejada); });
+  let cum = 0;
+  const plannedSeries = dias.map(d=>{ cum += (plannedByDate.get(d.data)||0); return {data:d.data, val:cum}; });
+
+  const realByDate = new Map();
+  DATA.datas_apontamento.forEach(dt=>{ realByDate.set(dt, efetivoForDate(dt).filter(r=>r.presente).length); });
+  let cum2 = 0;
+  const realSeries = [];
+  dias.forEach(d=>{
+    if(realByDate.has(d.data)){ cum2 += realByDate.get(d.data); realSeries.push({data:d.data, val:cum2}); }
+  });
+  return {dias, plannedSeries, realSeries};
+}
+
+function renderScurve(){
+  const btn = document.getElementById('scurve-toggle-btn');
+  const card = document.getElementById('scurve-card');
+  const empBody = document.getElementById('plan-empilhamento-body');
+  btn.classList.toggle('active', state.hm.scurve);
+  card.hidden = !state.hm.scurve;
+  empBody.style.display = state.hm.scurve ? 'none' : '';
+  if(!state.hm.scurve) return;
+
+  const {dias, plannedSeries, realSeries} = buildScurveSeries();
+  const totalPlanejado = plannedSeries.length ? plannedSeries[plannedSeries.length-1].val : 0;
+  const totalReal = realSeries.length ? realSeries[realSeries.length-1].val : 0;
+  const avanco = totalPlanejado ? totalReal/totalPlanejado : 0;
+  const lastRealDate = realSeries.length ? realSeries[realSeries.length-1].data : null;
+  document.getElementById('scurve-kpis').innerHTML = `
+    <div class="sk"><span class="v">${fmtInt(totalPlanejado)}</span><span class="k">Empilhado acumulado (horizonte)</span></div>
+    <div class="sk"><span class="v">${fmtInt(totalReal)}</span><span class="k">Real acumulado até ${lastRealDate?fmtDateLabel(lastRealDate):'—'}</span></div>
+    <div class="sk"><span class="v" style="color:${avanco>=1?'#8ed45a':avanco>=0.85?'#f0c64c':'#f0564f'}">${fmtPct(avanco)}</span><span class="k">Avanço real / previsto no período</span></div>`;
+  document.getElementById('scurve-legend').innerHTML = `
+    <div class="sl-item"><span class="sl-sw planned"></span>Empilhado (previsto, acumulado)</div>
+    <div class="sl-item"><span class="sl-sw real"></span>Real (apontado, acumulado)</div>`;
+
+  const W=900,H=340,padL=52,padR=24,padT=20,padB=34;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const n = dias.length;
+  const maxVal = Math.max(1, plannedSeries.length?plannedSeries[plannedSeries.length-1].val:0, realSeries.length?realSeries[realSeries.length-1].val:0);
+  const xOf = i => padL + (n<=1?0:(innerW*i/(n-1)));
+  const yOf = v => padT + innerH - (innerH*v/maxVal);
+
+  const plannedPts = plannedSeries.map((p,i)=>[xOf(i),yOf(p.val)]);
+  const realIdxMap = new Map(dias.map((d,i)=>[d.data,i]));
+  const realPts = realSeries.map(p=>[xOf(realIdxMap.get(p.data)), yOf(p.val)]);
+  const pathD = pts => pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const plannedPath = pathD(plannedPts);
+  const realLinePath = realPts.length ? pathD(realPts) : '';
+  const areaPath = realPts.length ? (pathD(realPts)+' L'+realPts[realPts.length-1][0].toFixed(1)+','+(padT+innerH)+' L'+realPts[0][0].toFixed(1)+','+(padT+innerH)+' Z') : '';
+
+  let gridSvg='', axisSvg='', curWeek=null;
+  dias.forEach((d,i)=>{
+    if(d.semana!==curWeek){
+      curWeek=d.semana;
+      const gx=xOf(i);
+      gridSvg += `<line class="scurve-grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${padT+innerH}"/>`;
+      axisSvg += `<text class="scurve-axis-label" x="${gx}" y="${H-10}">S${d.semana}</text>`;
+    }
+  });
+  [0,.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-(innerH*f);
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
+    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(Math.round(maxVal*f))}</text>`;
+  });
+
+  let todayMarker='';
+  const todayIdx = dias.findIndex(d=>d.data===state.date);
+  if(todayIdx>=0){
+    const tx = xOf(todayIdx);
+    todayMarker = `<line x1="${tx}" y1="${padT}" x2="${tx}" y2="${padT+innerH}" stroke="#f0564f" stroke-width="1.5" stroke-dasharray="4 4" opacity=".75"/><text class="scurve-axis-label today" x="${tx}" y="${padT-6}" text-anchor="middle">hoje</text>`;
+  }
+
+  let lastDot='';
+  if(realPts.length){
+    const [lx,ly] = realPts[realPts.length-1];
+    lastDot = `<circle class="scurve-dot-today" cx="${lx}" cy="${ly}" r="6"/>`;
+  }
+  const dotsSvg = realPts.map(([px,py])=>`<circle class="scurve-dot-real" cx="${px}" cy="${py}" r="3"/>`).join('');
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva S: acumulado empilhado x acumulado real">
+      <defs>
+        <linearGradient id="scurveGradReal" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8ed45a" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#8ed45a" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridSvg}${axisSvg}${todayMarker}
+      ${areaPath?`<path class="scurve-area-real" d="${areaPath}"/>`:''}
+      <path class="scurve-line scurve-line-planned" id="scurve-path-planned" d="${plannedPath}"/>
+      ${realLinePath?`<path class="scurve-line scurve-line-real" id="scurve-path-real" d="${realLinePath}"/>`:''}
+      ${dotsSvg}${lastDot}
+    </svg>`;
+  document.getElementById('scurve-chart').innerHTML = svg;
+
+  requestAnimationFrame(()=>{
+    ['scurve-path-planned','scurve-path-real'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      const len = el.getTotalLength();
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+      el.getBoundingClientRect();
+      el.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.16,.84,.44,1)';
+      requestAnimationFrame(()=>{ el.style.strokeDashoffset = '0'; });
+    });
+  });
+}
+
+/* ---------- Ausências & Absenteísmo ---------- */
+function computeAbsenteeism(ef, field){
+  const map = new Map();
+  ef.forEach(r=>{
+    const key = r[field] || '—';
+    if(!map.has(key)) map.set(key, {escalados:new Set(), faltas:new Set(), pessoas:[]});
+    const rec = map.get(key);
+    const matr = r.matr_usm || r.matr_tct || r.nome;
+    rec.escalados.add(matr);
+    if(!r.presente){ rec.faltas.add(matr); rec.pessoas.push(r); }
+  });
+  return Array.from(map.entries()).map(([key,rec])=>({
+    key, escalados:rec.escalados.size, faltas:rec.faltas.size,
+    pct: rec.escalados.size? rec.faltas.size/rec.escalados.size : 0,
+    pessoas: rec.pessoas,
+  })).sort((a,b)=>b.pct-a.pct || b.faltas-a.faltas);
+}
+function pctStatus(p){ return p<=0.05 ? 'good' : (p<=0.15 ? 'warning' : 'critical'); }
+
+function renderAbsenteeRow(tbody, item, groupLabel){
+  const tr = document.createElement('tr');
+  tr.className = 'ab-row';
+  const st = pctStatus(item.pct);
+  tr.innerHTML = `<td><span class="chev">&#9656;</span>${escHtml(item.key)}</td>
+    <td class="num-col num">${item.escalados}</td>
+    <td class="num-col num">${item.faltas}</td>
+    <td><div style="display:flex; align-items:center; gap:8px;">
+        <span class="bar-track" style="height:10px;"><span class="bar-fill" style="width:${Math.min(100,item.pct*100)}%; background:var(--${st});"></span></span>
+        <span class="chip ${st}" style="min-width:52px; justify-content:center;">${fmtPct1(item.pct)}</span>
+      </div></td>`;
+  const detailTr = document.createElement('tr');
+  detailTr.className = 'ab-detail'; detailTr.style.display='none';
+  const td = document.createElement('td'); td.colSpan = 4;
+  if(item.pessoas.length===0){
+    td.innerHTML = '<span style="color:var(--text-muted); font-size:12.5px;">Nenhuma falta.</span>';
+  } else {
+    td.innerHTML = item.pessoas.map(p=>`<span class="person-chip"><span class="n">${escHtml(p.nome||'')}</span><span class="m">${escHtml(p.matr_usm||p.matr_tct||'')} &middot; OS ${escHtml(osLabel(String(p.os)))} &middot; ${escHtml(p.encarregado||'')}</span></span>`).join('');
+  }
+  detailTr.appendChild(td);
+  tr.addEventListener('click', ()=>{
+    const open = detailTr.style.display !== 'none';
+    detailTr.style.display = open ? 'none' : 'table-row';
+    tr.classList.toggle('expanded', !open);
+  });
+  tbody.appendChild(tr);
+  tbody.appendChild(detailTr);
+}
+
+function renderAusencias(){
+  const ef = efetivoForDate(state.date);
+  const totalEsc = new Set(ef.map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const totalFalt = new Set(ef.filter(r=>!r.presente).map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const pctGeral = totalEsc? totalFalt/totalEsc : 0;
+
+  const byCargo = computeAbsenteeism(ef, 'cargo');
+  const byDisc = computeAbsenteeism(ef, 'disciplina');
+
+  document.getElementById('ab-stats').innerHTML = `
+    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Escalados (matrículas distintas)</span></div>
+    <div class="s"><span class="v num">${totalFalt}</span><span class="k">Faltas (matrículas distintas)</span></div>
+    <div class="s"><span class="v num" style="color:var(--${pctStatus(pctGeral)})">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>`;
+
+  const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
+  byCargo.forEach(item=>renderAbsenteeRow(cargoBody, item));
+  const discBody = document.getElementById('ab-disc-tbody'); discBody.innerHTML='';
+  byDisc.forEach(item=>renderAbsenteeRow(discBody, item));
+}
+
+/* ---------- Apoio Distribuído ---------- */
+const APOIO_DISC_LABELS = ['Solda','Pintura','Topografia','Movimentação de Carga','Andaime'];
+function normDisc(s){ return (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+const APOIO_DISC_KEYS = new Set(APOIO_DISC_LABELS.map(normDisc));
+function isApoioDisc(disc){ return APOIO_DISC_KEYS.has(normDisc(disc)); }
+
+function renderApoio(){
+  const ef = efetivoForDate(state.date).filter(r=>isApoioDisc(r.disciplina));
+  const total = ef.length;
+  const present = ef.filter(r=>r.presente);
+  const presentes = present.length;
+  const ausentes = total - presentes;
+  const pct = total? presentes/total : 0;
+  const osCount = new Set(ef.map(r=>String(r.os))).size;
+
+  const discCounts = APOIO_DISC_LABELS.map(label=>({
+    label, count: present.filter(r=>normDisc(r.disciplina)===normDisc(label)).length,
+  }));
+
+  document.getElementById('apoio-stats').innerHTML = `
+    <div class="s"><span class="v num">${fmtInt(total)}</span><span class="k">Apontados (apoio)</span></div>
+    <div class="s"><span class="v num" style="color:var(--good)">${fmtInt(presentes)}</span><span class="k">Presentes</span></div>
+    <div class="s"><span class="v num" style="color:${ausentes>0?'var(--critical)':'var(--good)'}">${fmtInt(ausentes)}</span><span class="k">Ausentes</span></div>
+    <div class="s"><span class="v num">${fmtPct(pct)}</span><span class="k">% Presença</span></div>
+    <div class="s"><span class="v num">${osCount}</span><span class="k">OS com apoio</span></div>
+    ${discCounts.map(d=>`<div class="s"><span class="v num">${d.count}</span><span class="k">${escHtml(d.label)}</span></div>`).join('')}`;
+
+  /* --- por OS (detalhado, com cargos por dentro) --- */
+  const osBox = document.getElementById('apoio-os-list');
+  if(present.length===0){
+    osBox.innerHTML = '<div class="empty-state">Sem apontamento de disciplinas de apoio para os filtros atuais.</div>';
+  } else {
+    const byOs = new Map();
+    present.forEach(r=>{
+      const os = String(r.os);
+      if(!byOs.has(os)) byOs.set(os, {total:0, cargos:new Map()});
+      const rec = byOs.get(os);
+      rec.total++;
+      rec.cargos.set(r.cargo, (rec.cargos.get(r.cargo)||0)+1);
+    });
+    const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
+    osBox.innerHTML = `<div class="colab-acc-wrap">${entries.map(([os,rec])=>{
+      const contrato = contratoOfOs(os);
+      const cmax = Math.max(1, ...Array.from(rec.cargos.values()));
+      const cargoRows = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1]).map(([cargo,v])=>`
+        <div class="colab-row">
+          <span class="os" style="width:auto; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escHtml(cargo)}">${escHtml(cargo)}</span>
+          <span class="track"><span class="fill" style="width:${100*v/cmax}%; background:var(--chart-moa);"></span></span>
+          <span class="val">${v}</span>
+        </div>`).join('');
+      return `<details class="colab-acc">
+          <summary><span class="cg-label">OS ${escHtml(osLabel(os))}</span><span class="badge-contrato ${contrato}">${contrato}</span><span class="cg-count">${rec.total} pessoas</span></summary>
+          <div class="colab-acc-body">${cargoRows}</div>
+        </details>`;
+    }).join('')}</div>`;
+  }
+
+  /* --- por Cargo (agregado, todas as OS) --- */
+  const cargoBox = document.getElementById('apoio-cargo-list');
+  const byCargo = new Map();
+  present.forEach(r=>{ byCargo.set(r.cargo, (byCargo.get(r.cargo)||0)+1); });
+  if(byCargo.size===0){
+    cargoBox.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>';
+  } else {
+    const entries = Array.from(byCargo.entries()).sort((a,b)=>b[1]-a[1]);
+    const max = Math.max(1, ...entries.map(([,v])=>v));
+    cargoBox.innerHTML = entries.map(([cargo,v])=>`
+      <div class="bar-row">
+        <span class="label">${escHtml(cargo)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${100*v/max}%; background:var(--table-accent);"></span></span>
+        <span class="bar-val num">${v}</span>
+      </div>`).join('');
+  }
+}
+
+/* ---------- Qualidade ---------- */
+function renderQualidade(){
+  document.getElementById('dp-count').textContent = DATA.depara.length + ' funções mapeadas';
+  const tbody = document.getElementById('dp-tbody');
+  tbody.innerHTML = '';
+  DATA.depara.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escHtml(p.emp_semanal)}</td><td class="arrow-col">&rarr;</td><td>${escHtml(p.efetivo)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const moaEntries = Object.entries(DATA.os_meta).filter(([,m])=>m.contrato==='MOA').sort((a,b)=>osSortVal(a[0])-osSortVal(b[0]));
+  const pciEntries = Object.entries(DATA.os_meta).filter(([,m])=>m.contrato==='PCI').sort((a,b)=>osSortVal(a[0])-osSortVal(b[0]));
+  const box = document.getElementById('qual-mismatch');
+  box.innerHTML = '';
+  function miniTable(title, entries){
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<h4 style="font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:14px 0 8px;">${title}</h4>`;
+    const t = document.createElement('table'); t.className='pair-table';
+    t.innerHTML = '<tbody></tbody>';
+    const tb = t.querySelector('tbody');
+    if(entries.length===0) tb.innerHTML = `<tr><td style="color:var(--text-muted);">Nenhuma</td></tr>`;
+    entries.forEach(([k,m])=>{
+      const tr = document.createElement('tr');
+      const flag = m.somente_efetivo && m.contrato==='MOA' ? ' <span class="chip critical" style="margin-left:6px;">sem plano</span>' : '';
+      tr.innerHTML = `<td><span class="mono-tag">${escHtml(osLabel(k))}</span>${flag}</td><td>${escHtml(m.titulo || m.disciplina || '—')}</td>`;
+      tb.appendChild(tr);
+    });
+    wrap.appendChild(t);
+    box.appendChild(wrap);
+  }
+  miniTable('Contrato MOA (' + moaEntries.length + ' OS)', moaEntries);
+  miniTable('Contrato PCI (' + pciEntries.length + ' OS &middot; sem empilhamento)', pciEntries);
+
+  const notes = [
+    'Classificação de contrato: OS <b>35732, 37131, 37132 e 37581</b> = <b>PCI</b>; todas as demais OS = <b>MOA</b>. A Emp Semanal só cobre o contrato MOA.',
+    'As datas da Emp Semanal foram calculadas pelo calendário ISO de 2026 (ex.: Semana 34 &middot; Qui = 20/08/2026).',
+    'Na Emp Semanal, a primeira linha de cada bloco de OS é o total da disciplina e foi excluída da contagem por função para não duplicar valores — validado batendo a soma das funções com esse total em todas as OS e semanas.',
+    `Todas as ${DATA.depara.length} funções distintas usadas na Emp Semanal foram resolvidas com sucesso — nenhuma pendência de nomenclatura.`,
+    'Presença no Efetivo = coluna Facil (L) > 0 OU coluna SGE (M) > 0. Ausência = as duas colunas iguais a zero.',
+    'Absenteísmo = matrículas distintas ausentes na data / matrículas distintas escaladas na data, por função e por disciplina.',
+  ];
+  const ul = document.getElementById('qual-notes');
+  ul.innerHTML = '';
+  notes.forEach(n=>{ const li = document.createElement('li'); li.innerHTML = n; ul.appendChild(li); });
+}
+
+/* ---------- wiring ---------- */
+function renderAll(){
+  renderGlobalFilters();
+  renderConfrontoControls();
+  renderKPIs();
+  renderConfrontoTable();
+  renderEquipes();
+  renderPlanejamento();
+  renderAusencias();
+  renderApoio();
+}
+
+document.getElementById('tabbar').addEventListener('click', e=>{
+  const btn = e.target.closest('.tabbtn'); if(!btn) return;
+  document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected', b===btn));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+});
+
+document.getElementById('cf-disc').addEventListener('change', e=>{state.cf.disc=e.target.value; renderConfrontoTable();});
+document.getElementById('cf-status').addEventListener('change', e=>{state.cf.status=e.target.value; renderConfrontoTable();});
+
+document.getElementById('date-select-global').addEventListener('change', e=>{ state.date=e.target.value; renderAll(); });
+
+const eqModeBox = document.getElementById('eq-mode');
+[['supervisor','Supervisor'],['encarregado','Encarregado']].forEach(([val,label])=>{
+  const btn = document.createElement('button');
+  btn.textContent = label;
+  if(state.eq.mode===val) btn.classList.add('active');
+  btn.addEventListener('click', ()=>{
+    state.eq.mode=val;
+    eqModeBox.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    renderEquipes();
+  });
+  eqModeBox.appendChild(btn);
+});
+document.getElementById('eq-search').addEventListener('input', e=>{state.eq.search=e.target.value; renderEquipes();});
+
+document.getElementById('hm-search').addEventListener('input', e=>{state.hm.search=e.target.value; renderPlanejamento();});
+document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ state.hm.scurve = !state.hm.scurve; renderScurve(); });
+
+/* ---------- Tema claro/escuro ---------- */
+function currentEffectiveDark(){
+  const attr = document.documentElement.getAttribute('data-theme');
+  if(attr) return attr==='dark';
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem('techint-theme'); }catch(e){}
+  if(saved==='dark' || saved==='light') document.documentElement.setAttribute('data-theme', saved);
+  const cb = document.getElementById('theme-toggle');
+  const sub = document.getElementById('theme-sub');
+  const icon = document.getElementById('theme-icon');
+  function sync(){
+    const dark = currentEffectiveDark();
+    cb.checked = dark;
+    sub.textContent = dark ? 'Ativado' : 'Desativado';
+    icon.textContent = dark ? '●' : '◐';
+  }
+  sync();
+  cb.addEventListener('change', ()=>{
+    const mode = cb.checked ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', mode);
+    try{ localStorage.setItem('techint-theme', mode); }catch(e){}
+    sync();
+    if(state.hm.scurve) renderScurve();
+  });
+}
+
+/* ---------- Painel de configurações (engrenagem) ---------- */
+const popovers = [
+  {btn: document.getElementById('settings-btn'), panel: document.getElementById('settings-panel')},
+  {btn: document.getElementById('alerts-btn'), panel: document.getElementById('alerts-panel')},
+];
+function closeAllPopovers(except){
+  popovers.forEach(p=>{
+    if(p===except) return;
+    p.panel.hidden = true;
+    p.btn.setAttribute('aria-expanded','false');
+  });
+}
+popovers.forEach(p=>{
+  p.btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const open = p.panel.hidden;
+    closeAllPopovers();
+    p.panel.hidden = !open;
+    p.btn.setAttribute('aria-expanded', String(open));
+  });
+});
+document.addEventListener('click', (e)=>{
+  popovers.forEach(p=>{
+    if(!p.panel.hidden && !p.panel.contains(e.target) && e.target!==p.btn && !p.btn.contains(e.target)){
+      p.panel.hidden = true;
+      p.btn.setAttribute('aria-expanded','false');
+    }
+  });
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeAllPopovers();
+});
+
+/* ---------- Importação de dados (.xlsx) no navegador ---------- */
+const PCI_OS_SET = new Set([35732,37131,37132,37581]);
+function contratoOfImport(osKey){
+  if(osKey==='Apoio') return 'MOA';
+  const n = parseInt(osKey,10);
+  if(isNaN(n)) return 'MOA';
+  return PCI_OS_SET.has(n) ? 'PCI' : 'MOA';
+}
+function isoWeekDateImport(year, week, weekday){
+  const simple = new Date(Date.UTC(year,0,4));
+  const dow = (simple.getUTCDay()+6)%7;
+  const wk1mon = new Date(simple); wk1mon.setUTCDate(simple.getUTCDate()-dow);
+  const res = new Date(wk1mon); res.setUTCDate(wk1mon.getUTCDate() + (week-1)*7 + (weekday-1));
+  return res;
+}
+function isoStrImport(d){
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+}
+const DAY_ISO_IMPORT = {'Seg':1,'Ter':2,'Qua':3,'Qui':4,'Sex':5,'Sáb':6,'Dom':7};
+
+function parseWorkbookToBundle(wb){
+  function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
+  function maxRow(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.r+1; }
+  function cellVal(s,row,col){ const addr = XLSX.utils.encode_cell({r:row-1,c:col-1}); const c=s[addr]; return c? c.v : undefined; }
+  function cleanStr(v){ if(v===undefined||v===null||v==='') return null; return String(v).replace(/\s+/g,' ').trim(); }
+  function normStr(v){ const c=cleanStr(v); return c===null? null : c.toLowerCase(); }
+  const YEAR = 2026;
+  function weekDayToDate(week, dayName){ return isoWeekDateImport(YEAR, week, DAY_ISO_IMPORT[dayName]); }
+
+  /* ---- Depara_Função ---- */
+  const wsDp = sheet('Depara_Função');
+  const dpMax = maxRow(wsDp);
+  const depara = {}; const deparaPairs = [];
+  for(let r=2;r<=dpMax;r++){
+    const a = cellVal(wsDp,r,1), b = cellVal(wsDp,r,2);
+    if(a!=null && a!=='' && b!=null && b!==''){
+      depara[normStr(a)] = cleanStr(b);
+      deparaPairs.push({emp_semanal: cleanStr(a), efetivo: cleanStr(b)});
+    }
+  }
+
+  /* ---- Efetivo ---- */
+  const wsEf = sheet('Efetivo');
+  const efMax = maxRow(wsEf);
+  const efetivoRows = []; const efCargosSet = new Set();
+  for(let r=2;r<=efMax;r++){
+    const sap = cellVal(wsEf,r,1);
+    if(sap===undefined || sap===null || sap==='') continue;
+    const matrUsm = cellVal(wsEf,r,2);
+    const matrTct = cellVal(wsEf,r,3);
+    const nome = cleanStr(cellVal(wsEf,r,4));
+    const cargo = cleanStr(cellVal(wsEf,r,5));
+    const status = cleanStr(cellVal(wsEf,r,6));
+    const disciplina = cleanStr(cellVal(wsEf,r,7));
+    const encarregado = cleanStr(cellVal(wsEf,r,8));
+    const supervEfetivo = cleanStr(cellVal(wsEf,r,9));
+    const supervisor = cleanStr(cellVal(wsEf,r,10));
+    const custo = cleanStr(cellVal(wsEf,r,11));
+    const facil = cellVal(wsEf,r,12);
+    const sge = cellVal(wsEf,r,13);
+    const osVal = cellVal(wsEf,r,14);
+    const dataVal = cellVal(wsEf,r,15);
+
+    const facilN = (typeof facil==='number') ? facil : 0;
+    const sgeN = (typeof sge==='number') ? sge : 0;
+    const presente = facilN>0 || sgeN>0;
+
+    let osKey;
+    if(typeof osVal==='string' && osVal.trim()==='-') osKey='Apoio';
+    else if(osVal===undefined || osVal===null || osVal==='') osKey=null;
+    else osKey = parseInt(osVal,10);
+
+    let dataIso = null;
+    if(dataVal instanceof Date) dataIso = isoStrImport(dataVal);
+
+    if(cargo) efCargosSet.add(cargo);
+
+    efetivoRows.push({
+      sap, matr_usm: matrUsm===undefined?null:matrUsm, matr_tct: matrTct===undefined?null:matrTct, nome,
+      cargo, status, disciplina, encarregado, superv_efetivo: supervEfetivo, supervisor,
+      custo, facil: facilN, sge: sgeN, presente,
+      os: osKey===undefined?null:osKey, data: dataIso,
+      contrato: osKey!=null ? contratoOfImport(osKey) : null,
+    });
+  }
+  if(efetivoRows.length===0) throw new Error('Nenhuma linha lida na aba Efetivo — confira o arquivo.');
+
+  /* ---- Emp Semanal ---- */
+  const wsEs = sheet('Emp Semanal');
+  const esMax = maxRow(wsEs);
+  const weekBlocks = [];
+  {
+    let c=1;
+    while(c<=40){
+      const v2 = cellVal(wsEs,2,c);
+      if(typeof v2==='string' && v2.startsWith('Sem')){
+        const m = v2.match(/\d+/);
+        const wk = m ? parseInt(m[0],10) : null;
+        const days = {};
+        for(let dc=c; dc<=c+6; dc++){ days[cellVal(wsEs,5,dc)] = dc; }
+        weekBlocks.push([wk,days]);
+        c+=8;
+      } else c+=1;
+    }
+  }
+
+  const blocks = [];
+  {
+    let curOs=null, curStart=null;
+    for(let r=28;r<=esMax;r++){
+      let b = cellVal(wsEs,r,2);
+      if(b===undefined) b=null;
+      if(b!==curOs){
+        if(curOs!==null){ blocks.push([curOs,curStart,r-1]); }
+        curOs=b; curStart=r;
+      }
+    }
+    blocks.push([curOs,curStart,esMax]);
+  }
+
+  const emp_semanal_plan = [];
+  const os_meta = {};
+  blocks.forEach(([osVal, s, e])=>{
+    if(osVal===null || osVal===undefined) return;
+    const headerRow = s;
+    const titulo = cleanStr(cellVal(wsEs,headerRow,3));
+    const statusOs = cleanStr(cellVal(wsEs,headerRow,4));
+    const disciplina = cleanStr(cellVal(wsEs,headerRow,5));
+    const osKey = (osVal==='Apoio') ? 'Apoio' : parseInt(osVal,10);
+    os_meta[String(osKey)] = {titulo, status: statusOs, disciplina, contrato: contratoOfImport(osKey)};
+
+    for(let r=s+1;r<=e;r++){
+      const cargoRaw = cleanStr(cellVal(wsEs,r,5));
+      if(!cargoRaw) continue;
+      const n = normStr(cargoRaw);
+      let cargoCorrigido, via;
+      if(Object.prototype.hasOwnProperty.call(depara,n)){ cargoCorrigido = depara[n]; via='depara'; }
+      else if(efCargosSet.has(cargoRaw)){ cargoCorrigido = cargoRaw; via='direto'; }
+      else { cargoCorrigido = cargoRaw; via='NAO_MAPEADO'; }
+
+      weekBlocks.forEach(([wk,days])=>{
+        Object.keys(days).forEach(dname=>{
+          const col = days[dname];
+          let qtd = cellVal(wsEs,r,col);
+          qtd = (typeof qtd==='number') ? qtd : 0;
+          if(qtd===0) return;
+          const dt = weekDayToDate(wk, dname);
+          emp_semanal_plan.push({os: osKey, cargo_raw: cargoRaw, cargo: cargoCorrigido, mapped_via: via, semana: wk, dia: dname, data: isoStrImport(dt), qtd_planejada: qtd});
+        });
+      });
+    }
+  });
+  if(emp_semanal_plan.length===0) throw new Error('Nenhum registro lido na aba Emp Semanal — confira o arquivo.');
+
+  const efOsDisc = {};
+  efetivoRows.forEach(row=>{
+    if(row.os!==null && row.os!==undefined && row.disciplina){
+      const key = String(row.os);
+      efOsDisc[key] = efOsDisc[key] || {};
+      efOsDisc[key][row.disciplina] = (efOsDisc[key][row.disciplina]||0)+1;
+    }
+  });
+  Object.keys(efOsDisc).forEach(key=>{
+    if(!Object.prototype.hasOwnProperty.call(os_meta,key)){
+      const counter = efOsDisc[key];
+      let topDisc=null, topCount=-1;
+      Object.keys(counter).forEach(d=>{ if(counter[d]>topCount){topCount=counter[d]; topDisc=d;} });
+      const osKeyParsed = (key==='Apoio') ? 'Apoio' : parseInt(key,10);
+      os_meta[key] = {titulo:null, status:null, disciplina: topDisc, somente_efetivo:true, contrato: contratoOfImport(osKeyParsed)};
+    }
+  });
+
+  const semanas = weekBlocks.map(([wk])=>({
+    semana: wk,
+    inicio: isoStrImport(weekDayToDate(wk,'Seg')),
+    fim: isoStrImport(weekDayToDate(wk,'Dom')),
+  }));
+  const datas_apontamento = Array.from(new Set(efetivoRows.map(r=>r.data).filter(Boolean))).sort();
+  const dias_grid = [];
+  weekBlocks.forEach(([wk])=>{
+    ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].forEach(dname=>{
+      dias_grid.push({semana: wk, dia: dname, data: isoStrImport(weekDayToDate(wk,dname))});
+    });
+  });
+
+  const cargoSet = new Set();
+  emp_semanal_plan.forEach(r=>cargoSet.add(r.cargo));
+  efetivoRows.forEach(r=>{ if(r.cargo) cargoSet.add(r.cargo); });
+
+  return {
+    efetivo: efetivoRows,
+    emp_semanal: emp_semanal_plan,
+    os_meta,
+    depara: deparaPairs,
+    semanas,
+    datas_apontamento,
+    dias_grid,
+    cargos: Array.from(cargoSet).sort(),
+  };
+}
+
+document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
+  document.getElementById('settings-file-input').click();
+});
+document.getElementById('settings-file-input').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('settings-status');
+  statusEl.hidden = false; statusEl.className = 'settings-status'; statusEl.textContent = 'Lendo ' + file.name + '…';
+
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
+      const bundle = parseWorkbookToBundle(wb);
+      DATA = bundle;
+      state.date = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
+      state.contrato = 'all';
+      state.cf.os = new Set(); state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
+      state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
+      state.eq.search='';
+      renderAll();
+      renderQualidade();
+      statusEl.className = 'settings-status ok';
+      statusEl.textContent = 'Dados atualizados: ' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros, ' + DATA.datas_apontamento.length + ' datas (' + DATA.datas_apontamento[0] + ' a ' + DATA.datas_apontamento[DATA.datas_apontamento.length-1] + ').';
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'settings-status error';
+      statusEl.textContent = 'Erro ao processar o arquivo: ' + (err && err.message ? err.message : err);
+    }
+  };
+  reader.onerror = function(){
+    statusEl.className = 'settings-status error';
+    statusEl.textContent = 'Não foi possível ler o arquivo.';
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+initTheme();
+renderAll();
+renderQualidade();
+
+})();
+</script>
