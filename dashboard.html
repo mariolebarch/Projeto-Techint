@@ -422,7 +422,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   </header>
 
   <div class="global-filters">
-    <div class="field"><label>Data</label><select id="date-select-global"></select></div>
+    <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <span class="hint">Esses dois filtros afetam todas as abas abaixo.</span>
   </div>
@@ -438,11 +438,15 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= VISÃO GERAL ================= -->
   <section class="view active" id="view-visao">
     <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="card mgmt-card" id="resumo-gerencial-card">
+      <div class="card-head"><h3>Resumo Gerencial</h3><span class="card-note">Leitura rápida do período selecionado</span><button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros da aba</button></div>
+      <div class="kpi-grid mgmt-grid" id="mgmt-grid"></div>
+    </div>
     <div class="ov-grid">
       <div class="card">
         <div class="card-head"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span></div>
         <div id="ov-contrato-chart"></div>
-        <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Colaboradores presentes por OS</h4></div>
+        <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Pessoas presentes por OS</h4></div>
         <div id="ov-colab-table"></div>
       </div>
       <div class="card">
@@ -476,6 +480,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <option value="info">Fora do plano</option>
             <option value="pci">Contrato PCI</option>
           </select></div>
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="cf-clear-btn" type="button">Limpar filtros</button></div>
         </div>
       </div>
       <p class="card-note" style="margin-bottom:10px;">Dê dois cliques em uma linha de OS para ver o detalhamento por função.</p>
@@ -499,6 +504,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
           <div class="field"><label>OS</label><div class="msel" id="hm-os-msel"></div></div>
           <div class="field"><label>Buscar função</label><input class="search-input" id="hm-search" placeholder="ex: soldador"></div>
           <div class="field"><label>&nbsp;</label><button class="small-btn" id="scurve-toggle-btn" type="button">&#128200; Empilhado x Real</button></div>
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="hm-clear-btn" type="button">Limpar filtros</button></div>
         </div>
       </div>
       <div id="plan-empilhamento-body">
@@ -531,7 +537,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= AUSÊNCIAS & ABSENTEÍSMO ================= -->
   <section class="view" id="view-ausencias">
     <div class="card">
-      <div class="card-head"><h3>Absenteísmo do dia</h3></div>
+      <div class="card-head"><h3>Absenteísmo do dia</h3><button class="small-btn" id="ab-clear-btn" type="button">Limpar filtros</button></div>
       <div class="stat-strip" id="ab-stats"></div>
     </div>
     <div class="two-col">
@@ -559,17 +565,20 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= APOIO DISTRIBUÍDO ================= -->
   <section class="view" id="view-apoio">
     <div class="card">
-      <div class="card-head"><h3>Apontamento das Disciplinas de Apoio</h3><span class="card-note">Solda &middot; Pintura &middot; Topografia &middot; Movimentação de Carga &middot; Andaime</span></div>
-      <div class="stat-strip" id="apoio-stats"></div>
+      <div class="card-head">
+        <h3>Apontamento das Disciplinas de Apoio</h3>
+        <span class="card-note">Solda &middot; Pintura &middot; Topografia &middot; Movimentação de Carga &middot; Andaime</span>
+        <button class="small-btn" id="apoio-clear-btn" type="button">Limpar filtros</button>
+      </div>
     </div>
     <div class="two-col">
       <div class="card">
-        <div class="card-head"><h3>Detalhado por OS</h3><span class="card-note">Onde o apoio está alocado</span></div>
-        <div id="apoio-os-list" style="max-height:520px; overflow-y:auto;"></div>
+        <div class="card-head"><h3>Detalhado por OS</h3><span class="card-note">Ordenado por volume de pessoas alocadas</span></div>
+        <div id="apoio-os-list"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Análise por Função</h3><span class="card-note">Presentes por função, todas as OS</span></div>
-        <div id="apoio-cargo-list" style="max-height:520px; overflow-y:auto;"></div>
+        <div class="card-head"><h3>Distribuição por Disciplina</h3><span class="card-note">Apoio presente &times; disciplina</span></div>
+        <div id="apoio-disc-overview"></div>
       </div>
     </div>
   </section>
@@ -649,7 +658,7 @@ function highlightMatch(text, term){
 
 /* ---------- state ---------- */
 const state = {
-  date: DATA.datas_apontamento[DATA.datas_apontamento.length-1],
+  dates: new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []),
   contrato: 'all',
   cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
@@ -666,17 +675,28 @@ function fmtDateLabelFull(iso){
   const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' — '+dias[d.getDay()];
 }
+function refDate(){
+  if(state.dates.size===0) return null;
+  return Array.from(state.dates).sort().pop();
+}
+function datesLabel(){
+  const arr = Array.from(state.dates).sort();
+  if(arr.length===0) return 'nenhuma data selecionada';
+  if(arr.length===1) return fmtDateLabel(arr[0]);
+  if(arr.length<=3) return arr.map(fmtDateLabel).join(', ');
+  return arr.length + ' datas selecionadas';
+}
 
 /* ---------- filtered accessors (contrato-aware) ---------- */
 function passContrato(c){ return state.contrato==='all' || c===state.contrato; }
 function efetivoForDate(date){ return DATA.efetivo.filter(r => r.data===date && r.os!==null && passContrato(r.contrato)); }
 function planForDate(date){ return DATA.emp_semanal.filter(r => r.data===date && passContrato(contratoOfOs(r.os))); }
+function efetivoForDates(){ return DATA.efetivo.filter(r => state.dates.has(r.data) && r.os!==null && passContrato(r.contrato)); }
+function planForDates(){ return DATA.emp_semanal.filter(r => state.dates.has(r.data) && passContrato(contratoOfOs(r.os))); }
 function planAll(){ return DATA.emp_semanal.filter(r => passContrato(contratoOfOs(r.os))); }
 
 /* ---------- confronto build ---------- */
-function buildConfronto(date){
-  const ef = efetivoForDate(date);
-  const plan = planForDate(date);
+function buildConfrontoFrom(ef, plan){
   const map = new Map();
 
   ef.forEach(r=>{
@@ -706,19 +726,75 @@ function buildConfronto(date){
     return Object.assign(r, {diferenca, status, titulo: meta.titulo || '', disciplina: meta.disciplina || '', contrato: meta.contrato || 'MOA'});
   });
 }
+function buildConfronto(date){ return buildConfrontoFrom(efetivoForDate(date), planForDate(date)); }
+function buildConfrontoMulti(){ return buildConfrontoFrom(efetivoForDates(), planForDates()); }
 const STATUS_LABEL = {good:'OK', warning:'Divergência leve', critical:'Divergência', info:'Fora do plano', pci:'Contrato PCI'};
 
 /* ---------- global filter controls ---------- */
-function renderGlobalFilters(){
-  const dsel = document.getElementById('date-select-global');
-  if(dsel.options.length !== DATA.datas_apontamento.length){
-    dsel.innerHTML = '';
-    DATA.datas_apontamento.forEach(d=>{
-      const opt = document.createElement('option'); opt.value=d; opt.textContent=fmtDateLabelFull(d);
-      dsel.appendChild(opt);
-    });
+function buildDateMultiSelect(){
+  const container = document.getElementById('date-msel-global');
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  function updateBtnLabel(){ btn.textContent = datesLabel(); }
+
+  if(DATA.datas_apontamento.length===0){
+    panel.innerHTML = '<div class="msel-empty">Nenhuma data disponível.</div>';
+    updateBtnLabel();
+    return;
   }
-  dsel.value = state.date;
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="last">Só a mais recente</button>`;
+  panel.appendChild(actions);
+
+  DATA.datas_apontamento.forEach(d=>{
+    const row = document.createElement('label'); row.className='msel-item';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.dates.has(d);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) state.dates.add(d); else state.dates.delete(d);
+      updateBtnLabel();
+      renderAll();
+    });
+    const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = fmtDateLabelFull(d);
+    row.appendChild(cb); row.appendChild(lbl);
+    panel.appendChild(row);
+  });
+
+  updateBtnLabel();
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    DATA.datas_apontamento.forEach(d=>state.dates.add(d));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); renderAll();
+  });
+  actions.querySelector('[data-act="last"]').addEventListener('click', ()=>{
+    state.dates.clear();
+    const last = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
+    if(last) state.dates.add(last);
+    panel.querySelectorAll('input[type=checkbox]').forEach((cb,i)=>{ cb.checked = DATA.datas_apontamento[i]===last; });
+    updateBtnLabel(); renderAll();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+}
+
+function renderGlobalFilters(){
+  buildDateMultiSelect();
   const cbox = document.getElementById('contrato-toggle-global');
   cbox.innerHTML = '';
   [['all','Todos'],['MOA','MOA'],['PCI','PCI']].forEach(([val,label])=>{
@@ -732,25 +808,18 @@ function renderGlobalFilters(){
 
 /* ---------- KPIs & Visão Geral ---------- */
 function renderKPIs(){
-  const ef = efetivoForDate(state.date);
+  const ef = efetivoForDates();
   const total = ef.length;
   const presentes = ef.filter(r=>r.presente).length;
   const ausentes = total - presentes;
   const pct = total? presentes/total : 0;
 
-  const rows = buildConfronto(state.date);
-  const totalPlanejado = rows.reduce((a,r)=>a+r.planejado,0);
-  const semPlano = rows.filter(r=>r.status==='info').reduce((a,r)=>a+r.apontado,0);
-  const naoIniciado = rows.filter(r=>r.planejado>0 && r.apontado===0).reduce((a,r)=>a+r.planejado,0);
+  const rows = buildConfrontoMulti();
 
-  const planSub = state.contrato==='PCI' ? 'contrato PCI não possui plano' : 'soma do dia, OS no filtro';
   const kpis = [
-    {label:'Efetivo apontado', value:fmtInt(total), sub:fmtDateLabel(state.date), cls:''},
+    {label:'Efetivo Contratos', value:fmtInt(total), sub:datesLabel(), cls:''},
     {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
     {label:'Ausentes', value:fmtInt(ausentes), sub:pct<0.85?'atenção à cobertura':'dentro do esperado', cls: ausentes>total*0.15?'critical':'warning'},
-    {label:'Empilhado (Emp. Semanal)', value:fmtInt(totalPlanejado), sub:planSub, cls:''},
-    {label:'Fora do plano', value:fmtInt(semPlano), sub:'apontados sem previsão (MOA)', cls: semPlano>0?'warning':'good'},
-    {label:'Empilhado sem apontar', value:fmtInt(naoIniciado), sub:'previsto e não confirmado', cls: naoIniciado>0?'critical':'good'},
   ];
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = '';
@@ -764,6 +833,60 @@ function renderKPIs(){
   renderCallouts(rows, ef);
   renderContratoChart(ef);
   renderOsColabTable(ef);
+  renderResumoGerencial(rows, ef);
+}
+
+function renderResumoGerencial(rows, ef){
+  const grid = document.getElementById('mgmt-grid');
+  const moaRows = rows.filter(r=>r.contrato==='MOA');
+  const totalPlanejadoMoa = moaRows.reduce((a,r)=>a+r.planejado,0);
+  const totalApontadoMoa = moaRows.reduce((a,r)=>a+r.apontado,0);
+  const aderencia = totalPlanejadoMoa>0 ? totalApontadoMoa/totalPlanejadoMoa : null;
+
+  const totalEsc = new Set(ef.map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const totalFalt = new Set(ef.filter(r=>!r.presente).map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const absenteismo = totalEsc? totalFalt/totalEsc : 0;
+
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {planejado:0, apontado:0, contrato:r.contrato});
+    const o = byOs.get(r.os);
+    o.planejado += r.planejado; o.apontado += r.apontado;
+  });
+  let piorOs = null, piorGap = 0, melhorOs = null, melhorAderencia = -1;
+  byOs.forEach((o,os)=>{
+    if(o.contrato!=='MOA' || o.planejado<=0) return;
+    const gap = o.apontado - o.planejado;
+    if(gap < piorGap){ piorGap = gap; piorOs = os; }
+    const ad = o.apontado/o.planejado;
+    if(ad > melhorAderencia){ melhorAderencia = ad; melhorOs = os; }
+  });
+
+  const byDisc = new Map();
+  ef.filter(r=>r.presente).forEach(r=>{
+    const d = r.disciplina || '—';
+    byDisc.set(d, (byDisc.get(d)||0)+1);
+  });
+  let topDisc = null, topDiscCount = 0;
+  byDisc.forEach((v,k)=>{ if(v>topDiscCount){ topDiscCount=v; topDisc=k; } });
+
+  const osAtivas = new Set(ef.map(r=>String(r.os))).size;
+
+  const tiles = [
+    {label:'Aderência ao plano (MOA)', value: aderencia===null?'—':fmtPct(aderencia), sub: totalPlanejadoMoa>0 ? fmtInt(totalApontadoMoa)+' de '+fmtInt(totalPlanejadoMoa)+' planejados' : 'sem plano no período', cls: aderencia===null?'':(aderencia>=0.95&&aderencia<=1.05?'good':(aderencia>=0.85&&aderencia<=1.15?'warning':'critical'))},
+    {label:'Absenteísmo do período', value: fmtPct1(absenteismo), sub: fmtInt(totalFalt)+' de '+fmtInt(totalEsc)+' matrículas escaladas', cls: absenteismo<=0.05?'good':(absenteismo<=0.15?'warning':'critical')},
+    {label:'OS com maior déficit', value: piorOs? 'OS '+escHtml(osLabel(piorOs)) : '—', sub: piorOs? piorGap+' abaixo do planejado' : 'nenhuma divergência', cls: piorOs?'critical':'good'},
+    {label:'OS com melhor aderência', value: melhorOs? 'OS '+escHtml(osLabel(melhorOs)) : '—', sub: melhorOs? fmtPct(melhorAderencia)+' do planejado' : 'sem dados', cls:'good'},
+    {label:'Disciplina com mais gente', value: topDisc || '—', sub: topDisc? fmtInt(topDiscCount)+' presentes' : 'sem dados', cls:''},
+    {label:'OS ativas no filtro', value: fmtInt(osAtivas), sub: 'com apontamento no período', cls:''},
+  ];
+  grid.innerHTML = '';
+  tiles.forEach(k=>{
+    const el = document.createElement('div');
+    el.className = 'kpi '+k.cls;
+    el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value" style="font-size:20px;">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    grid.appendChild(el);
+  });
 }
 
 function renderCallouts(rows, ef){
@@ -792,7 +915,7 @@ function renderCallouts(rows, ef){
     const totalGap = naoApontados.reduce((a,r)=>a+r.planejado,0);
     const el = document.createElement('div');
     el.className = 'callout';
-    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(totalGap)} vagas empilhadas sem nenhum apontamento em ${fmtDateLabel(state.date)}</h4><p>${naoApontados.length} combinações OS/função previstas na Emp Semanal ainda não aparecem no Efetivo desta data.</p></div>`;
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(totalGap)} vagas empilhadas sem nenhum apontamento em ${datesLabel()}</h4><p>${naoApontados.length} combinações OS/função previstas na Emp Semanal ainda não aparecem no Efetivo neste período.</p></div>`;
     box.appendChild(el);
   }
 
@@ -865,32 +988,28 @@ function renderOsColabTable(ef){
 
   if(byOs.size===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
 
-  const maxVal = Math.max(1, ...byOs.values());
-  const groups = [['PCI','PCI','var(--pci-chart)'],['MOA','MOA','var(--chart-moa)']];
-  let grandTotal = 0;
+  const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v,0);
+  const entries = Array.from(byOs.entries()).sort((a,b)=>b[1]-a[1]);
 
-  const groupsHtml = groups.map(([contrato,label,color])=>{
-    const entries = Array.from(byOs.entries())
-      .filter(([os])=>contratoOfOs(os)===contrato)
-      .sort((a,b)=>b[1]-a[1]);
-    if(entries.length===0) return '';
-    const subtotal = entries.reduce((a,[,v])=>a+v,0);
-    grandTotal += subtotal;
-    const rowsHtml = entries.map(([os,v])=>`
-      <div class="colab-row">
-        <span class="os">${escHtml(osLabel(os))}</span>
-        <span class="track"><span class="fill" style="width:${100*v/maxVal}%; background:${color};"></span></span>
-        <span class="val">${v}</span>
-      </div>`).join('');
-    return `<details class="colab-acc" open>
-        <summary><span class="cg-label">${label}</span><span class="badge-contrato ${contrato}">${entries.length} OS</span><span class="cg-count">${subtotal} colab.</span></summary>
-        <div class="colab-acc-body">${rowsHtml}</div>
-      </details>`;
+  const rowsHtml = entries.map(([os,v],i)=>{
+    const contrato = contratoOfOs(os);
+    const pct = grandTotal? v/grandTotal : 0;
+    return `<tr>
+        <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
+        <td class="ov-table-name">OS ${escHtml(osLabel(os))}</td>
+        <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
+        <td class="num-col num">${v}</td>
+        <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pct)}</td>
+      </tr>`;
   }).join('');
 
-  box.innerHTML = `<div class="colab-acc-wrap">${groupsHtml}
-    <div class="colab-grand-bar"><span>Total Geral</span><span class="v">${grandTotal}</span></div>
-  </div>`;
+  box.innerHTML = `<div class="table-scroll" style="max-height:340px; overflow-y:auto;">
+      <table>
+        <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do total</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div class="colab-grand-bar" style="margin-top:10px;"><span>Total Geral</span><span class="v">${grandTotal}</span></div>`;
 }
 
 /* ---------- Confronto table ---------- */
@@ -1001,7 +1120,7 @@ function aggregateStatus(os, planejado, apontado, diferenca){
 
 function renderConfrontoTable(){
   const f = state.cf;
-  let rows = buildConfronto(state.date);
+  let rows = buildConfrontoMulti();
   if(f.os.size) rows = rows.filter(r=>f.os.has(r.os));
   if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
 
@@ -1083,7 +1202,7 @@ function renderConfrontoTable(){
 /* ---------- Equipes (Supervisor / Encarregado) ---------- */
 function renderEquipes(){
   const field = state.eq.mode === 'supervisor' ? 'supervisor' : 'encarregado';
-  const ef = efetivoForDate(state.date).filter(r=>r.presente);
+  const ef = efetivoForDates().filter(r=>r.presente);
   const search = state.eq.search.toLowerCase();
 
   const byName = new Map();
@@ -1196,7 +1315,7 @@ function renderPlanejamento(){
         const lvl = val===0?0:Math.min(5, Math.ceil((val/max)*5));
         td.className='heat-cell'; td.dataset.lvl=lvl; td.style.background=`var(--heat-${lvl})`; td.style.color=heatColors[lvl];
         td.textContent = val||'';
-        if(d.data === state.date) td.classList.add('today');
+        if(state.dates.has(d.data)) td.classList.add('today');
         td.title = cargo+' · '+d.data+' ('+d.dia+') · '+val;
         tr.appendChild(td);
       });
@@ -1281,10 +1400,11 @@ function renderScurve(){
   });
 
   let todayMarker='';
-  const todayIdx = dias.findIndex(d=>d.data===state.date);
+  const refD = refDate();
+  const todayIdx = refD ? dias.findIndex(d=>d.data===refD) : -1;
   if(todayIdx>=0){
     const tx = xOf(todayIdx);
-    todayMarker = `<line x1="${tx}" y1="${padT}" x2="${tx}" y2="${padT+innerH}" stroke="#f0564f" stroke-width="1.5" stroke-dasharray="4 4" opacity=".75"/><text class="scurve-axis-label today" x="${tx}" y="${padT-6}" text-anchor="middle">hoje</text>`;
+    todayMarker = `<line x1="${tx}" y1="${padT}" x2="${tx}" y2="${padT+innerH}" stroke="#f0564f" stroke-width="1.5" stroke-dasharray="4 4" opacity=".75"/><text class="scurve-axis-label today" x="${tx}" y="${padT-6}" text-anchor="middle">ref.</text>`;
   }
 
   let lastDot='';
@@ -1372,7 +1492,7 @@ function renderAbsenteeRow(tbody, item, groupLabel){
 }
 
 function renderAusencias(){
-  const ef = efetivoForDate(state.date);
+  const ef = efetivoForDates();
   const totalEsc = new Set(ef.map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
   const totalFalt = new Set(ef.filter(r=>!r.presente).map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
   const pctGeral = totalEsc? totalFalt/totalEsc : 0;
@@ -1398,7 +1518,7 @@ const APOIO_DISC_KEYS = new Set(APOIO_DISC_LABELS.map(normDisc));
 function isApoioDisc(disc){ return APOIO_DISC_KEYS.has(normDisc(disc)); }
 
 function renderApoio(){
-  const ef = efetivoForDate(state.date).filter(r=>isApoioDisc(r.disciplina));
+  const ef = efetivoForDates().filter(r=>isApoioDisc(r.disciplina));
   const total = ef.length;
   const present = ef.filter(r=>r.presente);
   const presentes = present.length;
@@ -1406,19 +1526,12 @@ function renderApoio(){
   const pct = total? presentes/total : 0;
   const osCount = new Set(ef.map(r=>String(r.os))).size;
 
-  const discCounts = APOIO_DISC_LABELS.map(label=>({
+  const discCounts = APOIO_DISC_LABELS.map((label,i)=>({
     label, count: present.filter(r=>normDisc(r.disciplina)===normDisc(label)).length,
+    color: `var(--heat-${Math.min(5,i+1)})`,
   }));
 
-  document.getElementById('apoio-stats').innerHTML = `
-    <div class="s"><span class="v num">${fmtInt(total)}</span><span class="k">Apontados (apoio)</span></div>
-    <div class="s"><span class="v num" style="color:var(--good)">${fmtInt(presentes)}</span><span class="k">Presentes</span></div>
-    <div class="s"><span class="v num" style="color:${ausentes>0?'var(--critical)':'var(--good)'}">${fmtInt(ausentes)}</span><span class="k">Ausentes</span></div>
-    <div class="s"><span class="v num">${fmtPct(pct)}</span><span class="k">% Presença</span></div>
-    <div class="s"><span class="v num">${osCount}</span><span class="k">OS com apoio</span></div>
-    ${discCounts.map(d=>`<div class="s"><span class="v num">${d.count}</span><span class="k">${escHtml(d.label)}</span></div>`).join('')}`;
-
-  /* --- por OS (detalhado, com cargos por dentro) --- */
+  /* --- Detalhado por OS: tabela gerencial, sem barras por função --- */
   const osBox = document.getElementById('apoio-os-list');
   if(present.length===0){
     osBox.innerHTML = '<div class="empty-state">Sem apontamento de disciplinas de apoio para os filtros atuais.</div>';
@@ -1432,38 +1545,69 @@ function renderApoio(){
       rec.cargos.set(r.cargo, (rec.cargos.get(r.cargo)||0)+1);
     });
     const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
-    osBox.innerHTML = `<div class="colab-acc-wrap">${entries.map(([os,rec])=>{
+    const grand = entries.reduce((a,[,rec])=>a+rec.total,0);
+    const rowsHtml = entries.map(([os,rec],i)=>{
       const contrato = contratoOfOs(os);
-      const cmax = Math.max(1, ...Array.from(rec.cargos.values()));
-      const cargoRows = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1]).map(([cargo,v])=>`
-        <div class="colab-row">
-          <span class="os" style="width:auto; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escHtml(cargo)}">${escHtml(cargo)}</span>
-          <span class="track"><span class="fill" style="width:${100*v/cmax}%; background:var(--chart-moa);"></span></span>
-          <span class="val">${v}</span>
-        </div>`).join('');
-      return `<details class="colab-acc">
-          <summary><span class="cg-label">OS ${escHtml(osLabel(os))}</span><span class="badge-contrato ${contrato}">${contrato}</span><span class="cg-count">${rec.total} pessoas</span></summary>
-          <div class="colab-acc-body">${cargoRows}</div>
-        </details>`;
-    }).join('')}</div>`;
+      const principais = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1])
+        .slice(0,3).map(([cargo,v])=>`${escHtml(cargo)} (${v})`).join(', ');
+      const pctOfTotal = grand? rec.total/grand : 0;
+      return `<tr>
+          <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
+          <td class="ov-table-name">OS ${escHtml(osLabel(os))}</td>
+          <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
+          <td class="num-col num">${rec.total}</td>
+          <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pctOfTotal)}</td>
+          <td class="cargo-cell">${principais}</td>
+        </tr>`;
+    }).join('');
+    osBox.innerHTML = `<div class="table-scroll" style="max-height:480px; overflow-y:auto;">
+        <table>
+          <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do apoio</th><th>Principais funções</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="colab-grand-bar" style="margin-top:10px;"><span>Total Geral</span><span class="v">${grand}</span></div>`;
   }
 
-  /* --- por Cargo (agregado, todas as OS) --- */
-  const cargoBox = document.getElementById('apoio-cargo-list');
-  const byCargo = new Map();
-  present.forEach(r=>{ byCargo.set(r.cargo, (byCargo.get(r.cargo)||0)+1); });
-  if(byCargo.size===0){
-    cargoBox.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>';
+  /* --- Distribuição por Disciplina: donut elaborado + métricas agregadas --- */
+  const discBox = document.getElementById('apoio-disc-overview');
+  const r=44, cx=58, cy=58, sw=17;
+  const C = 2*Math.PI*r;
+  const gap = presentes>0 ? 3 : 0;
+  let segmentsSvg = '';
+  if(presentes===0){
+    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--border-soft);" stroke-width="${sw}"/>`;
   } else {
-    const entries = Array.from(byCargo.entries()).sort((a,b)=>b[1]-a[1]);
-    const max = Math.max(1, ...entries.map(([,v])=>v));
-    cargoBox.innerHTML = entries.map(([cargo,v])=>`
-      <div class="bar-row">
-        <span class="label">${escHtml(cargo)}</span>
-        <span class="bar-track"><span class="bar-fill" style="width:${100*v/max}%; background:var(--table-accent);"></span></span>
-        <span class="bar-val num">${v}</span>
-      </div>`).join('');
+    let offset = 0;
+    discCounts.forEach(d=>{
+      if(d.count<=0) return;
+      const share = d.count/presentes;
+      const len = Math.max(share*C - gap, 0);
+      segmentsSvg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${d.color};" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += share*C;
+    });
   }
+  const donutSvg = `<svg width="132" height="132" viewBox="0 0 116 116" role="img" aria-label="Distribuição de presentes por disciplina de apoio">
+      ${segmentsSvg}
+      <text x="58" y="55" text-anchor="middle" class="donut-center-label" style="font-size:21px; fill:var(--text-primary);">${fmtInt(presentes)}</text>
+      <text x="58" y="71" text-anchor="middle" style="font-size:9px; fill:var(--text-muted); font-family:var(--font-body);">presentes</text>
+    </svg>`;
+  const legendHtml = discCounts.map(d=>{
+    const share = presentes? d.count/presentes : 0;
+    return `<div class="donut-legend-row">
+      <span class="sw" style="background:${d.color}"></span>
+      <span class="txt"><span class="n">${escHtml(d.label)}</span><span class="d">${fmtInt(d.count)} &middot; ${fmtPct(share)}</span></span>
+    </div>`;
+  }).join('');
+
+  discBox.innerHTML = `
+    <div class="donut-wrap">${donutSvg}<div class="donut-legend">${presentes===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legendHtml}</div></div>
+    <div class="stat-strip" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div class="s"><span class="v num">${fmtInt(total)}</span><span class="k">Apontados (apoio)</span></div>
+      <div class="s"><span class="v num" style="color:${ausentes>0?'var(--critical)':'var(--good)'}">${fmtInt(ausentes)}</span><span class="k">Ausentes</span></div>
+      <div class="s"><span class="v num">${fmtPct(pct)}</span><span class="k">% Presença</span></div>
+      <div class="s"><span class="v num">${osCount}</span><span class="k">OS com apoio</span></div>
+    </div>`;
 }
 
 /* ---------- Qualidade ---------- */
@@ -1535,7 +1679,6 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 document.getElementById('cf-disc').addEventListener('change', e=>{state.cf.disc=e.target.value; renderConfrontoTable();});
 document.getElementById('cf-status').addEventListener('change', e=>{state.cf.status=e.target.value; renderConfrontoTable();});
 
-document.getElementById('date-select-global').addEventListener('change', e=>{ state.date=e.target.value; renderAll(); });
 
 const eqModeBox = document.getElementById('eq-mode');
 [['supervisor','Supervisor'],['encarregado','Encarregado']].forEach(([val,label])=>{
@@ -1553,6 +1696,33 @@ document.getElementById('eq-search').addEventListener('input', e=>{state.eq.sear
 
 document.getElementById('hm-search').addEventListener('input', e=>{state.hm.search=e.target.value; renderPlanejamento();});
 document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ state.hm.scurve = !state.hm.scurve; renderScurve(); });
+
+/* ---------- Limpar filtros (por aba) ---------- */
+document.getElementById('ov-clear-btn').addEventListener('click', ()=>{
+  state.eq.mode = 'supervisor'; state.eq.search = '';
+  document.getElementById('eq-search').value = '';
+  document.querySelectorAll('#eq-mode button').forEach((b,i)=>b.classList.toggle('active', i===0));
+  renderEquipes();
+});
+document.getElementById('cf-clear-btn').addEventListener('click', ()=>{
+  state.cf.os.clear(); state.cf.disc = 'all'; state.cf.status = 'all'; state.cf.expanded.clear();
+  document.getElementById('cf-status').value = 'all';
+  renderConfrontoControls();
+  renderConfrontoTable();
+});
+document.getElementById('hm-clear-btn').addEventListener('click', ()=>{
+  state.hm.os.clear(); state.hm.search = ''; state.hm.scurve = false;
+  document.getElementById('hm-search').value = '';
+  renderConfrontoControls();
+  renderPlanejamento();
+});
+document.getElementById('ab-clear-btn').addEventListener('click', ()=>{
+  document.querySelectorAll('#view-ausencias .ab-detail').forEach(tr=>{ tr.style.display='none'; });
+  document.querySelectorAll('#view-ausencias .ab-row.expanded').forEach(tr=>tr.classList.remove('expanded'));
+});
+document.getElementById('apoio-clear-btn').addEventListener('click', ()=>{
+  document.querySelectorAll('#apoio-os-list details[open]').forEach(d=>d.removeAttribute('open'));
+});
 
 /* ---------- Tema claro/escuro ---------- */
 function currentEffectiveDark(){
@@ -1833,7 +2003,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
       bundle = parseWorkbookToBundle(wb);
       DATA = bundle;
-      state.date = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
+      state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       state.contrato = 'all';
       state.cf.os = new Set(); state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
       state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
@@ -1959,7 +2129,7 @@ async function sbInit(){
     if(error) throw error;
     if(data && data.bundle){
       DATA = data.bundle;
-      state.date = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
+      state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       renderAll();
       renderQualidade();
       const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
