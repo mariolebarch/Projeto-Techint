@@ -48,3 +48,34 @@ create policy "snapshots_insert_authenticated"
 -- API (só dá para apagar/alterar direto no painel do Supabase ou via
 -- service_role, nunca pelo navegador). Isso também serve como trilha de
 -- auditoria de quando/quem importou cada planilha.
+
+
+-- Painel de Improdutividades — mesma estratégia de snapshot, tabela própria
+-- (bundle no formato: Export_BI x SGE x Interferências x Supervisores).
+
+create table if not exists public.improdutividade_snapshots (
+  id              bigint generated always as identity primary key,
+  created_at      timestamptz not null default now(),
+  source_filename text,
+  imported_by     text,
+  bundle          jsonb not null
+);
+
+create index if not exists improdutividade_snapshots_created_at_idx
+  on public.improdutividade_snapshots (created_at desc);
+
+alter table public.improdutividade_snapshots enable row level security;
+
+drop policy if exists "improd_snapshots_select_public" on public.improdutividade_snapshots;
+create policy "improd_snapshots_select_public"
+  on public.improdutividade_snapshots
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "improd_snapshots_insert_authenticated" on public.improdutividade_snapshots;
+create policy "improd_snapshots_insert_authenticated"
+  on public.improdutividade_snapshots
+  for insert
+  to authenticated
+  with check (true);

@@ -13,9 +13,12 @@ usada pelo painel).
 ## 2. Rodar o schema
 
 No projeto, abra **SQL Editor** → cole o conteúdo de
-[`schema.sql`](./schema.sql) → **Run**. Isso cria a tabela
-`painel_snapshots` com as políticas de acesso (leitura pública, escrita só
-para usuários autenticados).
+[`schema.sql`](./schema.sql) → **Run**. Isso cria as duas tabelas de
+snapshot — `painel_snapshots` (painel Efetivo) e `improdutividade_snapshots`
+(Painel de Improdutividades) — com as mesmas políticas de acesso (leitura
+pública, escrita só para usuários autenticados). Se o projeto já tinha
+`painel_snapshots` de antes, rodar o script de novo é seguro: os `create
+table if not exists` só criam o que ainda falta.
 
 ## 3. Criar pelo menos um usuário para importar dados
 
@@ -36,11 +39,12 @@ Em **Project Settings → API**:
 ## 5. Conectar essas credenciais ao painel
 
 Me passe a Project URL e a anon key (aqui na conversa, ou em qualquer lugar
-seguro) que eu conecto o `dashboard.html` a elas: adiciono o cliente
+seguro) que eu conecto os dois painéis a elas: adiciono o cliente
 `@supabase/supabase-js` (via CDN, mesmo padrão do SheetJS que já é usado
-para importação local), faço o painel carregar automaticamente o snapshot
-mais recente ao abrir, e faço a importação pela engrenagem também gravar o
-resultado no Supabase (após você logar com o usuário criado no passo 3).
+para importação local), faço cada painel carregar automaticamente o
+snapshot mais recente da sua tabela ao abrir, e faço a importação pela
+engrenagem também gravar o resultado no Supabase (após você logar com o
+usuário criado no passo 3).
 
 Nunca cole a chave `service_role` em nenhum lugar do front-end — só a
-`anon public key` deve ir no `dashboard.html`.
+`anon public key` deve ir no `dashboard.html` / `improdutividades.html`.

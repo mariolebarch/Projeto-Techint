@@ -1,0 +1,1567 @@
+<title>Painel de Improdutividades</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --ink:#121212;
+  --steel:#0f4c81;
+  --steel-strong:#002b5c;
+  --steel-soft:#e1e9f0;
+  --slate:#6c6966;
+  --sand:#e5e0da;
+  --paper:#ffffff;
+  --border:#c6c2be;
+  --border-soft:#ddd9d2;
+
+  --text-primary:#121212;
+  --text-secondary:#6c6966;
+  --text-muted:#aba7a2;
+  --text-on-accent:#ffffff;
+
+  --good:#3f7a1e; --good-soft:#e8f5dc;
+  --warning:#9c6f10; --warning-soft:#fbf1d2;
+  --critical:#c81a21; --critical-soft:#fbe0df;
+  --info:#0b5d91; --info-soft:#ddeef9;
+
+  --table-accent:#4e9466;
+  --chart-moa:#007dc3;
+  --pci-chart:#8cc83c;
+  --pci-chart-soft:#eaf6d9;
+
+  --heat-0:#ede9e1;
+  --heat-1:#cfe8b8;
+  --heat-2:#a8d480;
+  --heat-3:#7dc24c;
+  --heat-4:#4e9466;
+  --heat-5:#1b4d3a;
+
+  --shadow: 0 1px 2px rgba(23,29,36,.06), 0 4px 14px rgba(23,29,36,.06);
+  --radius: 10px;
+  --font-display:'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  --resp-techint:#0f4c81;
+  --resp-usiminas:#c8621a;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
+    --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
+    --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
+    --good:#8ed45a; --good-soft:#1e3315;
+    --warning:#f0c64c; --warning-soft:#332812;
+    --critical:#f0564f; --critical-soft:#3a1512;
+    --info:#4fa3d9; --info-soft:#12293a;
+    --table-accent:#5fae7a; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
+    --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#4e9466; --heat-5:#8ed45a;
+    --resp-techint:#5b9bd8; --resp-usiminas:#e0913f;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
+  --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
+  --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
+  --good:#8ed45a; --good-soft:#1e3315;
+  --warning:#f0c64c; --warning-soft:#332812;
+  --critical:#f0564f; --critical-soft:#3a1512;
+  --info:#4fa3d9; --info-soft:#12293a;
+  --table-accent:#5fae7a; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
+  --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#4e9466; --heat-5:#8ed45a;
+  --resp-techint:#5b9bd8; --resp-usiminas:#e0913f;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+::selection{background:var(--steel-soft);}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance;margin:0;color:var(--text-primary);}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+a{color:var(--steel);}
+button{font-family:inherit;}
+
+.app{max-width:1360px;margin:0 auto;padding:0 24px 64px;}
+
+.masthead{padding:28px 0 20px; border-bottom:3px solid var(--ink); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead-title{display:flex; flex-direction:column; gap:4px;}
+.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--steel); font-weight:600;}
+.masthead h1{font-size:clamp(28px,4vw,42px); line-height:.96;}
+.masthead-sub{color:var(--text-secondary); font-size:14px; max-width:60ch;}
+.masthead-actions{display:flex; align-items:center; gap:10px;}
+.action-wrap{position:relative; display:flex;}
+.hub-link-btn{display:flex; align-items:center; gap:7px; height:42px; padding:0 16px; border-radius:21px; border:1px solid var(--border); background:var(--paper); color:var(--text-secondary); text-decoration:none; box-shadow:var(--shadow); font-size:12.5px; font-weight:600; white-space:nowrap;}
+.hub-link-btn:hover{color:var(--steel-strong); border-color:var(--steel);}
+.gear-btn{width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--paper); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); transition:transform .2s, color .2s, border-color .2s; position:relative;}
+.gear-btn:hover{color:var(--steel-strong); border-color:var(--steel);}
+.gear-btn[aria-expanded="true"]{color:var(--steel-strong); border-color:var(--steel);}
+#settings-btn[aria-expanded="true"]{transform:rotate(35deg);}
+.alert-btn.has-alerts{color:var(--warning); border-color:var(--warning);}
+.alert-badge{position:absolute; top:-4px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--critical); color:#fff; font-family:var(--font-mono); font-size:10px; font-weight:700; align-items:center; justify-content:center; line-height:1;}
+.alert-badge:not([hidden]){display:flex;}
+.alert-panel{width:340px; max-height:420px; overflow-y:auto;}
+.alert-panel .callout{margin-top:0;}
+.alert-panel .callout + .callout{margin-top:10px;}
+.alert-empty{padding:14px 10px; font-size:12.5px; color:var(--text-muted); text-align:center;}
+.settings-panel{position:absolute; top:calc(100% + 10px); right:0; z-index:40; width:280px; background:var(--paper); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:8px;}
+.settings-panel:not([hidden]){display:flex; flex-direction:column;}
+.settings-panel-head{font-family:var(--font-display); font-weight:800; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); padding:8px 10px 6px;}
+.settings-item{display:flex; align-items:center; gap:12px; width:100%; border:none; background:none; padding:9px 10px; border-radius:8px; cursor:pointer; text-align:left; color:var(--text-primary);}
+button.settings-item:hover{background:var(--sand);}
+.si-icon{font-size:18px; width:26px; text-align:center; flex:none; color:var(--steel);}
+.si-text{display:flex; flex-direction:column; gap:1px; flex:1;}
+.si-title{font-size:13px; font-weight:600;}
+.si-sub{font-size:11px; color:var(--text-muted);}
+.settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
+.settings-theme-row{cursor:default;}
+.switch{position:relative; display:inline-block; width:40px; height:22px; flex:none;}
+.switch input{opacity:0; width:0; height:0;}
+.switch-slider{position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:background .2s;}
+.switch-slider::before{content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.switch input:checked + .switch-slider{background:var(--steel);}
+.switch input:checked + .switch-slider::before{transform:translateX(18px);}
+.switch input:focus-visible + .switch-slider{outline:2px solid var(--steel); outline-offset:2px;}
+.settings-status{margin:6px 6px 2px; font-size:11.5px; padding:8px 9px; border-radius:7px; background:var(--sand); color:var(--text-secondary);}
+.settings-status.ok{background:var(--good-soft); color:var(--good);}
+.settings-status.error{background:var(--critical-soft); color:var(--critical);}
+
+.sb-block{padding:9px 10px; display:flex; flex-direction:column; gap:6px;}
+.sb-block .si-title{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600;}
+.sb-dot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-muted); flex:none;}
+.sb-dot.ok{background:var(--good);}
+.sb-dot.err{background:var(--critical);}
+.sb-status-text{font-size:11px; color:var(--text-muted);}
+.sb-auth-form{display:flex; flex-direction:column; gap:6px; margin-top:2px;}
+.sb-auth-form input{font-family:var(--font-body); font-size:12.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary);}
+.sb-auth-form button{font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--steel); background:var(--steel); color:var(--text-on-accent); cursor:pointer; font-weight:600;}
+.sb-auth-error{font-size:11px; color:var(--critical);}
+.sb-auth-ok{font-size:11px; color:var(--good);}
+.sb-link-btn{background:none !important; border:none !important; color:var(--steel) !important; font-weight:500 !important; padding:2px 0 !important; text-align:left; text-decoration:underline; cursor:pointer;}
+.sb-signed-in{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--text-secondary);}
+.sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
+
+/* Global filter bar */
+.global-filters{display:flex; gap:22px; align-items:flex-end; padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+.global-filters .field label{color:var(--steel-strong);}
+.global-filters .hint{font-size:11.5px; color:var(--text-muted); align-self:center; margin-left:auto;}
+
+/* Tabs */
+.tabbar{display:flex; gap:2px; margin-top:14px; border-bottom:1px solid var(--border); overflow-x:auto;}
+.tabbtn{appearance:none; border:none; background:transparent; cursor:pointer; padding:11px 16px; font-family:var(--font-display); font-weight:700; font-size:14.5px; text-transform:uppercase; letter-spacing:.02em; color:var(--text-muted); border-bottom:3px solid transparent; white-space:nowrap;}
+.tabbtn:hover{color:var(--text-primary);}
+.tabbtn[aria-selected="true"]{color:var(--steel-strong); border-bottom-color:var(--steel);}
+.tabbtn:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--steel); outline-offset:1px;}
+
+.view{display:none; padding-top:22px;}
+.view.active{display:block;}
+
+.card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
+.card + .card{margin-top:16px;}
+.ov-grid > .card, .two-col > .card{margin-top:0;}
+.card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+.card-head h3{font-size:17px;}
+.card-note{font-size:12.5px; color:var(--text-muted);}
+
+.ov-right-col{display:flex; flex-direction:column; gap:16px;}
+.kpi-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+@media (max-width:640px){.kpi-grid{grid-template-columns:repeat(1,1fr);}}
+.kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
+.kpi::before{content:"";position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--steel);}
+.kpi.good::before{background:var(--good);} .kpi.warning::before{background:var(--warning);} .kpi.critical::before{background:var(--critical);}
+.kpi .kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-weight:600;}
+.kpi .kpi-value{font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1;}
+.kpi .kpi-sub{font-size:12px; color:var(--text-secondary);}
+
+.callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
+.callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
+.callout h4{font-size:14.5px; margin-bottom:3px; color:var(--text-primary); text-transform:none;}
+.callout p{margin:0; font-size:13.5px; color:var(--text-secondary);}
+.callout.critical{border-color:var(--critical); background:var(--critical-soft);}
+.callout.critical .glyph{color:var(--critical); border-color:var(--critical);}
+.callout.info{border-color:var(--info); background:var(--info-soft);}
+.callout.info .glyph{color:var(--info); border-color:var(--info);}
+.callout.good{border-color:var(--good); background:var(--good-soft);}
+.callout.good .glyph{color:var(--good); border-color:var(--good);}
+.callout:first-child{margin-top:0;}
+
+.filters{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+.field{display:flex; flex-direction:column; gap:4px;}
+.field label{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); font-weight:600;}
+select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary); min-width:150px;}
+.search-input{min-width:200px;}
+.date-toggle{display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden;}
+.date-toggle button{border:none; background:var(--sand); color:var(--text-secondary); padding:7px 14px; cursor:pointer; font-family:var(--font-mono); font-size:13px; font-weight:500;}
+.date-toggle button.active{background:var(--steel); color:var(--text-on-accent);}
+.date-toggle button:not(:last-child){border-right:1px solid var(--border);}
+
+/* Multi-select filter */
+.msel{position:relative; display:inline-block;}
+.msel-btn{font-family:var(--font-body); font-size:13.5px; padding:7px 30px 7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--sand); color:var(--text-primary); min-width:170px; max-width:260px; text-align:left; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative;}
+.msel-btn::after{content:"▾"; position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--text-muted); pointer-events:none;}
+.msel-btn:hover{border-color:var(--steel);}
+.msel.open .msel-btn{border-color:var(--steel);}
+.msel-panel{display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:30; width:280px; max-height:320px; overflow-y:auto; background:var(--paper); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow); padding:6px;}
+.msel.open .msel-panel{display:block;}
+.msel-actions{display:flex; gap:14px; padding:4px 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px;}
+.msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
+.msel-actions button:hover{text-decoration:underline;}
+.msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
+.msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
+.msel-item:hover{background:var(--sand);}
+.msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
+.msel-item .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.msel-empty{padding:10px 6px; font-size:12.5px; color:var(--text-muted);}
+
+.table-scroll{overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
+table{border-collapse:collapse; width:100%; font-size:13.5px;}
+thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
+thead th.num-col, td.num-col{text-align:right;}
+thead th:hover{filter:brightness(1.12);}
+thead th.sort-active{text-decoration:underline;}
+tbody td{padding:8px 12px; border-top:1px solid var(--border-soft); vertical-align:middle;}
+tbody tr:hover td{background:var(--border-soft);}
+.empty-state{padding:30px; text-align:center; color:var(--text-muted); font-size:13.5px;}
+
+.chip{display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap;}
+.chip.good{background:var(--good-soft); color:var(--good);}
+.chip.warning{background:var(--warning-soft); color:var(--warning);}
+.chip.critical{background:var(--critical-soft); color:var(--critical);}
+.chip.info{background:var(--info-soft); color:var(--info);}
+.chip.pci{background:var(--border-soft); color:var(--slate);}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+.badge-resp{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:5px; font-weight:700; letter-spacing:.03em;}
+.badge-resp.TECHINT{background:var(--info-soft); color:var(--resp-techint);}
+.badge-resp.USIMINAS{background:var(--warning-soft); color:var(--resp-usiminas);}
+
+.stat-strip{display:flex; gap:22px; flex-wrap:wrap; margin-bottom:14px;}
+.stat-strip .s{display:flex; flex-direction:column; gap:2px;}
+.stat-strip .s .v{font-family:var(--font-mono); font-size:19px; font-weight:600;}
+.stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+
+.ov-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; align-items:start;}
+@media (max-width:1000px){.ov-grid{grid-template-columns:1fr;}}
+.bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
+.bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border);}
+.bar-fill{height:100%; background:var(--steel); border-radius:4px;}
+.bar-fill.plan{background:var(--slate); opacity:.55;}
+.bar-val{width:64px; text-align:right; font-family:var(--font-mono); font-size:12px; flex:none;}
+
+.mono-tag{font-family:var(--font-mono); font-size:12px; background:var(--steel-soft); color:var(--steel-strong); padding:1px 7px; border-radius:5px;}
+.ov-table-name{font-weight:600;}
+
+.small-btn{border:1px solid var(--border); background:var(--sand); border-radius:7px; padding:6px 11px; font-size:12.5px; cursor:pointer; color:var(--text-secondary);}
+.small-btn:hover{border-color:var(--steel); color:var(--steel-strong);}
+.small-btn.active{background:var(--steel); border-color:var(--steel); color:var(--text-on-accent);}
+
+/* Expandable OS rows */
+tr.os-row{cursor:pointer;}
+tr.os-row td:first-child{position:relative;}
+tr.os-row.expanded td{background:var(--steel-soft);}
+tr.os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+tr.detail-row td{background:var(--sand); border-top:none;}
+tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; position:relative;}
+tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
+
+/* Donut chart */
+.donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
+.donut-center-label{font-family:var(--font-mono); font-weight:600;}
+.donut-legend{display:flex; flex-direction:column; gap:12px; flex:1; min-width:200px;}
+.donut-legend-row{display:flex; align-items:center; gap:10px;}
+.donut-legend-row .sw{width:12px; height:12px; border-radius:3px; flex:none;}
+.donut-legend-row .txt{display:flex; flex-direction:column; gap:1px;}
+.donut-legend-row .txt .n{font-weight:600; font-size:13.5px;}
+.donut-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
+
+.foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
+
+/* Insights tab */
+.insight-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media (max-width:1000px){.insight-grid{grid-template-columns:1fr;}}
+.insight-card{background:var(--paper); border:1px solid var(--border-soft); border-left:4px solid var(--steel); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;}
+.insight-card.critical{border-left-color:var(--critical);}
+.insight-card.warning{border-left-color:var(--warning);}
+.insight-card.good{border-left-color:var(--good);}
+.insight-card.info{border-left-color:var(--info);}
+.insight-card .ic-eyebrow{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); font-weight:600; margin-bottom:6px;}
+.insight-card h4{font-size:15.5px; margin-bottom:6px; text-transform:none;}
+.insight-card p{margin:0; font-size:13.5px; color:var(--text-secondary); line-height:1.55;}
+.insight-card .ic-metric{font-family:var(--font-mono); font-size:24px; font-weight:700; color:var(--text-primary); margin:2px 0 4px;}
+
+/* S-curve (dark tech panel in both themes) */
+.scurve-card{background:#0a1016; border:1px solid #1c2b35; box-shadow:0 0 0 1px rgba(79,166,224,.08), 0 24px 60px -24px rgba(0,0,0,.7);}
+.scurve-card .card-head h3{color:#eaf6ff;}
+.scurve-card .card-note{color:#7286a0;}
+.scurve-kpis{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:16px;}
+.scurve-kpis .sk{display:flex; flex-direction:column; gap:3px;}
+.scurve-kpis .sk .v{font-family:var(--font-mono); font-size:22px; font-weight:700; color:#eaf6ff; text-shadow:0 0 12px rgba(143,212,232,.25);}
+.scurve-kpis .sk .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:#7286a0;}
+.scurve-wrap{width:100%; overflow-x:auto;}
+.scurve-wrap svg{display:block; width:100%; height:auto;}
+.scurve-grid-line{stroke:#182530; stroke-width:1; shape-rendering:crispEdges;}
+.scurve-axis-label{fill:#5e7285; font-family:var(--font-mono); font-size:10px;}
+.scurve-axis-label.today{fill:#f0564f;}
+.scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
+.scurve-line-planned{stroke:#4fa3d9; stroke-width:2.5; filter:drop-shadow(0 0 5px rgba(79,163,217,.65));}
+.scurve-line-real{stroke:#8ed45a; stroke-width:3; filter:drop-shadow(0 0 7px rgba(142,212,90,.8));}
+.scurve-area-real{fill:url(#scurveGradReal); opacity:.55;}
+.scurve-dot-real{fill:#0a1016; stroke:#8ed45a; stroke-width:2.5; filter:drop-shadow(0 0 5px rgba(142,212,90,.9));}
+.scurve-dot-today{fill:#8ed45a; animation:scurvePulse 1.8s ease-in-out infinite;}
+@keyframes scurvePulse{ 0%,100%{opacity:1; r:6;} 50%{opacity:.45; r:10;} }
+.scurve-legend{display:flex; gap:24px; flex-wrap:wrap; margin-top:14px;}
+.scurve-legend .sl-item{display:flex; align-items:center; gap:9px; font-family:var(--font-mono); font-size:12px; color:#c2d2df;}
+.scurve-legend .sl-sw{width:24px; height:3px; border-radius:2px; flex:none;}
+.scurve-legend .sl-sw.planned{background:#4fa3d9; box-shadow:0 0 6px rgba(79,163,217,.7);}
+.scurve-legend .sl-sw.real{background:#8ed45a; box-shadow:0 0 6px rgba(142,212,90,.8);}
+</style>
+
+<div class="app">
+
+  <header class="masthead">
+    <div class="masthead-title">
+      <span class="eyebrow">Painel de Confronto &middot; Techint Engenharia e Construção</span>
+      <h1>Painel de Improdutividades</h1>
+    </div>
+    <div class="masthead-actions">
+      <a class="hub-link-btn" href="index.html" title="Ir para outro painel">&#8646; Trocar de painel</a>
+      <div class="action-wrap">
+        <button class="gear-btn alert-btn" id="alerts-btn" type="button" title="Avisos" aria-label="Avisos" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="alert-badge" id="alert-badge" hidden>0</span>
+        </button>
+        <div class="settings-panel alert-panel" id="alerts-panel" hidden>
+          <div class="settings-panel-head">Avisos</div>
+          <div id="alerts-list"></div>
+        </div>
+      </div>
+      <div class="action-wrap">
+        <button class="gear-btn" id="settings-btn" type="button" title="Configurações" aria-label="Configurações" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div class="settings-panel" id="settings-panel" hidden>
+          <div class="settings-panel-head">Configurações</div>
+          <button class="settings-item" id="settings-upload-btn" type="button">
+            <span class="si-icon">⭱</span>
+            <span class="si-text"><span class="si-title">Atualizar dados</span><span class="si-sub">Importar nova planilha .xlsx (padrão Base_Painel_de_improdutividades)</span></span>
+          </button>
+          <input type="file" id="settings-file-input" accept=".xlsx" hidden>
+          <div class="settings-divider"></div>
+          <div class="settings-item settings-theme-row">
+            <span class="si-icon" id="theme-icon">◐</span>
+            <span class="si-text"><span class="si-title">Modo escuro</span><span class="si-sub" id="theme-sub">Desativado</span></span>
+            <label class="switch"><input type="checkbox" id="theme-toggle"><span class="switch-slider"></span></label>
+          </div>
+          <div class="settings-status" id="settings-status" hidden></div>
+          <div class="settings-divider"></div>
+          <div class="sb-block">
+            <span class="si-title"><span class="sb-dot" id="sb-status-dot"></span>Fonte de dados (Supabase)</span>
+            <span class="sb-status-text" id="sb-status-text">Verificando conexão…</span>
+            <div id="sb-auth-box"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="global-filters">
+    <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
+    <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
+    <div class="field"><label>Grupo Interferência</label><select id="grupo-select-global"></select></div>
+    <div class="field"><label>Supervisor</label><select id="sup-select-global"></select></div>
+    <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
+    <button class="tabbtn" data-tab="poros" aria-selected="false">Interferências por OS</button>
+    <button class="tabbtn" data-tab="sla" aria-selected="false">Previsto &times; Real (SLA)</button>
+    <button class="tabbtn" data-tab="curva" aria-selected="false">Curva S</button>
+    <button class="tabbtn" data-tab="insights" aria-selected="false">Insights Gerenciais</button>
+  </nav>
+
+  <!-- ================= VISÃO GERAL ================= -->
+  <section class="view active" id="view-visao">
+    <div class="ov-grid">
+      <div class="card">
+        <div class="card-head"><h3>Responsabilidade das Interferências</h3><span class="card-note">TECHINT &times; USIMINAS &middot; horas reais</span></div>
+        <div id="ov-resp-chart"></div>
+        <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Horas reais por Grupo de Interferência</h4></div>
+        <div id="ov-grupo-bars"></div>
+      </div>
+      <div class="ov-right-col">
+        <div class="kpi-grid" id="kpi-grid"></div>
+        <div class="card">
+          <div class="card-head">
+            <h3>Situação dos RDCs (Export_BI &times; SGE)</h3>
+            <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
+          </div>
+          <p class="card-note" style="margin-bottom:10px;">Situação obtida cruzando o RDC do Export_BI (col. C) com a aba SGE (col. H → Situação, col. G).</p>
+          <div id="ov-sit-chart"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INTERFERÊNCIAS POR OS ================= -->
+  <section class="view" id="view-poros">
+    <div class="card">
+      <div class="card-head">
+        <h3>Impacto das Interferências por OS</h3>
+        <span class="card-note">Ranking por horas reais apontadas. Clique duas vezes numa OS para ver o detalhamento por Grupo/Interferência.</span>
+      </div>
+      <div class="stat-strip" id="poros-stats"></div>
+      <div class="table-scroll">
+        <table id="poros-table">
+          <thead><tr><th>OS</th><th class="num-col">Ocorrências</th><th class="num-col">Plan (h)</th><th class="num-col">Real (h)</th><th class="num-col">Excedente SLA (h)</th><th>Real &times; Plan</th></tr></thead>
+          <tbody id="poros-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="poros-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Tipos de Interferência mais frequentes</h3><span class="card-note">Top 10 por horas reais no período filtrado</span></div>
+      <div id="poros-tipos-bars"></div>
+    </div>
+  </section>
+
+  <!-- ================= SLA ================= -->
+  <section class="view" id="view-sla">
+    <div class="card">
+      <div class="card-head">
+        <h3>Previsto &times; Real das Interferências (controle de SLA)</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar OS/Interferência</label><input class="search-input" id="sla-search" placeholder="ex: 37131 ou ART"></div>
+          <div class="field settings-theme-row" style="flex-direction:row; align-items:center; gap:8px;">
+            <label class="switch"><input type="checkbox" id="sla-only-toggle"><span class="switch-slider"></span></label>
+            <span style="font-size:12.5px; color:var(--text-secondary);">Só com SLA excedido</span>
+          </div>
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="sla-clear-btn" type="button">Limpar filtros</button></div>
+        </div>
+      </div>
+      <p class="card-note" style="margin-bottom:10px;">Uma interferência não pode ultrapassar o previsto: o excedente gera SLA, cuja diferença de HH precisa ser paga. Agrupado por Data &times; OS &times; Interferência. Clique nos títulos das colunas para ordenar.</p>
+      <div class="stat-strip" id="sla-stats"></div>
+      <div class="table-scroll" style="max-height:560px; overflow-y:auto;">
+        <table id="sla-table">
+          <thead id="sla-thead"></thead>
+          <tbody id="sla-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="sla-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
+    </div>
+  </section>
+
+  <!-- ================= CURVA S ================= -->
+  <section class="view" id="view-curva">
+    <div class="card scurve-card">
+      <div class="card-head">
+        <h3>Curva S &middot; Horas Previstas &times; Reais das Interferências</h3>
+        <span class="card-note">Acumulado de horas ao longo do período — previsto (planejado no Export_BI) vs. apontado (real). Considera os filtros de OS, Grupo e Supervisor (ignora o filtro de data para mostrar a trajetória completa).</span>
+      </div>
+      <div id="scurve-kpis" class="scurve-kpis"></div>
+      <div id="scurve-chart" class="scurve-wrap"></div>
+      <div id="scurve-legend" class="scurve-legend"></div>
+    </div>
+  </section>
+
+  <!-- ================= INSIGHTS ================= -->
+  <section class="view" id="view-insights">
+    <div class="card">
+      <div class="card-head"><h3>Insights Gerenciais &middot; Techint</h3><span class="card-note">Leitura analítica automática da base filtrada, para apoiar decisões da equipe Techint</span></div>
+      <p class="card-note">Gerado a partir do cruzamento Export_BI &times; SGE &times; Interferências &times; Supervisores.</p>
+    </div>
+    <div class="insight-grid" id="insights-grid" style="margin-top:16px;"></div>
+  </section>
+
+  <div class="foot-note">
+    Painel gerado a partir de <span class="mono-tag">Base_Painel_de_improdutividades.xlsx</span> (abas Export_BI, SGE, Interferências e Supervisores). Empresa: <span id="foot-empresa"></span>.
+  </div>
+</div>
+
+<script id="bundle-data" type="application/json">__DATA_JSON__</script>
+<script>
+(function(){
+"use strict";
+let DATA = JSON.parse(document.getElementById('bundle-data').textContent);
+
+/* ---------- Supabase (fonte de dados centralizada, opcional) ---------- */
+const SUPABASE_URL = 'https://dqomnopaigdikkesbbvj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxb21ub3BhaWdkaWtrZXNiYnZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MDA3OTAsImV4cCI6MjEwMzI3Njc5MH0.O7bNNjF1l8si5b7ui8l3fUWD4ETtc5im_-nl2jYjVA8';
+const sb = (window.supabase && window.supabase.createClient) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let sbSession = null;
+const fmtInt = n => Math.round(n).toLocaleString('pt-BR');
+const fmtH = n => n.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1});
+const fmtPct = n => (n*100).toFixed(0) + '%';
+const fmtPct1 = n => (n*100).toFixed(1) + '%';
+function escHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- state ---------- */
+const state = {
+  dates: new Set(DATA.datas || []),
+  os: new Set(),
+  grupo: 'all',
+  sup: 'all',
+  poros: {expanded:new Set()},
+  sla: {search:'', onlySla:false, sortKey:'exced', sortDir:'desc'},
+};
+
+function fmtDateLabel(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dias=['dom','seg','ter','qua','qui','sex','sáb'];
+  return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+' ('+dias[d.getDay()]+')';
+}
+function fmtDateLabelFull(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' — '+dias[d.getDay()];
+}
+function datesLabel(){
+  const arr = Array.from(state.dates).sort();
+  if(arr.length===0) return 'nenhuma data selecionada';
+  if(arr.length===(DATA.datas||[]).length) return 'todas as datas (' + arr.length + ')';
+  if(arr.length<=3) return arr.map(fmtDateLabel).join(', ');
+  return arr.length + ' datas selecionadas';
+}
+
+/* ---------- filtered accessors ---------- */
+function passCommon(r){
+  return (state.dates.size===0 || state.dates.has(r.d))
+    && (state.os.size===0 || state.os.has(r.os))
+    && (state.sup==='all' || r.sup===state.sup);
+}
+function filteredInterf(){
+  return DATA.interferencias.filter(r => passCommon(r) && (state.grupo==='all' || r.gi===state.grupo));
+}
+function filteredInterfNoDate(){
+  return DATA.interferencias.filter(r =>
+    (state.os.size===0 || state.os.has(r.os))
+    && (state.sup==='all' || r.sup===state.sup)
+    && (state.grupo==='all' || r.gi===state.grupo));
+}
+function filteredRdcs(){
+  return DATA.rdcs.filter(r => passCommon(r));
+}
+
+/* ---------- global filter controls ---------- */
+function buildDateMultiSelect(){
+  const container = document.getElementById('date-msel-global');
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  function updateBtnLabel(){ btn.textContent = datesLabel(); }
+
+  if((DATA.datas||[]).length===0){
+    panel.innerHTML = '<div class="msel-empty">Nenhuma data disponível.</div>';
+    updateBtnLabel();
+    return;
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="none">Limpar</button>`;
+  panel.appendChild(actions);
+
+  DATA.datas.forEach(d=>{
+    const row = document.createElement('label'); row.className='msel-item';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.dates.has(d);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) state.dates.add(d); else state.dates.delete(d);
+      updateBtnLabel();
+      renderAll();
+    });
+    const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = fmtDateLabelFull(d);
+    row.appendChild(cb); row.appendChild(lbl);
+    panel.appendChild(row);
+  });
+
+  updateBtnLabel();
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    DATA.datas.forEach(d=>state.dates.add(d));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); renderAll();
+  });
+  actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
+    state.dates.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    updateBtnLabel(); renderAll();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+}
+
+function buildOsMultiSelect(){
+  const container = document.getElementById('os-msel-global');
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  function updateBtnLabel(){
+    if(state.os.size===0) btn.textContent = 'Todas as OS';
+    else if(state.os.size<=2) btn.textContent = Array.from(state.os).join(', ');
+    else btn.textContent = state.os.size + ' OS selecionadas';
+  }
+
+  const osOptions = DATA.os_list || [];
+  if(osOptions.length===0){
+    panel.innerHTML = '<div class="msel-empty">Nenhuma OS disponível.</div>';
+    updateBtnLabel();
+    return;
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="none">Limpar</button>`;
+  panel.appendChild(actions);
+
+  osOptions.forEach(os=>{
+    const row = document.createElement('label'); row.className='msel-item';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.os.has(os);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) state.os.add(os); else state.os.delete(os);
+      updateBtnLabel();
+      renderAll();
+    });
+    const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = 'OS ' + os;
+    row.appendChild(cb); row.appendChild(lbl);
+    panel.appendChild(row);
+  });
+
+  updateBtnLabel();
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    osOptions.forEach(os=>state.os.add(os));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); renderAll();
+  });
+  actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
+    state.os.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    updateBtnLabel(); renderAll();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+}
+
+function populateSelect(sel, options, allLabel, current){
+  sel.innerHTML = '';
+  const optAll = document.createElement('option'); optAll.value='all'; optAll.textContent=allLabel;
+  sel.appendChild(optAll);
+  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt); });
+  sel.value = current || 'all';
+}
+
+function renderGlobalFilters(){
+  buildDateMultiSelect();
+  buildOsMultiSelect();
+  populateSelect(document.getElementById('grupo-select-global'), DATA.grupos || [], 'Todos os grupos', state.grupo);
+  populateSelect(document.getElementById('sup-select-global'), DATA.supervisores || [], 'Todos os supervisores', state.sup);
+}
+
+/* ---------- KPIs & Visão Geral ---------- */
+function renderKPIs(){
+  const rows = filteredInterf();
+  const n = rows.reduce((a,r)=>a+r.n,0);
+  const real = rows.reduce((a,r)=>a+r.real,0);
+  const plan = rows.reduce((a,r)=>a+r.plan,0);
+  const exced = rows.reduce((a,r)=>a+Math.max(0, r.real-r.plan),0);
+  const aderencia = plan? real/plan : 0;
+  const rdcRows = filteredRdcs();
+  const aprovados = rdcRows.filter(r=>r.sit==='Aprovado').length;
+  const taxaAprov = rdcRows.length? aprovados/rdcRows.length : 0;
+
+  const kpis = [
+    {label:'Interferências registradas', value:fmtInt(n), sub:datesLabel(), cls:''},
+    {label:'Horas Reais Apontadas', value:fmtH(real)+'h', sub:'previsto: '+fmtH(plan)+'h', cls:''},
+    {label:'Aderência ao Plano', value:fmtPct1(aderencia), sub: aderencia>1 ? 'real acima do previsto' : 'dentro do previsto', cls: aderencia>1.05?'critical':(aderencia>1?'warning':'good')},
+    {label:'Horas Excedentes (SLA)', value:fmtH(exced)+'h', sub: n? fmtPct1(exced/Math.max(real,1))+' das horas reais':'—', cls: exced>0?'critical':'good'},
+    {label:'RDCs no período', value:fmtInt(rdcRows.length), sub:'via aba SGE', cls:''},
+    {label:'Taxa de Aprovação RDC', value:fmtPct1(taxaAprov), sub:fmtInt(aprovados)+' aprovados', cls: taxaAprov<0.6?'critical':(taxaAprov<0.8?'warning':'good')},
+  ];
+  const grid = document.getElementById('kpi-grid');
+  grid.innerHTML = '';
+  kpis.forEach(k=>{
+    const el = document.createElement('div');
+    el.className = 'kpi '+k.cls;
+    el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    grid.appendChild(el);
+  });
+
+  renderCallouts(rows, exced);
+  renderRespChart(rows);
+  renderGrupoBars(rows);
+  renderSitChart(rdcRows);
+}
+
+function renderCallouts(rows, excedTotal){
+  const box = document.getElementById('alerts-list');
+  box.innerHTML = '';
+
+  if(excedTotal>0){
+    const el = document.createElement('div');
+    el.className = 'callout critical';
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtH(excedTotal)}h excedentes geraram SLA no período</h4><p>Essas horas ultrapassaram o previsto nas interferências e representam HH que precisam ser pagos pela diferença. Veja a aba "Previsto × Real (SLA)" para o detalhamento por data/OS/interferência.</p></div>`;
+    box.appendChild(el);
+  }
+  const rdcRows = filteredRdcs();
+  const problematicos = rdcRows.filter(r=>['Reprovado','Aguardando Aprovação','Revisão'].includes(r.sit));
+  if(rdcRows.length>0 && problematicos.length/rdcRows.length > 0.2){
+    const el = document.createElement('div');
+    el.className = 'callout warning';
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtPct1(problematicos.length/rdcRows.length)} dos RDCs estão parados (reprovados, em revisão ou aguardando aprovação)</h4><p>${fmtInt(problematicos.length)} de ${fmtInt(rdcRows.length)} RDCs no período não estão aprovados nem em elaboração — risco de atraso no fechamento do ciclo.</p></div>`;
+    box.appendChild(el);
+  }
+  const usiRows = rows.filter(r=>r.resp==='USIMINAS');
+  const usiReal = usiRows.reduce((a,r)=>a+r.real,0);
+  const totalReal = rows.reduce((a,r)=>a+r.real,0);
+  if(totalReal>0 && usiReal/totalReal > 0.3){
+    const el = document.createElement('div');
+    el.className = 'callout info';
+    el.innerHTML = `<span class="glyph">i</span><div><h4>${fmtPct1(usiReal/totalReal)} das horas de interferência são de responsabilidade da USIMINAS</h4><p>${fmtH(usiReal)}h estão fora do controle direto da Techint — útil para negociação de prazos e SLA com o cliente.</p></div>`;
+    box.appendChild(el);
+  }
+
+  const count = box.children.length;
+  const badge = document.getElementById('alert-badge');
+  const alertsBtn = document.getElementById('alerts-btn');
+  if(count>0){
+    badge.hidden = false; badge.textContent = count;
+    alertsBtn.classList.add('has-alerts');
+  } else {
+    badge.hidden = true;
+    alertsBtn.classList.remove('has-alerts');
+    box.innerHTML = '<div class="alert-empty">Nenhum aviso para os filtros atuais.</div>';
+  }
+}
+
+function renderRespChart(rows){
+  const box = document.getElementById('ov-resp-chart');
+  const byResp = new Map();
+  rows.forEach(r=>{
+    const key = r.resp || 'Não classificado';
+    byResp.set(key, (byResp.get(key)||0) + r.real);
+  });
+  const stats = Array.from(byResp.entries()).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+  const grand = stats.reduce((a,s)=>a+s.v,0);
+  const colorOf = k => k==='TECHINT' ? 'var(--resp-techint)' : (k==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--slate)');
+
+  const r=46, cx=60, cy=60, sw=18;
+  const C = 2*Math.PI*r;
+  const gap = grand>0 ? 3 : 0;
+
+  let segmentsSvg = '';
+  if(grand<=0){
+    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--border-soft);" stroke-width="${sw}"/>`;
+  } else {
+    let offset = 0;
+    stats.forEach(s=>{
+      if(s.v<=0) return;
+      const share = s.v/grand;
+      const len = Math.max(share*C - gap, 0);
+      segmentsSvg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${colorOf(s.k)};" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += share*C;
+    });
+  }
+
+  const svg = `<svg width="140" height="140" viewBox="0 0 120 120" role="img" aria-label="Horas reais por responsável">
+      ${segmentsSvg}
+      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:16px; fill:var(--text-primary);">${fmtH(grand)}h</text>
+      <text x="60" y="73" text-anchor="middle" style="font-size:9.5px; fill:var(--text-muted); font-family:var(--font-body);">horas reais</text>
+    </svg>`;
+
+  const legend = stats.map(s=>{
+    return `<div class="donut-legend-row">
+      <span class="sw" style="background:${colorOf(s.k)}"></span>
+      <span class="txt"><span class="n">${escHtml(s.k)}</span><span class="d">${fmtH(s.v)}h &middot; ${grand? fmtPct1(s.v/grand):'0%'}</span></span>
+    </div>`;
+  }).join('');
+
+  box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand<=0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div></div>`;
+}
+
+function renderGrupoBars(rows){
+  const box = document.getElementById('ov-grupo-bars');
+  const byGrupo = new Map();
+  rows.forEach(r=>{ byGrupo.set(r.gi||'—', (byGrupo.get(r.gi||'—')||0) + r.real); });
+  const entries = Array.from(byGrupo.entries()).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+  const max = Math.max(...entries.map(e=>e[1]));
+  box.innerHTML = entries.map(([g,v])=>`
+    <div class="bar-row">
+      <span class="label" title="${escHtml(g)}">${escHtml(g)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%;"></div></div>
+      <span class="bar-val num">${fmtH(v)}h</span>
+    </div>`).join('');
+}
+
+function renderSitChart(rdcRows){
+  const box = document.getElementById('ov-sit-chart');
+  const bySit = new Map();
+  rdcRows.forEach(r=>{ const k = r.sit || '—'; bySit.set(k, (bySit.get(k)||0)+1); });
+  const entries = Array.from(bySit.entries()).sort((a,b)=>b[1]-a[1]);
+  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem RDCs para os filtros atuais.</div>'; return; }
+  const total = entries.reduce((a,e)=>a+e[1],0);
+  const colors = {'Aprovado':'var(--good)','Elaboração':'var(--info)','Revisão':'var(--warning)','Aguardando Aprovação':'var(--warning)','Reprovado':'var(--critical)','Cancelado':'var(--slate)','Copiado':'var(--slate)'};
+  const max = Math.max(...entries.map(e=>e[1]));
+  box.innerHTML = `<div class="stat-strip" style="margin-bottom:10px;"><div class="s"><span class="v">${fmtInt(total)}</span><span class="k">RDCs no período</span></div></div>` +
+    entries.map(([s,v])=>`
+    <div class="bar-row">
+      <span class="label" title="${escHtml(s)}">${escHtml(s)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%; background:${colors[s]||'var(--steel)'};"></div></div>
+      <span class="bar-val num">${fmtInt(v)} (${fmtPct1(v/total)})</span>
+    </div>`).join('');
+}
+
+/* ---------- Interferências por OS ---------- */
+function renderPorOs(){
+  const rows = filteredInterf();
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, n:0, plan:0, real:0, exced:0});
+    const g = byOs.get(r.os);
+    g.n += r.n; g.plan += r.plan; g.real += r.real; g.exced += Math.max(0, r.real-r.plan);
+  });
+  const entries = Array.from(byOs.values()).sort((a,b)=>b.real-a.real);
+
+  const totalReal = entries.reduce((a,e)=>a+e.real,0);
+  const totalExced = entries.reduce((a,e)=>a+e.exced,0);
+  document.getElementById('poros-stats').innerHTML = `
+    <div class="s"><span class="v">${entries.length}</span><span class="k">OS com interferências</span></div>
+    <div class="s"><span class="v">${fmtH(totalReal)}h</span><span class="k">Horas reais totais</span></div>
+    <div class="s"><span class="v" style="color:${totalExced>0?'var(--critical)':'var(--good)'}">${fmtH(totalExced)}h</span><span class="k">Excedente SLA total</span></div>
+    <div class="s"><span class="v">${entries.length ? entries[0].os : '—'}</span><span class="k">OS com maior impacto</span></div>`;
+
+  const tbody = document.getElementById('poros-tbody');
+  const maxReal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
+  tbody.innerHTML = '';
+  document.getElementById('poros-empty').style.display = entries.length? 'none' : '';
+
+  entries.forEach(e=>{
+    const tr = document.createElement('tr');
+    tr.className = 'os-row';
+    tr.dataset.os = e.os;
+    tr.innerHTML = `
+      <td><span class="ov-table-name">OS ${escHtml(e.os)}</span><span class="expand-hint">(2 cliques p/ detalhar)</span></td>
+      <td class="num-col num">${fmtInt(e.n)}</td>
+      <td class="num-col num">${fmtH(e.plan)}</td>
+      <td class="num-col num">${fmtH(e.real)}</td>
+      <td class="num-col num" style="color:${e.exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(e.exced)}</td>
+      <td>
+        <div class="os-mini-bar">
+          <div class="fill-plan" style="width:${Math.min(100,e.plan/maxReal*100)}%;"></div>
+          <div class="fill-real" style="width:${Math.min(100,e.real/maxReal*100)}%;"></div>
+        </div>
+      </td>`;
+    tr.addEventListener('dblclick', ()=>{
+      if(state.poros.expanded.has(e.os)) state.poros.expanded.delete(e.os);
+      else state.poros.expanded.add(e.os);
+      renderPorOs();
+    });
+    tbody.appendChild(tr);
+
+    if(state.poros.expanded.has(e.os)){
+      tr.classList.add('expanded');
+      const byInterf = new Map();
+      rows.filter(r=>r.os===e.os).forEach(r=>{
+        const key = r.gi+' — '+r.it;
+        if(!byInterf.has(key)) byInterf.set(key, {label:key, plan:0, real:0, exced:0});
+        const g = byInterf.get(key);
+        g.plan += r.plan; g.real += r.real; g.exced += Math.max(0,r.real-r.plan);
+      });
+      Array.from(byInterf.values()).sort((a,b)=>b.real-a.real).forEach(d=>{
+        const dtr = document.createElement('tr');
+        dtr.className = 'detail-row';
+        dtr.innerHTML = `
+          <td class="detail-name">${escHtml(d.label)}</td>
+          <td></td>
+          <td class="num-col num">${fmtH(d.plan)}</td>
+          <td class="num-col num">${fmtH(d.real)}</td>
+          <td class="num-col num" style="color:${d.exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(d.exced)}</td>
+          <td></td>`;
+        tbody.appendChild(dtr);
+      });
+    }
+  });
+
+  const tiposBox = document.getElementById('poros-tipos-bars');
+  const byTipo = new Map();
+  rows.forEach(r=>{
+    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
+    byTipo.get(r.it).v += r.real;
+  });
+  const tiposEntries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v).slice(0,10);
+  if(tiposEntries.length===0){ tiposBox.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; }
+  else {
+    const maxT = Math.max(...tiposEntries.map(e=>e.v));
+    tiposBox.innerHTML = tiposEntries.map(e=>`
+      <div class="bar-row">
+        <span class="label" title="${escHtml(e.k)}">${escHtml(e.k)}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${maxT?Math.max(2,e.v/maxT*100):0}%; background:${e.resp==='USIMINAS'?'var(--resp-usiminas)':'var(--resp-techint)'};"></div></div>
+        <span class="bar-val num">${fmtH(e.v)}h</span>
+      </div>`).join('');
+  }
+}
+
+/* ---------- SLA table ---------- */
+function buildSlaRows(){
+  const rows = filteredInterf();
+  const map = new Map();
+  rows.forEach(r=>{
+    const key = r.d+'|'+r.os+'|'+r.it;
+    if(!map.has(key)) map.set(key, {d:r.d, os:r.os, it:r.it, resp:r.resp, plan:0, real:0, exced:0});
+    const g = map.get(key);
+    g.plan += r.plan; g.real += r.real;
+    g.exced += Math.max(0, r.real-r.plan); // soma por encarregado — não deixa um saldo positivo esconder um excedente de outro
+  });
+  return Array.from(map.values()).map(g=>{
+    const pct = g.plan>0 ? (g.real-g.plan)/g.plan : (g.real>0?1:0);
+    return Object.assign(g, {pct});
+  });
+}
+const SLA_COLS = [
+  {key:'d', label:'Data', num:false},
+  {key:'os', label:'OS', num:false},
+  {key:'it', label:'Interferência', num:false},
+  {key:'resp', label:'Responsável', num:false},
+  {key:'plan', label:'Plan (h)', num:true},
+  {key:'real', label:'Real (h)', num:true},
+  {key:'exced', label:'Excedente (h)', num:true},
+  {key:'pct', label:'% vs Plan', num:true},
+];
+function renderSlaThead(){
+  const thead = document.getElementById('sla-thead');
+  thead.innerHTML = '<tr>' + SLA_COLS.map(c=>{
+    const active = state.sla.sortKey===c.key;
+    const arrow = active ? (state.sla.sortDir==='desc'?' ▾':' ▴') : '';
+    return `<th class="${c.num?'num-col':''}${active?' sort-active':''}" data-key="${c.key}">${c.label}${arrow}</th>`;
+  }).join('') + '</tr>';
+  thead.querySelectorAll('th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if(state.sla.sortKey===key) state.sla.sortDir = state.sla.sortDir==='desc'?'asc':'desc';
+      else { state.sla.sortKey = key; state.sla.sortDir = 'desc'; }
+      renderSla();
+    });
+  });
+}
+function renderSla(){
+  renderSlaThead();
+  let rows = buildSlaRows();
+  const term = state.sla.search.trim().toLowerCase();
+  if(term) rows = rows.filter(r => r.os.toLowerCase().includes(term) || r.it.toLowerCase().includes(term));
+  if(state.sla.onlySla) rows = rows.filter(r => r.exced > 0);
+
+  const {sortKey, sortDir} = state.sla;
+  rows.sort((a,b)=>{
+    let av=a[sortKey], bv=b[sortKey];
+    if(typeof av==='string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
+    if(av<bv) return sortDir==='asc'?-1:1;
+    if(av>bv) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  const totalExced = rows.reduce((a,r)=>a+r.exced,0);
+  const withSla = rows.filter(r=>r.exced>0).length;
+  document.getElementById('sla-stats').innerHTML = `
+    <div class="s"><span class="v">${fmtInt(rows.length)}</span><span class="k">Combinações Data &times; OS &times; Interferência</span></div>
+    <div class="s"><span class="v" style="color:${withSla>0?'var(--critical)':'var(--good)'}">${fmtInt(withSla)}</span><span class="k">Com SLA excedido</span></div>
+    <div class="s"><span class="v" style="color:${totalExced>0?'var(--critical)':'var(--good)'}">${fmtH(totalExced)}h</span><span class="k">Total de horas excedentes</span></div>`;
+
+  const tbody = document.getElementById('sla-tbody');
+  document.getElementById('sla-empty').style.display = rows.length ? 'none' : '';
+  tbody.innerHTML = rows.slice(0,600).map(r=>{
+    const status = r.exced>0 ? 'critical' : (r.plan===0 && r.real>0 ? 'info' : 'good');
+    const statusLabel = r.exced>0 ? 'SLA excedido' : (r.plan===0 && r.real>0 ? 'Sem previsão' : 'OK');
+    return `<tr>
+      <td>${fmtDateLabel(r.d)}</td>
+      <td class="num">OS ${escHtml(r.os)}</td>
+      <td>${escHtml(r.it)}</td>
+      <td><span class="badge-resp ${r.resp==='USIMINAS'?'USIMINAS':'TECHINT'}">${escHtml(r.resp||'—')}</span></td>
+      <td class="num-col num">${fmtH(r.plan)}</td>
+      <td class="num-col num">${fmtH(r.real)}</td>
+      <td class="num-col num" style="color:${r.exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(r.exced)}</td>
+      <td class="num-col"><span class="chip ${status}">${statusLabel} &middot; ${r.pct>=0?'+':''}${fmtPct1(r.pct)}</span></td>
+    </tr>`;
+  }).join('');
+  if(rows.length>600){
+    tbody.innerHTML += `<tr><td colspan="8" class="empty-state">Mostrando as 600 combinações com maior prioridade de ordenação — refine os filtros para ver o restante (${fmtInt(rows.length-600)} linhas adicionais).</td></tr>`;
+  }
+}
+
+/* ---------- Curva S ---------- */
+function buildScurveSeries(){
+  const dias = DATA.datas || [];
+  const rows = filteredInterfNoDate();
+  const planByDate = new Map(), realByDate = new Map();
+  rows.forEach(r=>{
+    planByDate.set(r.d, (planByDate.get(r.d)||0) + r.plan);
+    realByDate.set(r.d, (realByDate.get(r.d)||0) + r.real);
+  });
+  let cumP=0, cumR=0;
+  const plannedSeries = dias.map(d=>{ cumP += (planByDate.get(d)||0); return {data:d, val:cumP}; });
+  const realSeries = dias.map(d=>{ cumR += (realByDate.get(d)||0); return {data:d, val:cumR}; });
+  return {dias, plannedSeries, realSeries};
+}
+
+function renderScurve(){
+  const {dias, plannedSeries, realSeries} = buildScurveSeries();
+  const totalPlan = plannedSeries.length ? plannedSeries[plannedSeries.length-1].val : 0;
+  const totalReal = realSeries.length ? realSeries[realSeries.length-1].val : 0;
+  const avanco = totalPlan ? totalReal/totalPlan : 0;
+  document.getElementById('scurve-kpis').innerHTML = `
+    <div class="sk"><span class="v">${fmtH(totalPlan)}h</span><span class="k">Previsto acumulado (horizonte)</span></div>
+    <div class="sk"><span class="v">${fmtH(totalReal)}h</span><span class="k">Real acumulado</span></div>
+    <div class="sk"><span class="v" style="color:${avanco<=1?'#8ed45a':avanco<=1.1?'#f0c64c':'#f0564f'}">${fmtPct1(avanco)}</span><span class="k">Real / Previsto no período</span></div>`;
+  document.getElementById('scurve-legend').innerHTML = `
+    <div class="sl-item"><span class="sl-sw planned"></span>Previsto (acumulado)</div>
+    <div class="sl-item"><span class="sl-sw real"></span>Real (acumulado)</div>`;
+
+  if(dias.length===0){ document.getElementById('scurve-chart').innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
+
+  const W=900,H=340,padL=56,padR=24,padT=20,padB=34;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const n = dias.length;
+  const maxVal = Math.max(1, totalPlan, totalReal);
+  const xOf = i => padL + (n<=1?0:(innerW*i/(n-1)));
+  const yOf = v => padT + innerH - (innerH*v/maxVal);
+
+  const plannedPts = plannedSeries.map((p,i)=>[xOf(i),yOf(p.val)]);
+  const realPts = realSeries.map((p,i)=>[xOf(i),yOf(p.val)]);
+  const pathD = pts => pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const plannedPath = pathD(plannedPts);
+  const realLinePath = pathD(realPts);
+  const areaPath = realPts.length ? (pathD(realPts)+' L'+realPts[realPts.length-1][0].toFixed(1)+','+(padT+innerH)+' L'+realPts[0][0].toFixed(1)+','+(padT+innerH)+' Z') : '';
+
+  let gridSvg='', axisSvg='', lastMonth=null;
+  dias.forEach((d,i)=>{
+    const month = d.slice(0,7);
+    if(month!==lastMonth || i===0){
+      lastMonth = month;
+      const gx=xOf(i);
+      gridSvg += `<line class="scurve-grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${padT+innerH}"/>`;
+      axisSvg += `<text class="scurve-axis-label" x="${gx}" y="${H-10}">${d.slice(8,10)}/${d.slice(5,7)}</text>`;
+    }
+  });
+  [0,.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-(innerH*f);
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
+    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
+  });
+
+  let lastDot='';
+  if(realPts.length){
+    const [lx,ly] = realPts[realPts.length-1];
+    lastDot = `<circle class="scurve-dot-today" cx="${lx}" cy="${ly}" r="6"/>`;
+  }
+  const dotsSvg = realPts.length<=60 ? realPts.map(([px,py])=>`<circle class="scurve-dot-real" cx="${px}" cy="${py}" r="3"/>`).join('') : '';
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva S: acumulado previsto x acumulado real de horas">
+      <defs>
+        <linearGradient id="scurveGradReal" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8ed45a" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#8ed45a" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridSvg}${axisSvg}
+      ${areaPath?`<path class="scurve-area-real" d="${areaPath}"/>`:''}
+      <path class="scurve-line scurve-line-planned" id="scurve-path-planned" d="${plannedPath}"/>
+      <path class="scurve-line scurve-line-real" id="scurve-path-real" d="${realLinePath}"/>
+      ${dotsSvg}${lastDot}
+    </svg>`;
+  document.getElementById('scurve-chart').innerHTML = svg;
+
+  requestAnimationFrame(()=>{
+    ['scurve-path-planned','scurve-path-real'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      const len = el.getTotalLength();
+      el.style.strokeDasharray = len;
+      el.style.strokeDashoffset = len;
+      el.getBoundingClientRect();
+      el.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.16,.84,.44,1)';
+      requestAnimationFrame(()=>{ el.style.strokeDashoffset = '0'; });
+    });
+  });
+}
+
+/* ---------- Insights Gerenciais ---------- */
+function computeInsights(){
+  const rows = filteredInterf();
+  const insights = [];
+  const totalReal = rows.reduce((a,r)=>a+r.real,0);
+  const totalPlan = rows.reduce((a,r)=>a+r.plan,0);
+  const totalExced = rows.reduce((a,r)=>a+Math.max(0,r.real-r.plan),0);
+
+  // 1. Top interference type
+  const byTipo = new Map();
+  rows.forEach(r=>{
+    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
+    byTipo.get(r.it).v += r.real;
+  });
+  const topTipo = Array.from(byTipo.entries()).map(([k,o])=>({k,...o})).sort((a,b)=>b.v-a.v)[0];
+  if(topTipo){
+    insights.push({tone:'warning', eyebrow:'Maior consumo de horas', title:topTipo.k, metric:fmtH(topTipo.v)+'h',
+      text:`Responsável: ${topTipo.resp||'não classificado'}. Essa é a interferência que mais consome horas reais na base filtrada (${totalReal? fmtPct1(topTipo.v/totalReal):'0%'} do total) — é o primeiro ponto a atacar para reduzir improdutividade.`});
+  }
+
+  // 2. Responsibility split
+  const byResp = new Map();
+  rows.forEach(r=>{ byResp.set(r.resp||'—', (byResp.get(r.resp||'—')||0)+r.real); });
+  const techintH = byResp.get('TECHINT')||0, usiminasH = byResp.get('USIMINAS')||0;
+  insights.push({tone:'info', eyebrow:'Responsabilidade das interferências', title:'Divisão Techint × Usiminas',
+    metric: totalReal? fmtPct1(techintH/totalReal) : '—',
+    text:`Techint responde por ${fmtH(techintH)}h e Usiminas por ${fmtH(usiminasH)}h de interferências no período. Horas sob responsabilidade da Usiminas são um argumento direto para negociar prazos e SLA com o cliente.`});
+
+  // 3. SLA exposure
+  const byKeySla = new Map();
+  rows.forEach(r=>{
+    const key = r.os+'|'+r.it;
+    if(!byKeySla.has(key)) byKeySla.set(key, {os:r.os, it:r.it, exced:0});
+    byKeySla.get(key).exced += Math.max(0, r.real-r.plan);
+  });
+  const topSla = Array.from(byKeySla.values()).sort((a,b)=>b.exced-a.exced)[0];
+  insights.push({tone: totalExced>0 ? 'critical':'good', eyebrow:'Exposição a SLA', title: totalExced>0 ? 'Horas excedentes geram pagamento de HH' : 'Sem excedente de SLA no período',
+    metric: fmtH(totalExced)+'h',
+    text: totalExced>0
+      ? `O maior ponto de exposição é OS ${topSla?topSla.os:'—'} na interferência "${topSla?topSla.it:'—'}" (${topSla?fmtH(topSla.exced):'0'}h excedentes). Aderência geral ao plano: ${totalPlan?fmtPct1(totalReal/totalPlan):'—'}.`
+      : `Todas as interferências registradas ficaram dentro do previsto — aderência de ${totalPlan?fmtPct1(totalReal/totalPlan):'—'} ao plano.`});
+
+  // 4. RDC risk
+  const rdcRows = filteredRdcs();
+  const bySit = new Map();
+  rdcRows.forEach(r=>{ const k=r.sit||'—'; bySit.set(k,(bySit.get(k)||0)+1); });
+  const parados = (bySit.get('Reprovado')||0)+(bySit.get('Aguardando Aprovação')||0)+(bySit.get('Revisão')||0);
+  const pctParados = rdcRows.length ? parados/rdcRows.length : 0;
+  insights.push({tone: pctParados>0.2?'critical':(pctParados>0.1?'warning':'good'), eyebrow:'Risco de aprovação de RDC', title:'RDCs parados no fluxo',
+    metric: fmtPct1(pctParados),
+    text:`${fmtInt(parados)} de ${fmtInt(rdcRows.length)} RDCs estão reprovados, em revisão ou aguardando aprovação. Taxa de aprovação direta: ${rdcRows.length?fmtPct1((bySit.get('Aprovado')||0)/rdcRows.length):'—'}.`});
+
+  // 5. Supervisor ranking
+  const bySup = new Map();
+  rows.forEach(r=>{ const k=r.sup||'—'; bySup.set(k,(bySup.get(k)||0)+r.real); });
+  const supRanking = Array.from(bySup.entries()).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  if(supRanking.length){
+    insights.push({tone:'info', eyebrow:'Maior volume de interferências por supervisor', title:supRanking[0][0],
+      metric: fmtH(supRanking[0][1])+'h',
+      text:`Top 3 supervisores por horas de interferência: ${supRanking.map(([k,v])=>k+' ('+fmtH(v)+'h)').join(', ')}. Útil para direcionar ações de produtividade por equipe.`});
+  }
+
+  // 6. Temporal trend
+  const datesSorted = (DATA.datas||[]).slice().sort();
+  if(datesSorted.length>=4){
+    const mid = Math.floor(datesSorted.length/2);
+    const firstHalf = new Set(datesSorted.slice(0,mid));
+    const secondHalf = new Set(datesSorted.slice(mid));
+    const realFirst = rows.filter(r=>firstHalf.has(r.d)).reduce((a,r)=>a+r.real,0);
+    const realSecond = rows.filter(r=>secondHalf.has(r.d)).reduce((a,r)=>a+r.real,0);
+    const variation = realFirst>0 ? (realSecond-realFirst)/realFirst : 0;
+    insights.push({tone: variation>0.1?'critical':(variation<-0.1?'good':'info'), eyebrow:'Tendência temporal', title: variation>=0?'Horas de interferência em alta':'Horas de interferência em queda',
+      metric: (variation>=0?'+':'')+fmtPct1(variation),
+      text:`Comparando a primeira metade (${fmtH(realFirst)}h) com a segunda metade (${fmtH(realSecond)}h) do período filtrado. ${variation>0.1?'Vale investigar a causa do aumento antes que vire tendência estrutural.':'Sinal positivo de controle de produtividade.'}`});
+  }
+
+  return insights;
+}
+
+function renderInsights(){
+  const grid = document.getElementById('insights-grid');
+  const insights = computeInsights();
+  if(insights.length===0){ grid.innerHTML = '<div class="empty-state">Sem dados suficientes para gerar insights com os filtros atuais.</div>'; return; }
+  grid.innerHTML = insights.map(ins => `
+    <div class="insight-card ${ins.tone}">
+      <div class="ic-eyebrow">${escHtml(ins.eyebrow)}</div>
+      <h4>${escHtml(ins.title)}</h4>
+      <div class="ic-metric">${escHtml(ins.metric)}</div>
+      <p>${escHtml(ins.text)}</p>
+    </div>`).join('');
+}
+
+/* ---------- render all ---------- */
+function renderAll(){
+  renderGlobalFilters();
+  renderKPIs();
+  renderPorOs();
+  renderSla();
+  renderScurve();
+  renderInsights();
+}
+
+document.getElementById('tabbar').addEventListener('click', e=>{
+  const btn = e.target.closest('.tabbtn'); if(!btn) return;
+  document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected', b===btn));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab==='curva') renderScurve();
+});
+
+document.getElementById('grupo-select-global').addEventListener('change', e=>{ state.grupo = e.target.value; renderAll(); });
+document.getElementById('sup-select-global').addEventListener('change', e=>{ state.sup = e.target.value; renderAll(); });
+
+document.getElementById('sla-search').addEventListener('input', e=>{ state.sla.search = e.target.value; renderSla(); });
+document.getElementById('sla-only-toggle').addEventListener('change', e=>{ state.sla.onlySla = e.target.checked; renderSla(); });
+document.getElementById('sla-clear-btn').addEventListener('click', ()=>{
+  state.sla.search=''; state.sla.onlySla=false; state.sla.sortKey='exced'; state.sla.sortDir='desc';
+  document.getElementById('sla-search').value=''; document.getElementById('sla-only-toggle').checked=false;
+  renderSla();
+});
+document.getElementById('ov-clear-btn').addEventListener('click', ()=>{
+  state.dates = new Set(DATA.datas || []);
+  state.os.clear(); state.grupo='all'; state.sup='all'; state.poros.expanded.clear();
+  renderAll();
+});
+
+/* ---------- Tema claro/escuro ---------- */
+function currentEffectiveDark(){
+  const attr = document.documentElement.getAttribute('data-theme');
+  if(attr) return attr==='dark';
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem('techint-theme'); }catch(e){}
+  if(saved==='dark' || saved==='light') document.documentElement.setAttribute('data-theme', saved);
+  const cb = document.getElementById('theme-toggle');
+  const sub = document.getElementById('theme-sub');
+  const icon = document.getElementById('theme-icon');
+  function sync(){
+    const dark = currentEffectiveDark();
+    cb.checked = dark;
+    sub.textContent = dark ? 'Ativado' : 'Desativado';
+    icon.textContent = dark ? '●' : '◐';
+  }
+  sync();
+  cb.addEventListener('change', ()=>{
+    const mode = cb.checked ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', mode);
+    try{ localStorage.setItem('techint-theme', mode); }catch(e){}
+    sync();
+    renderScurve();
+  });
+}
+
+/* ---------- Painel de configurações (engrenagem) ---------- */
+const popovers = [
+  {btn: document.getElementById('settings-btn'), panel: document.getElementById('settings-panel')},
+  {btn: document.getElementById('alerts-btn'), panel: document.getElementById('alerts-panel')},
+];
+function closeAllPopovers(except){
+  popovers.forEach(p=>{
+    if(p===except) return;
+    p.panel.hidden = true;
+    p.btn.setAttribute('aria-expanded','false');
+  });
+}
+popovers.forEach(p=>{
+  p.btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const open = p.panel.hidden;
+    closeAllPopovers();
+    p.panel.hidden = !open;
+    p.btn.setAttribute('aria-expanded', String(open));
+  });
+});
+document.addEventListener('click', (e)=>{
+  popovers.forEach(p=>{
+    if(!p.panel.hidden && !p.panel.contains(e.target) && e.target!==p.btn && !p.btn.contains(e.target)){
+      p.panel.hidden = true;
+      p.btn.setAttribute('aria-expanded','false');
+    }
+  });
+  document.querySelectorAll('.msel.open').forEach(m=>{
+    if(!m.contains(e.target)) m.classList.remove('open');
+  });
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeAllPopovers();
+});
+
+document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
+  document.getElementById('settings-file-input').click();
+});
+
+/* ---------- Importação de dados (.xlsx) no navegador ---------- */
+function cleanStrImport(v){ if(v===undefined||v===null||v==='') return null; return String(v).replace(/\s+/g,' ').trim(); }
+function normKeyImport(v){ const c=cleanStrImport(v); return c===null?null:c.toUpperCase(); }
+function normOsImport(v){
+  if(v===undefined||v===null||v==='') return null;
+  let s = String(v).trim();
+  s = s.replace(/^OS[_\s]*/i, '');
+  s = s.replace(/^0+/, '') || '0';
+  return s;
+}
+function toIsoDateImport(v){
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  return null;
+}
+function toHoursImport(v){
+  if(typeof v==='number') return Math.round(v*10000)/10000;
+  return 0.0;
+}
+function parseWorkbookToBundleImprod(wb){
+  function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
+  function maxRow(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.r+1; }
+  function cellVal(s,row,col){ const addr = XLSX.utils.encode_cell({r:row-1,c:col-1}); const c=s[addr]; return c? c.v : undefined; }
+
+  const wsInt = sheet('Interferências');
+  const responsavelByInterf = {};
+  const interferenciaList = [];
+  for(let r=2; r<=maxRow(wsInt); r++){
+    const a = cleanStrImport(cellVal(wsInt,r,1));
+    const b = cleanStrImport(cellVal(wsInt,r,2));
+    if(a && b){ responsavelByInterf[normKeyImport(a)] = b; interferenciaList.push({interferencia:a, responsavel:b}); }
+  }
+
+  const wsSup = sheet('Supervisores');
+  const supervisorByEncarregado = {};
+  for(let r=2; r<=maxRow(wsSup); r++){
+    const a = cleanStrImport(cellVal(wsSup,r,1));
+    const c = cleanStrImport(cellVal(wsSup,r,3));
+    if(a && c) supervisorByEncarregado[normKeyImport(a)] = c;
+  }
+
+  const wsSge = sheet('SGE');
+  const situacaoByRdc = {};
+  const rdcs = [];
+  for(let r=2; r<=maxRow(wsSge); r++){
+    const rdcNum = cellVal(wsSge,r,1);
+    if(rdcNum===undefined || rdcNum===null || rdcNum==='') continue;
+    const tipo = cleanStrImport(cellVal(wsSge,r,2));
+    const dataRef = toIsoDateImport(cellVal(wsSge,r,3));
+    const osVal = normOsImport(cellVal(wsSge,r,4));
+    const encarregado = cleanStrImport(cellVal(wsSge,r,6));
+    const situacao = cleanStrImport(cellVal(wsSge,r,7));
+    const rdcKey = cleanStrImport(cellVal(wsSge,r,8));
+    if(rdcKey) situacaoByRdc[normKeyImport(rdcKey)] = situacao;
+    const supervisor = encarregado ? (supervisorByEncarregado[normKeyImport(encarregado)] || null) : null;
+    rdcs.push({rdc: rdcKey || ('RDC_'+rdcNum), tipo, d:dataRef, os:osVal, enc:encarregado, sup:supervisor, sit:situacao});
+  }
+
+  const ws = sheet('Export_BI');
+  const groups = {};
+  for(let r=2; r<=maxRow(ws); r++){
+    const osVal = normOsImport(cellVal(ws,r,4));
+    const grupo = cleanStrImport(cellVal(ws,r,6));
+    const interf = cleanStrImport(cellVal(ws,r,7));
+    const encarregado = cleanStrImport(cellVal(ws,r,9));
+    const dataIni = cellVal(ws,r,12);
+    const plan = toHoursImport(cellVal(ws,r,17));
+    const real = toHoursImport(cellVal(ws,r,18));
+    const dur = toHoursImport(cellVal(ws,r,16));
+    const hAtiv = toHoursImport(cellVal(ws,r,19));
+
+    if(osVal===null && interf===null && encarregado===null) continue;
+
+    const dIso = toIsoDateImport(dataIni);
+    const resp = interf ? (responsavelByInterf[normKeyImport(interf)] || null) : null;
+    const sup = encarregado ? (supervisorByEncarregado[normKeyImport(encarregado)] || null) : null;
+
+    const key = [dIso, osVal, grupo, interf, encarregado].join('|');
+    if(!groups[key]) groups[key] = {d:dIso, os:osVal, gi:grupo, it:interf, resp, enc:encarregado, sup, n:0, plan:0, real:0, dur:0, hAtiv:0};
+    const g = groups[key];
+    g.n += 1; g.plan += plan; g.real += real; g.dur += dur; g.hAtiv += hAtiv;
+  }
+  const interferencias = Object.values(groups).map(g=>Object.assign(g, {
+    plan: Math.round(g.plan*1000)/1000, real: Math.round(g.real*1000)/1000,
+    dur: Math.round(g.dur*1000)/1000, hAtiv: Math.round(g.hAtiv*1000)/1000,
+  }));
+
+  const datas = Array.from(new Set([...interferencias.map(g=>g.d).filter(Boolean), ...rdcs.map(r=>r.d).filter(Boolean)])).sort();
+  const osList = Array.from(new Set(interferencias.map(g=>g.os).filter(Boolean))).sort((a,b)=> (a.length-b.length) || (a<b?-1:a>b?1:0));
+  const grupos = Array.from(new Set(interferencias.map(g=>g.gi).filter(Boolean))).sort();
+  const supervisores = Array.from(new Set(interferencias.map(g=>g.sup).filter(Boolean))).sort();
+  const situacoes = Array.from(new Set(rdcs.map(r=>r.sit).filter(Boolean))).sort();
+
+  return {
+    meta: {empresa: 'TECHINT ENGENHARIA E CONSTRUCAO SA'},
+    interferencias, rdcs, interferencia_tipos: interferenciaList,
+    datas, os_list: osList, grupos, supervisores, situacoes,
+  };
+}
+
+document.getElementById('settings-file-input').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('settings-status');
+  statusEl.hidden = false; statusEl.className = 'settings-status'; statusEl.textContent = 'Lendo ' + file.name + '…';
+
+  const reader = new FileReader();
+  reader.onload = async function(ev){
+    let bundle;
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
+      bundle = parseWorkbookToBundleImprod(wb);
+      DATA = bundle;
+      state.dates = new Set(DATA.datas || []);
+      state.os = new Set(); state.grupo='all'; state.sup='all'; state.poros.expanded = new Set();
+      state.sla = {search:'', onlySla:false, sortKey:'exced', sortDir:'desc'};
+      renderAll();
+      document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+      statusEl.className = 'settings-status ok';
+      statusEl.textContent = 'Dados atualizados: ' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros, ' + DATA.rdcs.length.toLocaleString('pt-BR') + ' RDCs, ' + DATA.datas.length + ' datas.';
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'settings-status error';
+      statusEl.textContent = 'Erro ao processar o arquivo: ' + (err && err.message ? err.message : err);
+      e.target.value = '';
+      return;
+    }
+
+    if(sb && sbSession){
+      statusEl.textContent += ' Publicando no Supabase…';
+      try{
+        const { error: insErr } = await sb.from('improdutividade_snapshots').insert({
+          bundle, source_filename: file.name, imported_by: sbSession.user.email,
+        });
+        if(insErr) throw insErr;
+        statusEl.className = 'settings-status ok';
+        statusEl.textContent = 'Dados atualizados e publicados no Supabase (' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros) — todos que abrirem o painel verão essa base.';
+        sbSetStatus('ok', 'Conectado — snapshot publicado agora (' + file.name + ').');
+      }catch(insErr){
+        statusEl.className = 'settings-status error';
+        statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
+      }
+    } else if(sb){
+      statusEl.textContent += ' (só localmente — faça login no Supabase abaixo para publicar para todos.)';
+    }
+    e.target.value = '';
+  };
+  reader.onerror = function(){
+    statusEl.className = 'settings-status error';
+    statusEl.textContent = 'Não foi possível ler o arquivo.';
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function sbSetStatus(dotCls, text){
+  const dot = document.getElementById('sb-status-dot');
+  const txt = document.getElementById('sb-status-text');
+  if(dot) dot.className = 'sb-dot ' + (dotCls||'');
+  if(txt) txt.textContent = text;
+}
+
+let sbAuthMode = 'signin';
+
+function renderSbAuthBox(){
+  const box = document.getElementById('sb-auth-box');
+  if(!box) return;
+  if(!sb){ box.innerHTML = ''; return; }
+  if(sbSession && sbSession.user){
+    box.innerHTML = `<div class="sb-signed-in"><span>Conectado como ${escHtml(sbSession.user.email)}</span><button type="button" id="sb-signout-btn">Sair</button></div>`;
+    document.getElementById('sb-signout-btn').addEventListener('click', async ()=>{
+      try{ await sb.auth.signOut(); }catch(e){}
+      sbSession = null;
+      renderSbAuthBox();
+    });
+    return;
+  }
+
+  const isSignup = sbAuthMode === 'signup';
+  box.innerHTML = `<div class="sb-auth-form">
+      <input type="email" id="sb-email" placeholder="e-mail" autocomplete="username">
+      <input type="password" id="sb-password" placeholder="${isSignup ? 'senha (mín. 6 caracteres)' : 'senha'}" autocomplete="${isSignup ? 'new-password' : 'current-password'}">
+      <button type="button" id="sb-signin-btn">${isSignup ? 'Criar conta' : 'Entrar para publicar dados'}</button>
+      <button type="button" id="sb-mode-toggle" class="sb-link-btn">${isSignup ? 'Já tenho conta — entrar' : 'Não tenho conta — criar uma'}</button>
+      <span class="sb-auth-error" id="sb-auth-error" hidden></span>
+      <span class="sb-auth-ok" id="sb-auth-ok" hidden></span>
+    </div>`;
+
+  document.getElementById('sb-mode-toggle').addEventListener('click', ()=>{
+    sbAuthMode = isSignup ? 'signin' : 'signup';
+    renderSbAuthBox();
+  });
+
+  document.getElementById('sb-signin-btn').addEventListener('click', async ()=>{
+    const email = document.getElementById('sb-email').value.trim();
+    const password = document.getElementById('sb-password').value;
+    const errEl = document.getElementById('sb-auth-error');
+    const okEl = document.getElementById('sb-auth-ok');
+    errEl.hidden = true; okEl.hidden = true;
+    if(!email || !password) return;
+    try{
+      if(isSignup){
+        const { data, error } = await sb.auth.signUp({email, password});
+        if(error) throw error;
+        if(data.session){
+          sbSession = data.session;
+          renderSbAuthBox();
+        } else {
+          okEl.textContent = 'Conta criada! Confira seu e-mail para confirmar antes de conseguir publicar dados.';
+          okEl.hidden = false;
+        }
+      } else {
+        const { data, error } = await sb.auth.signInWithPassword({email, password});
+        if(error) throw error;
+        sbSession = data.session;
+        renderSbAuthBox();
+      }
+    }catch(err){
+      errEl.textContent = err && err.message ? err.message : 'Falha.';
+      errEl.hidden = false;
+    }
+  });
+}
+
+async function sbInit(){
+  if(!sb){ sbSetStatus('err', 'Biblioteca do Supabase não carregou (bloqueio de rede deste preview?) — usando dados locais.'); return; }
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    sbSession = session;
+  }catch(e){}
+  renderSbAuthBox();
+
+  try{
+    const { data, error } = await sb.from('improdutividade_snapshots').select('bundle,created_at,source_filename').order('created_at', {ascending:false}).limit(1).maybeSingle();
+    if(error) throw error;
+    if(data && data.bundle){
+      DATA = data.bundle;
+      state.dates = new Set(DATA.datas || []);
+      renderAll();
+      document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+      const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
+      sbSetStatus('ok', 'Conectado — snapshot de ' + when + (data.source_filename ? ' (' + data.source_filename + ')' : '') + '.');
+    } else {
+      sbSetStatus('ok', 'Conectado ao Supabase — nenhum dado publicado ainda, usando os dados locais.');
+    }
+  }catch(e){
+    sbSetStatus('err', 'Sem conexão com o Supabase (pode ser bloqueio de rede deste preview) — usando dados locais.');
+  }
+}
+
+document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+initTheme();
+renderAll();
+sbInit();
+
+})();
+</script>
