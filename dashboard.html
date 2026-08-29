@@ -157,6 +157,7 @@ button.settings-item:hover{background:var(--sand);}
 .card + .card{margin-top:16px;}
 .ov-grid > .card, .two-col > .card{margin-top:0;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
+.ov-head-align{min-height:90px; align-items:flex-start;}
 .card-head h3{font-size:17px;}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
@@ -447,14 +448,15 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="kpi-grid" id="kpi-grid"></div>
     <div class="ov-grid">
       <div class="card">
-        <div class="card-head"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span><button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button></div>
+        <div class="card-head ov-head-align"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span></div>
         <div id="ov-contrato-chart"></div>
         <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Pessoas presentes por OS</h4></div>
         <div id="ov-colab-table"></div>
       </div>
       <div class="card">
-        <div class="card-head">
+        <div class="card-head ov-head-align">
           <h3>Colaboradores por Supervisor / Encarregado &times; OS</h3>
+          <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
           <div class="filters">
             <div class="field"><label>Agrupar por</label><div class="date-toggle" id="eq-mode"></div></div>
             <div class="field"><label>Buscar nome</label><input class="search-input" id="eq-search" placeholder="ex: Gilson"></div>
@@ -1490,25 +1492,24 @@ function renderApoio(){
     const grand = entries.reduce((a,[,rec])=>a+rec.total,0);
     const rowsHtml = entries.map(([os,rec],i)=>{
       const contrato = contratoOfOs(os);
-      const principais = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1])
-        .slice(0,3).map(([cargo,v])=>`${escHtml(cargo)} (${v})`).join(', ');
+      const funcoesTitle = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1])
+        .map(([cargo,v])=>`${cargo}: ${v}`).join(' · ');
       const pctOfTotal = grand? rec.total/grand : 0;
-      return `<tr>
+      return `<tr title="${escHtml(funcoesTitle)}">
           <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
           <td class="ov-table-name">OS ${escHtml(osLabel(os))}</td>
           <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
           <td class="num-col num">${rec.total}</td>
           <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pctOfTotal)}</td>
-          <td class="cargo-cell">${principais}</td>
         </tr>`;
     }).join('');
-    osBox.innerHTML = `<div class="table-scroll" style="max-height:480px; overflow-y:auto;">
+    osBox.innerHTML = `<p class="card-note" style="margin-bottom:10px;">Passe o mouse sobre uma OS para ver as funções e quantidades.</p>
+      <div class="table-scroll" style="max-height:480px; overflow-y:auto;">
         <table>
-          <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do apoio</th><th>Principais funções</th></tr></thead>
+          <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do apoio</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-      </div>
-      <div class="colab-grand-bar" style="margin-top:10px;"><span>Total Geral</span><span class="v">${grand}</span></div>`;
+      </div>`;
   }
 
   /* --- Distribuição por Disciplina: donut elaborado + métricas agregadas --- */
