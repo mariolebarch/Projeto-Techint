@@ -1966,10 +1966,18 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   const statusEl = document.getElementById('settings-status');
   statusEl.hidden = false; statusEl.className = 'settings-status'; statusEl.textContent = 'Lendo ' + file.name + '…';
 
+  if(typeof XLSX === 'undefined'){
+    statusEl.className = 'settings-status error';
+    statusEl.textContent = 'A biblioteca de leitura de planilhas (SheetJS, carregada via cdnjs.cloudflare.com) não carregou neste navegador/rede — provavelmente um firewall ou filtro de conteúdo está bloqueando esse domínio. Tente em outra rede/dispositivo, ou use o arquivo .html local com os dados já embutidos.';
+    e.target.value = '';
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = async function(ev){
     let bundle;
     try{
+      if(typeof XLSX === 'undefined') throw new Error('Biblioteca de planilhas não disponível (bloqueio de rede?).');
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
       bundle = parseWorkbookToBundle(wb);
       DATA = bundle;
