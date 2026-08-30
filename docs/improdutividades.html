@@ -262,6 +262,9 @@ tbody tr:hover td{background:var(--border-soft);}
 .trend-cell.up{color:var(--critical);}
 .trend-cell.down{color:var(--good);}
 .trend-cell.flat{color:var(--text-muted);}
+
+.cmp-hit{cursor:pointer;}
+.cmp-hit:hover{fill:var(--sand); opacity:.5;}
 .bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border);}
@@ -485,7 +488,17 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
   <section class="view" id="view-sla">
     <div class="card">
       <div class="card-head">
-        <h3>Previsto &times; Real das Interferências (controle de SLA)</h3>
+        <h3>Previsto &times; Real das Interferências</h3>
+        <div class="filters">
+          <div class="field"><label>Agrupar por</label><div class="date-toggle" id="sla-cmp-groupby"></div></div>
+        </div>
+      </div>
+      <p class="card-note" style="margin-bottom:10px;">Comparação direta entre horas previstas e horas reais. Barra vermelha = o real ultrapassou o previsto (gera SLA, HH a pagar). Interferências sem previsto cadastrado não geram SLA — aparecem só na barra real.</p>
+      <div id="sla-cmp-chart" class="scurve-wrap"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>Detalhamento por Data &times; OS &times; Interferência</h3>
         <div class="filters">
           <div class="field"><label>Buscar OS/Interferência</label><input class="search-input" id="sla-search" placeholder="ex: 37131 ou ART"></div>
           <div class="field settings-theme-row" style="flex-direction:row; align-items:center; gap:8px;">
@@ -495,7 +508,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
           <div class="field"><label>&nbsp;</label><button class="small-btn" id="sla-clear-btn" type="button">Limpar filtros</button></div>
         </div>
       </div>
-      <p class="card-note" style="margin-bottom:10px;">Uma interferência não pode ultrapassar o previsto: o excedente gera SLA, cuja diferença de HH precisa ser paga. Agrupado por Data &times; OS &times; Interferência. Clique nos títulos das colunas para ordenar.</p>
+      <p class="card-note" style="margin-bottom:10px;">Uma interferência sem previsto não gera SLA. Quando há previsto e o real ultrapassa, o excedente gera HH a pagar. Clique nos títulos das colunas para ordenar.</p>
       <div class="stat-strip" id="sla-stats"></div>
       <div class="table-scroll" style="max-height:560px; overflow-y:auto;">
         <table id="sla-table">
@@ -558,7 +571,7 @@ const state = {
   grupo: 'all',
   sup: 'all',
   poros: {expanded:new Set()},
-  sla: {search:'', onlySla:false, sortKey:'exced', sortDir:'desc'},
+  sla: {search:'', onlySla:false, sortKey:'exced', sortDir:'desc', groupBy:'os'},
 };
 
 function fmtDateLabel(iso){
@@ -596,6 +609,12 @@ function filteredInterfNoDate(){
 }
 function filteredRdcs(){
   return DATA.rdcs.filter(r => passCommon(r));
+}
+
+/* Uma interferência só gera SLA (HH a pagar) se ela tinha horas previstas.
+   Sem previsto cadastrado, não há baseline para "estourar" — não é excedente. */
+function slaExced(plan, real){
+  return (plan>0 && real>plan) ? (real-plan) : 0;
 }
 
 /* ---------- global filter controls ---------- */
@@ -745,7 +764,7 @@ function renderKPIs(){
   const n = rows.reduce((a,r)=>a+r.n,0);
   const real = rows.reduce((a,r)=>a+r.real,0);
   const plan = rows.reduce((a,r)=>a+r.plan,0);
-  const exced = rows.reduce((a,r)=>a+Math.max(0, r.real-r.plan),0);
+  const exced = rows.reduce((a,r)=>a+slaExced(r.plan, r.real),0);
   const aderencia = plan? real/plan : 0;
   const rdcRows = filteredRdcs();
   const aprovados = rdcRows.filter(r=>r.sit==='Aprovado').length;
@@ -1035,7 +1054,7 @@ function renderPorOs(){
   rows.forEach(r=>{
     if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, n:0, plan:0, real:0, exced:0});
     const g = byOs.get(r.os);
-    g.n += r.n; g.plan += r.plan; g.real += r.real; g.exced += Math.max(0, r.real-r.plan);
+    g.n += r.n; g.plan += r.plan; g.real += r.real; g.exced += slaExced(r.plan, r.real);
   });
   const entries = Array.from(byOs.values()).sort((a,b)=>b.real-a.real);
 
@@ -1052,9 +1071,13 @@ function renderPorOs(){
   tbody.innerHTML = '';
   document.getElementById('poros-empty').style.display = entries.length? 'none' : '';
 
-  function sevRatio(plan, real){ return plan>0 ? real/plan : (real>0 ? 2 : 0); }
-  function sevColor(ratio){ return ratio<=1 ? 'var(--good)' : (ratio<=1.15 ? 'var(--warning)' : 'var(--critical)'); }
-  function sevChip(ratio){
+  function sevRatio(plan, real){ return plan>0 ? real/plan : 0; }
+  function sevColor(plan, ratio){
+    if(plan<=0) return 'var(--info)';
+    return ratio<=1 ? 'var(--good)' : (ratio<=1.15 ? 'var(--warning)' : 'var(--critical)');
+  }
+  function sevChip(plan, real, ratio){
+    if(plan<=0) return real>0 ? '<span class="chip info">Sem previsão</span>' : '<span class="chip good">Sem registro</span>';
     if(ratio<=1) return '<span class="chip good">Dentro do plano</span>';
     if(ratio<=1.15) return '<span class="chip warning">Leve excedente</span>';
     return '<span class="chip critical">Excedente alto</span>';
@@ -1062,7 +1085,7 @@ function renderPorOs(){
 
   entries.forEach(e=>{
     const ratio = sevRatio(e.plan, e.real);
-    const color = sevColor(ratio);
+    const color = sevColor(e.plan, ratio);
     const tr = document.createElement('tr');
     tr.className = 'os-row';
     tr.dataset.os = e.os;
@@ -1078,7 +1101,7 @@ function renderPorOs(){
           <div class="fill-real" style="width:${Math.min(100,e.real/maxReal*100)}%; background:${color};"></div>
         </div>
       </td>
-      <td class="num-col">${sevChip(ratio)}</td>`;
+      <td class="num-col">${sevChip(e.plan, e.real, ratio)}</td>`;
     tr.addEventListener('dblclick', ()=>{
       if(state.poros.expanded.has(e.os)) state.poros.expanded.delete(e.os);
       else state.poros.expanded.add(e.os);
@@ -1093,7 +1116,7 @@ function renderPorOs(){
         const key = r.gi+' — '+r.it;
         if(!byInterf.has(key)) byInterf.set(key, {label:key, plan:0, real:0, exced:0});
         const g = byInterf.get(key);
-        g.plan += r.plan; g.real += r.real; g.exced += Math.max(0,r.real-r.plan);
+        g.plan += r.plan; g.real += r.real; g.exced += slaExced(r.plan, r.real);
       });
       Array.from(byInterf.values()).sort((a,b)=>b.real-a.real).forEach(d=>{
         const dRatio = sevRatio(d.plan, d.real);
@@ -1106,7 +1129,7 @@ function renderPorOs(){
           <td class="num-col num">${fmtH(d.real)}</td>
           <td class="num-col num" style="color:${d.exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(d.exced)}</td>
           <td></td>
-          <td class="num-col">${sevChip(dRatio)}</td>`;
+          <td class="num-col">${sevChip(d.plan, d.real, dRatio)}</td>`;
         tbody.appendChild(dtr);
       });
     }
@@ -1140,10 +1163,10 @@ function buildSlaRows(){
     if(!map.has(key)) map.set(key, {d:r.d, os:r.os, it:r.it, resp:r.resp, plan:0, real:0, exced:0});
     const g = map.get(key);
     g.plan += r.plan; g.real += r.real;
-    g.exced += Math.max(0, r.real-r.plan); // soma por encarregado — não deixa um saldo positivo esconder um excedente de outro
+    g.exced += slaExced(r.plan, r.real); // soma por encarregado — não deixa um saldo positivo esconder um excedente de outro
   });
   return Array.from(map.values()).map(g=>{
-    const pct = g.plan>0 ? (g.real-g.plan)/g.plan : (g.real>0?1:0);
+    const pct = g.plan>0 ? (g.real-g.plan)/g.plan : null;
     return Object.assign(g, {pct});
   });
 }
@@ -1173,7 +1196,105 @@ function renderSlaThead(){
     });
   });
 }
+/* ---------- Previsto x Real: gráfico comparativo (barras pareadas) ---------- */
+function buildSlaCompareData(dim){
+  const rows = filteredInterf();
+  const map = new Map();
+  rows.forEach(r=>{
+    let key, label;
+    if(dim==='os'){ key = r.os; label = 'OS '+r.os; }
+    else if(dim==='it'){ key = r.it; label = r.it; }
+    else { key = r.d; label = fmtDateLabel(r.d); }
+    if(!map.has(key)) map.set(key, {key, label, plan:0, real:0, exced:0});
+    const g = map.get(key);
+    g.plan += r.plan; g.real += r.real;
+    g.exced += slaExced(r.plan, r.real); // por linha de origem — não deixa um saldo positivo esconder um excedente de outro
+  });
+  let entries = Array.from(map.values());
+  if(dim==='d') entries.sort((a,b)=> a.key<b.key?-1:(a.key>b.key?1:0));
+  else entries.sort((a,b)=>b.real-a.real);
+  if(dim!=='d' && entries.length>12) entries = entries.slice(0,12);
+  else if(dim==='d' && entries.length>30) entries = entries.slice(-30);
+  return entries;
+}
+
+function renderSlaCompareChart(){
+  const dim = state.sla.groupBy;
+  const box = document.getElementById('sla-cmp-chart');
+  const data = buildSlaCompareData(dim);
+  if(data.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+
+  const n = data.length;
+  const rotateLabels = dim==='it' || dim==='d';
+  const W = Math.max(600, n*(dim==='os'?90:60)), H=340, padL=56, padR=16, padT=16, padB = rotateLabels ? 96 : 40;
+  const innerW = W-padL-padR, innerH = H-padT-padB;
+  const maxVal = Math.max(1, ...data.map(d=>d.plan), ...data.map(d=>d.real));
+  const slot = innerW/n;
+  const barW = Math.min(26, slot*0.32);
+  const gap = 3;
+  const yOf = v => padT + innerH - (innerH*v/maxVal);
+
+  let bars = '', axisSvg='', gridSvg='', hitboxes = '';
+  [0,.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-(innerH*f);
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
+    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
+  });
+
+  data.forEach((d,i)=>{
+    const cx = padL + slot*i + slot/2;
+    const xPlan = cx - gap/2 - barW;
+    const xReal = cx + gap/2;
+    const yPlan = yOf(d.plan), yReal = yOf(d.real);
+    const hPlan = padT+innerH-yPlan, hReal = padT+innerH-yReal;
+    const realColor = d.exced>0 ? 'var(--critical)' : 'var(--steel)';
+    if(d.plan>0) bars += `<rect x="${xPlan.toFixed(1)}" y="${yPlan.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hPlan).toFixed(1)}" rx="3" style="fill:var(--slate); opacity:.5;"/>`;
+    if(d.real>0) bars += `<rect x="${xReal.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
+    const labelText = d.label.length>14 ? d.label.slice(0,13)+'…' : d.label;
+    if(rotateLabels){
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="end" transform="rotate(-40 ${cx.toFixed(1)} ${(H-padB+16).toFixed(1)})">${escHtml(labelText)}</text>`;
+    } else {
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${H-10}" text-anchor="middle">${escHtml(labelText)}</text>`;
+    }
+    hitboxes += `<rect class="cmp-hit" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${innerH}" fill="transparent"/>`;
+  });
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Comparação previsto x real por ${dim==='os'?'OS':(dim==='it'?'interferência':'data')}">
+      ${gridSvg}${bars}${axisSvg}${hitboxes}
+    </svg>
+    <div class="scurve-tooltip" id="sla-cmp-tooltip"></div>
+    <div class="scurve-legend" style="margin-top:8px;">
+      <div class="sl-item"><span class="sl-sw" style="background:var(--slate); opacity:.5;"></span>Previsto</div>
+      <div class="sl-item"><span class="sl-sw" style="background:var(--steel);"></span>Real (dentro do plano)</div>
+      <div class="sl-item"><span class="sl-sw" style="background:var(--critical);"></span>Real (excedente de SLA)</div>
+    </div>`;
+
+  const svgEl = box.querySelector('svg');
+  const tooltip = document.getElementById('sla-cmp-tooltip');
+  box.querySelectorAll('.cmp-hit').forEach(hit=>{
+    const idx = +hit.dataset.idx;
+    const d = data[idx];
+    hit.addEventListener('pointermove', ()=>{
+      tooltip.innerHTML = `<span class="tt-date">${escHtml(d.label)}</span>` +
+        `<div class="tt-row"><span class="sw" style="background:var(--slate);"></span>Previsto<span class="tt-val">${d.plan>0?fmtH(d.plan)+'h':'sem previsto'}</span></div>` +
+        `<div class="tt-row"><span class="sw" style="background:${d.exced>0?'var(--critical)':'var(--steel)'};"></span>Real<span class="tt-val">${fmtH(d.real)}h</span></div>` +
+        (d.exced>0 ? `<div class="tt-row" style="color:var(--critical);"><span class="sw" style="background:var(--critical);"></span>Excedente (SLA)<span class="tt-val" style="color:var(--critical);">${fmtH(d.exced)}h</span></div>` : '');
+      tooltip.classList.add('show');
+      const wrapRect = box.getBoundingClientRect();
+      const svgRect = svgEl.getBoundingClientRect();
+      const scale = W/svgRect.width;
+      const cx = padL + slot*idx + slot/2;
+      const ttW = tooltip.offsetWidth || 160;
+      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
+      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
+      tooltip.style.top = '4px';
+    });
+    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+  });
+}
+
 function renderSla(){
+  renderSlaCompareChart();
   renderSlaThead();
   let rows = buildSlaRows();
   const term = state.sla.search.trim().toLowerCase();
@@ -1209,7 +1330,7 @@ function renderSla(){
       <td class="num-col num">${fmtH(r.plan)}</td>
       <td class="num-col num">${fmtH(r.real)}</td>
       <td class="num-col num" style="color:${r.exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(r.exced)}</td>
-      <td class="num-col"><span class="chip ${status}">${statusLabel} &middot; ${r.pct>=0?'+':''}${fmtPct1(r.pct)}</span></td>
+      <td class="num-col"><span class="chip ${status}">${statusLabel}${r.pct===null?'':' &middot; '+(r.pct>=0?'+':'')+fmtPct1(r.pct)}</span></td>
     </tr>`;
   }).join('');
   if(rows.length>600){
@@ -1392,7 +1513,7 @@ function computeInsights(){
   const insights = [];
   const totalReal = rows.reduce((a,r)=>a+r.real,0);
   const totalPlan = rows.reduce((a,r)=>a+r.plan,0);
-  const totalExced = rows.reduce((a,r)=>a+Math.max(0,r.real-r.plan),0);
+  const totalExced = rows.reduce((a,r)=>a+slaExced(r.plan, r.real),0);
 
   // 1. Top interference type
   const byTipo = new Map();
@@ -1419,7 +1540,7 @@ function computeInsights(){
   rows.forEach(r=>{
     const key = r.os+'|'+r.it;
     if(!byKeySla.has(key)) byKeySla.set(key, {os:r.os, it:r.it, exced:0});
-    byKeySla.get(key).exced += Math.max(0, r.real-r.plan);
+    byKeySla.get(key).exced += slaExced(r.plan, r.real);
   });
   const topSla = Array.from(byKeySla.values()).sort((a,b)=>b.exced-a.exced)[0];
   insights.push({tone: totalExced>0 ? 'critical':'good', eyebrow:'Exposição a SLA', title: totalExced>0 ? 'Horas excedentes geram pagamento de HH' : 'Sem excedente de SLA no período',
@@ -1498,6 +1619,19 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 
 document.getElementById('grupo-select-global').addEventListener('change', e=>{ state.grupo = e.target.value; renderAll(); });
 document.getElementById('sup-select-global').addEventListener('change', e=>{ state.sup = e.target.value; renderAll(); });
+
+const slaCmpGroupByBox = document.getElementById('sla-cmp-groupby');
+[['os','OS'],['it','Interferência'],['d','Data']].forEach(([val,label])=>{
+  const btn = document.createElement('button');
+  btn.textContent = label;
+  if(state.sla.groupBy===val) btn.classList.add('active');
+  btn.addEventListener('click', ()=>{
+    state.sla.groupBy = val;
+    slaCmpGroupByBox.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    renderSlaCompareChart();
+  });
+  slaCmpGroupByBox.appendChild(btn);
+});
 
 document.getElementById('sla-search').addEventListener('input', e=>{ state.sla.search = e.target.value; renderSla(); });
 document.getElementById('sla-only-toggle').addEventListener('change', e=>{ state.sla.onlySla = e.target.checked; renderSla(); });
