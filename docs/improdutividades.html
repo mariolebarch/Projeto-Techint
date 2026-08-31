@@ -341,8 +341,8 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .scurve-grid-line{stroke:var(--border-soft); stroke-width:1; shape-rendering:crispEdges;}
 .scurve-axis-label{fill:var(--text-muted); font-family:var(--font-mono); font-size:10px;}
 .scurve-axis-label.today{fill:var(--critical);}
-.col-val-label{fill:var(--text-primary); font-family:var(--font-mono); font-size:11px; font-weight:600;}
-.col-val-label.muted{fill:var(--text-muted); font-size:9.5px; font-weight:500;}
+.col-val-label{fill:var(--text-secondary); font-family:var(--font-mono); font-size:10.5px; font-weight:500;}
+.col-val-label.muted{fill:var(--text-muted); font-size:9.5px; font-weight:400;}
 .scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
 .scurve-line-planned{stroke:var(--slate); stroke-width:2; stroke-dasharray:5 4;}
 .scurve-line-real{stroke:var(--steel); stroke-width:2.5;}
@@ -1353,14 +1353,25 @@ function renderPorOs(){
 }
 
 /* ---------- Interferências Registradas (gráfico em colunas) ---------- */
+function wrapChartLabel(text, maxChars){
+  if(text.length<=maxChars) return [text];
+  let splitAt = text.lastIndexOf(' ', maxChars);
+  if(splitAt<=0) splitAt = maxChars;
+  const line1 = text.slice(0, splitAt).trim();
+  let line2 = text.slice(splitAt).trim();
+  if(line2.length>maxChars) line2 = line2.slice(0, maxChars-1)+'…';
+  return [line1, line2];
+}
+
 function renderTiposColumnChart(box, entries){
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   const n = entries.length;
-  const W = Math.max(680, n*54), H=330, padL=16, padR=16, padT=44, padB=104;
+  const W = Math.max(760, n*72), H=310, padL=16, padR=16, padT=42, padB=48;
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxVal = Math.max(1, ...entries.map(e=>e.v));
   const slot = innerW/n;
-  const barW = Math.min(32, slot*0.56);
+  const barW = Math.min(30, slot*0.5);
+  const maxChars = Math.max(8, Math.floor(slot/6.4));
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
   const gradTech = 'gradTech-'+box.id, gradUsi = 'gradUsi-'+box.id;
@@ -1379,18 +1390,20 @@ function renderTiposColumnChart(box, entries){
     const h = padT+innerH-y;
     const isUsi = e.resp==='USIMINAS';
     const grad = isUsi ? gradUsi : gradTech;
-    const glowColor = isUsi ? 'var(--resp-usiminas)' : 'var(--resp-techint)';
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="4" style="fill:url(#${grad}); filter:drop-shadow(0 0 4px ${glowColor});"/>`;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="3" style="fill:url(#${grad});"/>`;
     const valText = fmtH(e.v)+'h';
-    const labelY = y-8;
-    const halfW = valText.length*3.3;
-    const collides = labelBoxes.some(b => Math.abs(labelY-b.y)<13 && (cx-halfW) < b.x2 && (cx+halfW) > b.x1);
+    const labelY = y-7;
+    const halfW = valText.length*3.1;
+    const collides = labelBoxes.some(b => Math.abs(labelY-b.y)<12 && (cx-halfW) < b.x2 && (cx+halfW) > b.x1);
     if(!collides){
       valLabels += `<text class="col-val-label" x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle">${valText}</text>`;
       labelBoxes.push({x1:cx-halfW, x2:cx+halfW, y:labelY});
     }
-    const labelText = e.k.length>15 ? e.k.slice(0,14)+'…' : e.k;
-    axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="end" transform="rotate(-42 ${cx.toFixed(1)} ${(H-padB+16).toFixed(1)})">${escHtml(labelText)}</text>`;
+    const lines = wrapChartLabel(e.k, maxChars);
+    const baseY = H-padB+15;
+    lines.forEach((ln,li)=>{
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*12).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
+    });
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
 
@@ -1403,11 +1416,11 @@ function renderTiposColumnChart(box, entries){
       <defs>
         <linearGradient id="${gradTech}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" style="stop-color:var(--resp-techint); stop-opacity:1"/>
-          <stop offset="100%" style="stop-color:var(--resp-techint); stop-opacity:.5"/>
+          <stop offset="100%" style="stop-color:var(--resp-techint); stop-opacity:.55"/>
         </linearGradient>
         <linearGradient id="${gradUsi}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" style="stop-color:var(--resp-usiminas); stop-opacity:1"/>
-          <stop offset="100%" style="stop-color:var(--resp-usiminas); stop-opacity:.5"/>
+          <stop offset="100%" style="stop-color:var(--resp-usiminas); stop-opacity:.55"/>
         </linearGradient>
       </defs>
       ${gridSvg}${bars}${valLabels}${axisSvg}${hitboxes}
