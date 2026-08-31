@@ -1340,8 +1340,9 @@ function renderPorOs(){
   const byTipo = new Map();
   allRows.forEach(r=>{
     if(respFilter!=='all' && r.resp!==respFilter) return;
-    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
-    byTipo.get(r.it).v += r.real;
+    const it = r.it || 'Não classificado';
+    if(!byTipo.has(it)) byTipo.set(it, {v:0, resp:r.resp});
+    byTipo.get(it).v += r.real;
   });
   const tiposEntries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
   const totalT = tiposEntries.reduce((a,e)=>a+e.v,0);
@@ -1724,8 +1725,9 @@ function computeInsights(){
   // 1. Top interference type
   const byTipo = new Map();
   rows.forEach(r=>{
-    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
-    byTipo.get(r.it).v += r.real;
+    const it = r.it || 'Não classificado';
+    if(!byTipo.has(it)) byTipo.set(it, {v:0, resp:r.resp});
+    byTipo.get(it).v += r.real;
   });
   const topTipo = Array.from(byTipo.entries()).map(([k,o])=>({k,...o})).sort((a,b)=>b.v-a.v)[0];
   if(topTipo){
