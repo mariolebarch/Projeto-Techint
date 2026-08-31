@@ -89,7 +89,7 @@
 
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
-body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden;}
 ::selection{background:var(--steel-soft);}
 h1,h2,h3,h4{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance;margin:0;color:var(--text-primary);}
 .num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
@@ -98,10 +98,11 @@ button{font-family:inherit;}
 
 .app{max-width:1360px;margin:0 auto;padding:0 24px 64px;}
 
-.masthead{background:var(--navy); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:22px; padding:18px 24px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead{background:var(--navy); box-shadow:var(--shadow); width:100vw; margin:0 calc(50% - 50vw); padding:18px calc((100vw - min(100vw,1360px))/2 + 24px); display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
 .masthead-brand{display:flex; align-items:center; gap:16px;}
-.masthead-logo{background:#fff; color:var(--navy); font-family:var(--font-display); font-weight:900; font-size:14px; letter-spacing:.03em; border-radius:8px; padding:8px 12px; line-height:1.2; text-align:left; flex:none;}
-.masthead-logo small{display:block; font-family:var(--font-body); font-weight:500; font-size:8.5px; letter-spacing:.01em; color:var(--text-secondary); text-transform:none;}
+.masthead-logo{background:#fff; border-radius:6px; padding:7px 12px; line-height:1; text-align:left; flex:none;}
+.masthead-logo .tk-word{display:block; font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.01em; color:#54565a;}
+.masthead-logo .tk-sub{display:block; font-family:var(--font-body); font-weight:600; font-size:8.5px; letter-spacing:.01em; color:#1a8f45; text-transform:none; margin-top:2px;}
 .masthead-title{display:flex; flex-direction:column; gap:4px;}
 .eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
 .masthead h1{font-size:clamp(20px,2.6vw,28px); line-height:1.08; color:#fff; text-transform:uppercase;}
@@ -159,7 +160,7 @@ button.settings-item:hover{background:var(--sand);}
 .sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
 
 /* Global filter bar */
-.global-filters{display:flex; gap:22px; align-items:flex-end; margin-top:14px; padding:14px 20px; background:var(--navy-100); border:1px solid var(--border-soft); border-radius:var(--radius); flex-wrap:wrap;}
+.global-filters{display:flex; gap:22px; align-items:flex-end; width:100vw; margin:0 calc(50% - 50vw); padding:14px calc((100vw - min(100vw,1360px))/2 + 24px); background:var(--navy-100); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
 .global-filters .field label{color:var(--steel-strong);}
 .global-filters .hint{font-size:11.5px; color:var(--text-muted); align-self:center; margin-left:auto;}
 .global-filters select, .global-filters .msel-btn{border-radius:999px;}
@@ -387,7 +388,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 
   <header class="masthead">
     <div class="masthead-brand">
-      <div class="masthead-logo">TECHINT<small>Engenharia e Construção</small></div>
+      <div class="masthead-logo"><span class="tk-word">TECHINT</span><span class="tk-sub">Engineering &amp; Construction</span></div>
       <div class="masthead-title">
         <span class="eyebrow">Painel de Confronto &middot; Techint Engenharia e Construção</span>
         <h1>Painel de Improdutividades</h1>

@@ -9,54 +9,54 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#121212; --steel:#2e7bc4; --steel-strong:#002b5c; --steel-soft:#e6edf4;
-  --slate:#6c6966; --sand:#e5e0da; --paper:#ffffff; --border:#c6c2be; --border-soft:#ddd9d2;
-  --text-primary:#121212; --text-secondary:#6c6966; --text-muted:#aba7a2; --text-on-accent:#ffffff;
-  --shadow: 0 1px 2px rgba(23,29,36,.06), 0 4px 14px rgba(23,29,36,.06);
+  --navy:#002b5c; --navy-700:#0a3b70; --navy-100:#e6edf4;
+  --green:#92d050; --green-dark:#6fa834;
+  --slate:#6c6966; --paper:#ffffff; --border-soft:#ddd9d2;
+  --text-primary:#121212; --text-secondary:#6c6966; --text-muted:#aba7a2;
+  --shadow: 0 1px 2px rgba(0,0,0,.18), 0 8px 30px -10px rgba(0,11,26,.5);
   --radius: 14px;
   --font-display:'Big Shoulders Display', 'Arial Narrow', sans-serif;
   --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
   --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
-    --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
-    --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
-  }
-}
-:root[data-theme="dark"]{
-  --ink:#f3f1ed; --steel:#5b9bd8; --steel-strong:#8fc0ee; --steel-soft:#132540;
-  --slate:#b7b2ac; --sand:#12171b; --paper:#1b2126; --border:#2e363c; --border-soft:#242b30;
-  --text-primary:#f3f1ed; --text-secondary:#c7c2bc; --text-muted:#8f8a84; --text-on-accent:#12171b;
-}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
-body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; min-height:100vh;}
-h1,h2,h3{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;margin:0;color:var(--text-primary);}
+body{
+  background:radial-gradient(ellipse 1200px 700px at 15% -10%, var(--navy-700) 0%, var(--navy) 55%), var(--navy);
+  color:#fff; font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; min-height:100vh;
+}
+h1,h2,h3{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;margin:0;color:#fff;}
 a{color:inherit; text-decoration:none;}
 
-.wrap{max-width:980px; margin:0 auto; padding:64px 24px 80px;}
-.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--steel); font-weight:600;}
+.topbar{padding:22px 24px; display:flex; align-items:center;}
+.tk-logo{background:#fff; border-radius:6px; padding:8px 14px; line-height:1; display:inline-block;}
+.tk-logo .tk-word{display:block; font-family:var(--font-display); font-weight:800; font-size:17px; letter-spacing:.01em; color:#54565a;}
+.tk-logo .tk-sub{display:block; font-family:var(--font-body); font-weight:600; font-size:9px; letter-spacing:.01em; color:#1a8f45; margin-top:2px;}
+
+.wrap{max-width:980px; margin:0 auto; padding:24px 24px 80px;}
+.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
 h1{font-size:clamp(30px,5vw,46px); line-height:1; margin-top:6px;}
-.sub{color:var(--text-secondary); font-size:15px; max-width:60ch; margin-top:14px;}
+.sub{color:rgba(255,255,255,.72); font-size:15px; max-width:60ch; margin-top:14px;}
 
 .grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:44px;}
 @media (max-width:760px){.grid{grid-template-columns:1fr;}}
 
-.panel-card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px 26px; display:flex; flex-direction:column; gap:14px; transition:transform .18s, border-color .18s, box-shadow .18s; border-top:4px solid var(--steel);}
-.panel-card:hover{transform:translateY(-3px); border-color:var(--steel); box-shadow:0 8px 30px -10px rgba(46,123,196,.35);}
+.panel-card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:28px 26px; display:flex; flex-direction:column; gap:14px; transition:transform .18s, box-shadow .18s; border-top:5px solid var(--green);}
+.panel-card:hover{transform:translateY(-3px); box-shadow:0 12px 34px -8px rgba(0,0,0,.55);}
 .panel-card .pc-eyebrow{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); font-weight:600;}
-.panel-card h2{font-size:24px; line-height:1.05;}
-.panel-card .pc-cta{margin-top:auto; padding-top:10px; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--steel); display:flex; align-items:center; gap:6px;}
+.panel-card h2{font-size:24px; line-height:1.05; color:var(--text-primary);}
+.panel-card .pc-cta{margin-top:auto; padding-top:10px; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--green-dark); display:flex; align-items:center; gap:6px;}
 .panel-card:hover .pc-cta{text-decoration:underline;}
-.panel-card.improd{border-top-color:#bd7150;}
-.panel-card.improd .pc-cta{color:#bd7150;}
+.panel-card.improd{border-top-color:var(--slate);}
+.panel-card.improd .pc-cta{color:var(--slate);}
 
-.foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
+.foot{margin-top:56px; padding-top:18px; border-top:1px solid rgba(255,255,255,.18); font-size:12px; color:rgba(255,255,255,.55);}
 </style>
 </head>
 <body>
+  <div class="topbar">
+    <div class="tk-logo"><span class="tk-word">TECHINT</span><span class="tk-sub">Engineering &amp; Construction</span></div>
+  </div>
   <div class="wrap">
     <span class="eyebrow">Techint Engenharia e Construção</span>
     <h1>Painéis de Confronto</h1>
