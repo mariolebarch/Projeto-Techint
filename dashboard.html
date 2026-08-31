@@ -324,10 +324,10 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
 
 .ov-table-name{font-weight:600;}
-tr.cf-os-row{cursor:pointer;}
+tr.cf-os-row, tr.ov-colab-os-row{cursor:pointer;}
 tr.cf-os-row td:first-child{position:relative;}
 tr.cf-os-row.expanded td{background:var(--steel-soft);}
-tr.cf-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+tr.cf-os-row .expand-hint, tr.ov-colab-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
 tr.cf-detail-row td{background:var(--sand); border-top:none;}
 tr.cf-detail-row .cf-cargo-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.cf-detail-row .cf-cargo-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
@@ -475,7 +475,8 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       <div class="card">
         <div class="card-head"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span></div>
         <div id="ov-contrato-chart"></div>
-        <div class="card-head" style="margin-top:18px; margin-bottom:8px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Pessoas presentes por OS</h4></div>
+        <div class="card-head" style="margin-top:18px; margin-bottom:4px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Pessoas presentes por OS</h4></div>
+        <p class="card-note" style="margin-bottom:8px;">Dê dois cliques numa OS para ver quantas pessoas cada supervisor está apontando nela.</p>
         <div id="ov-colab-table"></div>
       </div>
       <div class="ov-right-col">
@@ -690,6 +691,7 @@ const state = {
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
   apoio: {expanded:new Set()},
+  ovColab: {expanded:new Set()},
 };
 
 function fmtDateLabel(iso){
@@ -956,24 +958,40 @@ function renderOsColabTable(ef){
   ef.forEach(r=>{
     if(!r.presente) return;
     const os = String(r.os);
-    byOs.set(os, (byOs.get(os)||0) + 1);
+    if(!byOs.has(os)) byOs.set(os, {total:0, bySup:new Map()});
+    const rec = byOs.get(os);
+    rec.total += 1;
+    const sup = r.supervisor || '(sem supervisor)';
+    rec.bySup.set(sup, (rec.bySup.get(sup)||0)+1);
   });
 
   if(byOs.size===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
 
-  const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v,0);
-  const entries = Array.from(byOs.entries()).sort((a,b)=>b[1]-a[1]);
+  const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v.total,0);
+  const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
 
-  const rowsHtml = entries.map(([os,v],i)=>{
+  const rowsHtml = entries.map(([os,rec],i)=>{
     const contrato = contratoOfOs(os);
-    const pct = grandTotal? v/grandTotal : 0;
-    return `<tr>
+    const pct = grandTotal? rec.total/grandTotal : 0;
+    const expanded = state.ovColab.expanded.has(os);
+    let html = `<tr class="ov-colab-os-row" data-os="${escHtml(os)}">
         <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
-        <td class="ov-table-name">OS ${escHtml(osLabel(os))}</td>
+        <td class="ov-table-name">OS ${escHtml(osLabel(os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
         <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
-        <td class="num-col num">${v}</td>
+        <td class="num-col num">${rec.total}</td>
         <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pct)}</td>
       </tr>`;
+    if(expanded){
+      const supEntries = Array.from(rec.bySup.entries()).sort((a,b)=>b[1]-a[1]);
+      html += supEntries.map(([sup,cnt])=>`<tr class="cf-detail-row">
+          <td></td>
+          <td class="cf-cargo-name">${escHtml(sup)}</td>
+          <td></td>
+          <td class="num-col num">${cnt}</td>
+          <td></td>
+        </tr>`).join('');
+    }
+    return html;
   }).join('');
 
   box.innerHTML = `<div class="table-scroll" style="max-height:340px; overflow-y:auto;">
@@ -982,6 +1000,15 @@ function renderOsColabTable(ef){
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
+
+  box.querySelectorAll('.ov-colab-os-row').forEach(tr=>{
+    tr.addEventListener('dblclick', ()=>{
+      const os = tr.dataset.os;
+      if(state.ovColab.expanded.has(os)) state.ovColab.expanded.delete(os);
+      else state.ovColab.expanded.add(os);
+      renderOsColabTable(ef);
+    });
+  });
 }
 
 /* ---------- Confronto table ---------- */
