@@ -348,10 +348,6 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .insight-card .ic-metric{font-family:var(--font-mono); font-size:24px; font-weight:700; color:var(--text-primary); margin:2px 0 4px;}
 
 /* S-curve (tema claro, consistente com o resto do painel) */
-.scurve-kpis{display:flex; gap:26px; flex-wrap:wrap; margin-bottom:16px;}
-.scurve-kpis .sk{display:flex; flex-direction:column; gap:3px;}
-.scurve-kpis .sk .v{font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--text-primary);}
-.scurve-kpis .sk .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-muted);}
 .scurve-wrap{width:100%; overflow-x:auto; position:relative;}
 .scurve-wrap svg{display:block; width:100%; height:auto;}
 .scurve-grid-line{stroke:var(--border-soft); stroke-width:1; shape-rendering:crispEdges;}
@@ -360,17 +356,9 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .col-val-label{fill:var(--text-secondary); font-family:var(--font-mono); font-size:10.5px; font-weight:500;}
 .col-val-label.muted{fill:var(--text-muted); font-size:9.5px; font-weight:400;}
 .scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
-.scurve-line-planned{stroke:var(--steel-strong); stroke-width:2; stroke-dasharray:5 4;}
-.scurve-line-real{stroke:var(--pci-chart); stroke-width:2.5;}
-.scurve-area-real{fill:url(#scurveGradReal);}
-.scurve-dot-real{fill:var(--paper); stroke:var(--pci-chart); stroke-width:2;}
-.scurve-dot-today{fill:var(--pci-chart); animation:scurvePulse 1.8s ease-in-out infinite;}
-@keyframes scurvePulse{ 0%,100%{opacity:1; r:6;} 50%{opacity:.45; r:9;} }
 .scurve-legend{display:flex; gap:24px; flex-wrap:wrap; margin-top:14px;}
 .scurve-legend .sl-item{display:flex; align-items:center; gap:9px; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
 .scurve-legend .sl-sw{width:24px; height:3px; border-radius:2px; flex:none;}
-.scurve-legend .sl-sw.planned{background:var(--steel-strong);}
-.scurve-legend .sl-sw.real{background:var(--pci-chart);}
 .scurve-crosshair{stroke:var(--border); stroke-width:1; pointer-events:none; opacity:0;}
 .scurve-hover-dot{fill:var(--paper); stroke-width:2.5; opacity:0; pointer-events:none;}
 .scurve-overlay{fill:transparent; cursor:crosshair;}
@@ -379,9 +367,13 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .scurve-tooltip .tt-date{font-family:var(--font-mono); font-weight:700; color:var(--text-primary); font-size:12px; margin-bottom:5px; display:block;}
 .scurve-tooltip .tt-row{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-secondary); padding:1px 0;}
 .scurve-tooltip .tt-row .sw{width:12px; height:2px; flex:none; display:inline-block;}
-.scurve-tooltip .tt-row .sw.planned{background:var(--slate);}
-.scurve-tooltip .tt-row .sw.real{background:var(--steel);}
 .scurve-tooltip .tt-row .tt-val{margin-left:auto; font-family:var(--font-mono); font-weight:600; color:var(--text-primary);}
+
+/* Interferências Registradas (Visão Geral) */
+.tipos-chart{background:var(--sand); border-radius:8px; padding:10px;}
+#ov-tipos-bars .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+#ov-tipos-resp{background:var(--navy); color:#fff; border-color:var(--navy-700);}
+#ov-tipos-resp:hover{border-color:var(--steel);}
 </style>
 
 <div class="app">
@@ -467,8 +459,13 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>Evolução Acumulada das Interferências</h3><span class="card-note">Horas reais &times; previstas, acumulado do período filtrado</span></div>
-      <div id="ov-daily-chart" class="scurve-wrap tech-chart"></div>
+      <div class="card-head">
+        <h3>Interferências Registradas</h3>
+        <div class="filters">
+          <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
+        </div>
+      </div>
+      <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
     </div>
 
     <div class="card">
@@ -498,17 +495,6 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
         </table>
       </div>
       <div class="empty-state" id="poros-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <h3>Interferências Registradas</h3>
-        <div class="filters">
-          <div class="field"><label>Responsabilidade</label><select id="poros-tipos-resp"></select></div>
-        </div>
-      </div>
-      <p class="card-note" style="margin-bottom:10px;">Todas as interferências do período filtrado, com o HH total apontado por tipo — visão para apresentação em reunião.</p>
-      <div class="stat-strip" id="poros-tipos-stats"></div>
-      <div id="poros-tipos-bars" class="scurve-wrap tech-chart"></div>
     </div>
   </section>
 
@@ -616,8 +602,9 @@ const state = {
   os: new Set(),
   grupo: 'all',
   sup: 'all',
-  poros: {expanded:new Set(), respFilter:'all', osRespFilter:'all'},
+  poros: {expanded:new Set(), osRespFilter:'all'},
   sla: {search:'', onlySla:false, sortKey:'exced', sortDir:'desc', groupBy:'os'},
+  ovTipos: {filter:'TECHINT'},
 };
 
 function fmtDateLabel(iso){
@@ -839,7 +826,7 @@ function renderKPIs(){
 
   renderCallouts(rows, exced);
   renderRespChart(rows);
-  renderDailyEvolution();
+  renderVisaoTiposChart();
   renderSupervisorRanking(rows);
 }
 
@@ -929,112 +916,34 @@ function renderRespChart(rows){
   box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand<=0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div></div>`;
 }
 
-/* ---------- Evolução Diária (barras pareadas previsto x real) ---------- */
-/* Acumulado do período FILTRADO: se o usuário restringe as datas, o
-   acumulado aqui é só sobre os dias selecionados. */
-function buildDailyAccumSeries(){
-  const rows = filteredInterf();
-  const selectedDates = (state.dates.size ? Array.from(state.dates) : DATA.datas.slice()).sort();
-  const byDate = new Map(selectedDates.map(d=>[d, {plan:0, real:0}]));
-  rows.forEach(r=>{ const e = byDate.get(r.d); if(e){ e.plan += r.plan; e.real += r.real; } });
-  // corta os dias iniciais sem nenhum registro (plan e real zerados) — evita um
-  // trecho longo e reto em zero antes do período com movimentação de verdade
-  const firstActiveIdx = selectedDates.findIndex(d=>{ const e = byDate.get(d); return e.plan>0 || e.real>0; });
-  const trimmedDates = firstActiveIdx>0 ? selectedDates.slice(firstActiveIdx) : selectedDates;
-  let cumP=0, cumR=0;
-  return trimmedDates.map(d=>{
-    const e = byDate.get(d);
-    cumP += e.plan; cumR += e.real;
-    return {d, plan:cumP, real:cumR};
+/* ---------- Interferências Registradas (Visão Geral) ---------- */
+function buildTiposRealPrevData(){
+  const rows = filteredInterf().filter(r => SLA_INTERFERENCIAS.has(r.it));
+  const map = new Map();
+  rows.forEach(r=>{
+    const key = (r.it==='Almoço' || r.it==='Jantar') ? 'Refeição' : r.it;
+    if(!map.has(key)) map.set(key, {key, label:key, plan:0, real:0});
+    const g = map.get(key);
+    g.plan += r.plan; g.real += r.real;
   });
+  return Array.from(map.values()).sort((a,b)=>b.real-a.real);
 }
-function renderDailyEvolution(){
-  const box = document.getElementById('ov-daily-chart');
-  const series = buildDailyAccumSeries();
-  if(series.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
 
-  const totalPlan = series[series.length-1].plan;
-  const totalReal = series[series.length-1].real;
-  const avanco = totalPlan ? totalReal/totalPlan : 0;
-
-  const W=900,H=320,padL=56,padR=20,padT=20,padB=34;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
-  const n = series.length;
-  const maxVal = Math.max(1, totalPlan, totalReal);
-  const xOf = i => padL + (n<=1?0:(innerW*i/(n-1)));
-  const yOf = v => padT + innerH - (innerH*v/maxVal);
-
-  const planPts = series.map((s,i)=>[xOf(i), yOf(s.plan)]);
-  const realPts = series.map((s,i)=>[xOf(i), yOf(s.real)]);
-  const pathD = pts => pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const areaPath = pathD(realPts)+' L'+realPts[realPts.length-1][0].toFixed(1)+','+(padT+innerH)+' L'+realPts[0][0].toFixed(1)+','+(padT+innerH)+' Z';
-
-  let gridSvg='', axisSvg='', lastMonth=null;
-  series.forEach((s,i)=>{
-    const month = s.d.slice(0,7);
-    if(month!==lastMonth || i===0 || i===n-1){
-      lastMonth = month;
-      const gx=xOf(i);
-      gridSvg += `<line class="scurve-grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${padT+innerH}"/>`;
-      axisSvg += `<text class="scurve-axis-label" x="${gx}" y="${H-12}">${s.d.slice(8,10)}/${s.d.slice(5,7)}</text>`;
-    }
+function renderVisaoTiposChart(){
+  const box = document.getElementById('ov-tipos-bars');
+  const filter = state.ovTipos.filter;
+  if(filter==='REALPREV'){
+    renderTiposComboChart(box, buildTiposRealPrevData());
+    return;
+  }
+  const rows = filteredInterf().filter(r => r.resp===filter);
+  const byTipo = new Map();
+  rows.forEach(r=>{
+    const it = r.it || 'Não classificado';
+    byTipo.set(it, (byTipo.get(it)||0) + r.real);
   });
-  [0,.25,.5,.75,1].forEach(f=>{
-    const gy = padT+innerH-(innerH*f);
-    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
-    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
-  });
-
-  const lastPt = realPts[realPts.length-1];
-  const glow = 'drop-shadow(0 0 3px var(--pci-chart)) drop-shadow(0 0 7px var(--pci-chart))';
-
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução acumulada de horas: real x previsto, respeitando os filtros ativos">
-      <defs>
-        <linearGradient id="techGradReal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--pci-chart)" stop-opacity=".22"/>
-          <stop offset="100%" style="stop-color:var(--pci-chart)" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      ${gridSvg}${axisSvg}
-      <path class="scurve-area-real" style="fill:url(#techGradReal);" d="${areaPath}"/>
-      <path class="scurve-line scurve-line-planned" d="${pathD(planPts)}"/>
-      <path class="scurve-line scurve-line-real" id="ov-daily-real-path" style="filter:${glow};" d="${pathD(realPts)}"/>
-      <circle class="scurve-dot-today" cx="${lastPt[0].toFixed(1)}" cy="${lastPt[1].toFixed(1)}" r="6"/>
-      <line class="scurve-crosshair" id="ov-daily-crosshair" y1="${padT}" y2="${padT+innerH}"/>
-      <circle class="scurve-hover-dot" id="ov-daily-hover-planned" r="5" style="stroke:var(--slate)"/>
-      <circle class="scurve-hover-dot" id="ov-daily-hover-real" r="5" style="stroke:var(--pci-chart)"/>
-      <rect class="scurve-overlay" id="ov-daily-overlay" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="transparent"/>
-    </svg>
-    <div class="scurve-tooltip" id="ov-daily-tt"></div>
-    <div class="scurve-kpis" style="margin-top:14px;">
-      <div class="sk"><span class="v">${fmtH(totalPlan)}h</span><span class="k">Previsto acumulado</span></div>
-      <div class="sk"><span class="v">${fmtH(totalReal)}h</span><span class="k">Real acumulado</span></div>
-      <div class="sk"><span class="v" style="color:${avanco<=1?'var(--good)':avanco<=1.1?'var(--warning)':'var(--critical)'}">${fmtPct1(avanco)}</span><span class="k">Real / Previsto no período</span></div>
-    </div>
-    <div class="scurve-legend" style="margin-top:10px;">
-      <div class="sl-item"><span class="sl-sw planned"></span>Previsto (acum.)</div>
-      <div class="sl-item"><span class="sl-sw real"></span>Real (acum.)</div>
-    </div>`;
-
-  requestAnimationFrame(()=>{
-    const el = document.getElementById('ov-daily-real-path');
-    if(!el) return;
-    const len = el.getTotalLength();
-    el.style.strokeDasharray = len;
-    el.style.strokeDashoffset = len;
-    el.getBoundingClientRect();
-    el.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(.16,.84,.44,1)';
-    requestAnimationFrame(()=>{ el.style.strokeDashoffset = '0'; });
-  });
-
-  wireScurveHover({
-    svgSel: '#ov-daily-chart svg', overlaySel: '#ov-daily-overlay', crosshairSel: '#ov-daily-crosshair',
-    plannedDotSel: '#ov-daily-hover-planned', realDotSel: '#ov-daily-hover-real', tooltipSel: '#ov-daily-tt',
-    wrapSel: '#ov-daily-chart', W, dias: series.map(s=>s.d), xOf, yOf,
-    plannedSeries: series.map(s=>({val:s.plan})), realSeries: series.map(s=>({val:s.real})),
-    fmtVal: v => fmtH(v)+'h',
-    plannedLabel: 'Previsto (acum.)', realLabel: 'Real (acum.)',
-  });
+  const entries = Array.from(byTipo.entries()).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+  renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
 }
 
 /* ---------- Ranking de Supervisores ---------- */
@@ -1357,22 +1266,6 @@ function renderPorOs(){
       });
     }
   });
-
-  const tiposBox = document.getElementById('poros-tipos-bars');
-  const respFilter = state.poros.respFilter;
-  const byTipo = new Map();
-  allRows.forEach(r=>{
-    if(respFilter!=='all' && r.resp!==respFilter) return;
-    const it = r.it || 'Não classificado';
-    if(!byTipo.has(it)) byTipo.set(it, {v:0, resp:r.resp});
-    byTipo.get(it).v += r.real;
-  });
-  const tiposEntries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
-  const totalT = tiposEntries.reduce((a,e)=>a+e.v,0);
-  document.getElementById('poros-tipos-stats').innerHTML = tiposEntries.length ? `
-    <div class="s"><span class="v">${tiposEntries.length}</span><span class="k">tipos de interferência</span></div>
-    <div class="s"><span class="v">${fmtH(totalT)}h</span><span class="k">horas reais no escopo</span></div>` : '';
-  renderTiposColumnChart(tiposBox, tiposEntries);
 }
 
 /* ---------- Interferências Registradas (gráfico em colunas) ---------- */
@@ -1386,7 +1279,9 @@ function wrapChartLabel(text, maxChars){
   return [line1, line2];
 }
 
-function renderTiposColumnChart(box, entries){
+function renderTiposColumnChart(box, entries, opts){
+  opts = opts || {};
+  const flatColor = opts.flatColor || 'var(--resp-techint)';
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   const n = entries.length;
   const W = Math.max(760, n*72), H=310, padL=16, padR=16, padT=42, padB=48;
@@ -1397,7 +1292,6 @@ function renderTiposColumnChart(box, entries){
   const maxChars = Math.max(8, Math.floor(slot/6.4));
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
-  const gradTech = 'gradTech-'+box.id, gradUsi = 'gradUsi-'+box.id;
 
   let bars='', valLabels='', axisSvg='', gridSvg='', hitboxes='';
   const labelBoxes = [];
@@ -1411,15 +1305,13 @@ function renderTiposColumnChart(box, entries){
     const x = cx - barW/2;
     const y = yOf(e.v);
     const h = padT+innerH-y;
-    const isUsi = e.resp==='USIMINAS';
-    const grad = isUsi ? gradUsi : gradTech;
-    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="3" style="fill:url(#${grad});"/>`;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="3" style="fill:${flatColor};"/>`;
     const valText = fmtH(e.v)+'h';
     const labelY = y-7;
     const halfW = valText.length*3.1;
     const collides = labelBoxes.some(b => Math.abs(labelY-b.y)<12 && (cx-halfW) < b.x2 && (cx+halfW) > b.x1);
     if(!collides){
-      valLabels += `<text class="col-val-label" x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle">${valText}</text>`;
+      valLabels += `<text class="col-val-label" x="${cx.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" style="fill:${flatColor};">${valText}</text>`;
       labelBoxes.push({x1:cx-halfW, x2:cx+halfW, y:labelY});
     }
     const lines = wrapChartLabel(e.k, maxChars);
@@ -1430,26 +1322,10 @@ function renderTiposColumnChart(box, entries){
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
 
-  const hasTech = entries.some(e=>e.resp!=='USIMINAS');
-  const hasUsi = entries.some(e=>e.resp==='USIMINAS');
-  const legend = (hasTech ? `<div class="sl-item"><span class="sl-sw" style="background:var(--resp-techint);"></span>Techint</div>` : '') +
-    (hasUsi ? `<div class="sl-item"><span class="sl-sw" style="background:var(--resp-usiminas);"></span>Usiminas</div>` : '');
-
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Interferências registradas por tipo, horas reais apontadas">
-      <defs>
-        <linearGradient id="${gradTech}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--resp-techint); stop-opacity:1"/>
-          <stop offset="100%" style="stop-color:var(--resp-techint); stop-opacity:.55"/>
-        </linearGradient>
-        <linearGradient id="${gradUsi}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--resp-usiminas); stop-opacity:1"/>
-          <stop offset="100%" style="stop-color:var(--resp-usiminas); stop-opacity:.55"/>
-        </linearGradient>
-      </defs>
       ${gridSvg}${bars}${valLabels}${axisSvg}${hitboxes}
     </svg>
-    <div class="scurve-tooltip" id="${ttId}"></div>
-    <div class="scurve-legend" style="margin-top:6px;">${legend}</div>`;
+    <div class="scurve-tooltip" id="${ttId}"></div>`;
 
   const svgEl = box.querySelector('svg');
   const tooltip = document.getElementById(ttId);
@@ -1458,7 +1334,98 @@ function renderTiposColumnChart(box, entries){
     const e = entries[idx];
     hit.addEventListener('pointermove', ()=>{
       tooltip.innerHTML = `<span class="tt-date">${escHtml(e.k)}</span>` +
-        `<div class="tt-row"><span class="sw" style="background:${e.resp==='USIMINAS'?'var(--resp-usiminas)':'var(--resp-techint)'};"></span>${escHtml(e.resp||'—')}<span class="tt-val">${fmtH(e.v)}h</span></div>`;
+        `<div class="tt-row"><span class="sw" style="background:${flatColor};"></span>Real<span class="tt-val">${fmtH(e.v)}h</span></div>`;
+      tooltip.classList.add('show');
+      const wrapRect = box.getBoundingClientRect();
+      const svgRect = svgEl.getBoundingClientRect();
+      const scale = W/svgRect.width;
+      const cx = padL + slot*idx + slot/2;
+      const ttW = tooltip.offsetWidth || 160;
+      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
+      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
+      tooltip.style.top = '4px';
+    });
+    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+  });
+}
+
+/* ---------- Interferências Registradas: Real x Previsto (combo colunas + linha) ---------- */
+function renderTiposComboChart(box, entries){
+  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+  const n = entries.length;
+  const W = Math.max(900, n*140), H=310, padL=16, padR=16, padT=42, padB=48;
+  const innerW = W-padL-padR, innerH = H-padT-padB;
+  const maxVal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
+  const slot = innerW/n;
+  const barW = Math.min(50, slot*0.36);
+  const maxChars = Math.max(8, Math.floor(slot/6.4));
+  const yOf = v => padT + innerH - (innerH*v/maxVal);
+  const ttId = box.id+'-tt', ovClass = box.id+'-hit';
+  const realColor = 'var(--resp-techint)', planColor = 'var(--steel-strong)';
+
+  let bars='', valLabels='', axisSvg='', gridSvg='', hitboxes='';
+  const labelBoxes = [];
+  const tryLabel = (cx, y, val, color) => {
+    const text = fmtH(val)+'h';
+    const halfW = text.length*3.2;
+    const collides = labelBoxes.some(b => Math.abs(y-b.y)<16 && (cx-halfW) < b.x2 && (cx+halfW) > b.x1);
+    if(collides) return '';
+    labelBoxes.push({x1:cx-halfW, x2:cx+halfW, y});
+    return `<text class="col-val-label" x="${cx.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" style="fill:${color};">${text}</text>`;
+  };
+  [.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-(innerH*f);
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`;
+  });
+
+  const linePts = [];
+  entries.forEach((e,i)=>{
+    const cx = padL + slot*i + slot/2;
+    const x = cx - barW/2;
+    const yReal = yOf(e.real);
+    const hReal = padT+innerH-yReal;
+    bars += `<rect x="${x.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
+    valLabels += tryLabel(cx, yReal-7, e.real, realColor);
+
+    const yPlan = yOf(e.plan);
+    linePts.push([cx, yPlan]);
+
+    const lines = wrapChartLabel(e.label, maxChars);
+    const baseY = H-padB+15;
+    lines.forEach((ln,li)=>{
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*12).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
+    });
+    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
+  });
+
+  entries.forEach((e,i)=>{
+    const [cx, yPlan] = linePts[i];
+    valLabels += tryLabel(cx, yPlan-12, e.plan, planColor);
+  });
+
+  const pathD = linePts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const dots = linePts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" style="fill:var(--paper); stroke:${planColor}; stroke-width:2;"/>`).join('');
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Interferências: real (colunas) x previsto (linha), por tipo">
+      ${gridSvg}${bars}
+      <path style="fill:none; stroke:${planColor}; stroke-width:2.5; stroke-dasharray:5 4;" d="${pathD}"/>
+      ${dots}${valLabels}${axisSvg}${hitboxes}
+    </svg>
+    <div class="scurve-tooltip" id="${ttId}"></div>
+    <div class="scurve-legend" style="margin-top:6px;">
+      <div class="sl-item"><span class="sl-sw" style="background:${realColor};"></span>Real</div>
+      <div class="sl-item"><span class="sl-sw" style="background:${planColor};"></span>Previsto</div>
+    </div>`;
+
+  const svgEl = box.querySelector('svg');
+  const tooltip = document.getElementById(ttId);
+  box.querySelectorAll('.'+ovClass).forEach(hit=>{
+    const idx = +hit.dataset.idx;
+    const e = entries[idx];
+    hit.addEventListener('pointermove', ()=>{
+      tooltip.innerHTML = `<span class="tt-date">${escHtml(e.label)}</span>` +
+        `<div class="tt-row"><span class="sw" style="background:${realColor};"></span>Real<span class="tt-val">${fmtH(e.real)}h</span></div>` +
+        `<div class="tt-row"><span class="sw" style="background:${planColor};"></span>Previsto<span class="tt-val">${e.plan>0?fmtH(e.plan)+'h':'sem previsto'}</span></div>`;
       tooltip.classList.add('show');
       const wrapRect = box.getBoundingClientRect();
       const svgRect = svgEl.getBoundingClientRect();
@@ -1686,65 +1653,6 @@ function renderSla(){
   }
 }
 
-function wireScurveHover(cfg){
-  const svg = document.querySelector(cfg.svgSel);
-  const overlay = document.querySelector(cfg.overlaySel);
-  const crosshair = document.querySelector(cfg.crosshairSel);
-  const dotP = document.querySelector(cfg.plannedDotSel);
-  const dotR = document.querySelector(cfg.realDotSel);
-  const tooltip = document.querySelector(cfg.tooltipSel);
-  const wrap = document.querySelector(cfg.wrapSel);
-  if(!svg || !overlay) return;
-  const n = cfg.dias.length;
-
-  function nearestIndex(clientX){
-    const rect = svg.getBoundingClientRect();
-    const scale = cfg.W / rect.width;
-    const svgX = (clientX - rect.left) * scale;
-    let best = 0, bestDist = Infinity;
-    for(let i=0;i<n;i++){
-      const d = Math.abs(cfg.xOf(i) - svgX);
-      if(d < bestDist){ bestDist = d; best = i; }
-    }
-    return best;
-  }
-
-  function show(clientX, clientY){
-    const i = nearestIndex(clientX);
-    const gx = cfg.xOf(i);
-    const p = cfg.plannedSeries[i], r = cfg.realSeries[i];
-    crosshair.setAttribute('x1', gx); crosshair.setAttribute('x2', gx);
-    crosshair.style.opacity = 1;
-    if(p){ dotP.setAttribute('cx', gx); dotP.setAttribute('cy', cfg.yOf(p.val)); dotP.style.opacity = 1; }
-    else { dotP.style.opacity = 0; }
-    if(r){ dotR.setAttribute('cx', gx); dotR.setAttribute('cy', cfg.yOf(r.val)); dotR.style.opacity = 1; }
-    else { dotR.style.opacity = 0; }
-
-    const dateLabel = fmtDateLabelFull(cfg.dias[i]);
-    tooltip.innerHTML = `<span class="tt-date">${dateLabel}</span>` +
-      `<div class="tt-row"><span class="sw planned"></span>${cfg.plannedLabel}<span class="tt-val">${p?cfg.fmtVal(p.val):'—'}</span></div>` +
-      `<div class="tt-row"><span class="sw real"></span>${cfg.realLabel}<span class="tt-val">${r?cfg.fmtVal(r.val):'—'}</span></div>`;
-    tooltip.classList.add('show');
-
-    const wrapRect = wrap.getBoundingClientRect();
-    const svgRect = svg.getBoundingClientRect();
-    const scale = cfg.W / svgRect.width;
-    let left = (svgRect.left - wrapRect.left) + gx/scale + 14;
-    const ttW = tooltip.offsetWidth || 160;
-    if(left + ttW > wrapRect.width) left = (svgRect.left - wrapRect.left) + gx/scale - ttW - 14;
-    tooltip.style.left = Math.max(0, left) + 'px';
-    tooltip.style.top = '6px';
-  }
-  function hide(){
-    crosshair.style.opacity = 0;
-    dotP.style.opacity = 0;
-    dotR.style.opacity = 0;
-    tooltip.classList.remove('show');
-  }
-  overlay.addEventListener('pointermove', e => show(e.clientX, e.clientY));
-  overlay.addEventListener('pointerleave', hide);
-}
-
 /* ---------- Insights Gerenciais ---------- */
 function computeInsights(){
   const rows = filteredInterf();
@@ -1871,16 +1779,16 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
   porosOsRespBox.appendChild(btn);
 });
 
-const porosTiposRespSelect = document.getElementById('poros-tipos-resp');
-[['all','Todas'],['TECHINT','Techint'],['USIMINAS','Usiminas']].forEach(([val,label])=>{
+const ovTiposSelect = document.getElementById('ov-tipos-resp');
+[['TECHINT','Techint'],['USIMINAS','Usiminas'],['REALPREV','Real × Previsto']].forEach(([val,label])=>{
   const opt = document.createElement('option');
   opt.value = val; opt.textContent = label;
-  if(state.poros.respFilter===val) opt.selected = true;
-  porosTiposRespSelect.appendChild(opt);
+  if(state.ovTipos.filter===val) opt.selected = true;
+  ovTiposSelect.appendChild(opt);
 });
-porosTiposRespSelect.addEventListener('change', e=>{
-  state.poros.respFilter = e.target.value;
-  renderPorOs();
+ovTiposSelect.addEventListener('change', e=>{
+  state.ovTipos.filter = e.target.value;
+  renderVisaoTiposChart();
 });
 
 const slaCmpGroupByBox = document.getElementById('sla-cmp-groupby');
