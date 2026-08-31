@@ -169,7 +169,8 @@ button.settings-item:hover{background:var(--sand);}
 .card + .card{margin-top:16px;}
 .ov-grid > .card, .two-col > .card{margin-top:0;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
-.card-head h3{font-size:17px;}
+.card-head h3{font-size:17px; display:flex; align-items:center; gap:9px;}
+.card-head h3::before{content:""; display:inline-block; width:5px; height:18px; border-radius:2px; background:var(--steel-strong); flex:none;}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
 .ov-right-col{display:flex; flex-direction:column; gap:16px;}
@@ -233,8 +234,8 @@ tbody tr.os-row:hover td{background:var(--steel-soft);}
 .os-head-line{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
 .os-head-line .os-name{font-weight:700; font-family:var(--font-mono);}
 .os-mini-bar{flex:1; min-width:140px; max-width:280px; height:10px; background:var(--paper); border:1px solid var(--border); border-radius:4px; overflow:hidden; position:relative;}
-.os-mini-bar .fill-plan{position:absolute; inset:0; background:var(--slate); opacity:.4;}
-.os-mini-bar .fill-real{position:absolute; top:0; bottom:0; left:0; background:var(--steel);}
+.os-mini-bar .fill-plan{position:absolute; inset:0; background:var(--steel-strong); opacity:.35;}
+.os-mini-bar .fill-real{position:absolute; top:0; bottom:0; left:0; background:var(--pci-chart);}
 .os-mini-nums{font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); white-space:nowrap;}
 
 .chip{display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:12px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap;}
@@ -378,22 +379,23 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 .scurve-kpis .sk .v{font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--text-primary);}
 .scurve-kpis .sk .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-muted);}
 .scurve-wrap{width:100%; overflow-x:auto; position:relative;}
+.tech-chart{background-color:var(--pci-chart-soft); background-image:radial-gradient(circle, var(--heat-2) 1px, transparent 1px); background-size:24px 24px; background-position:-6px -6px; border-radius:8px; padding:10px;}
 .scurve-wrap svg{display:block; width:100%; height:auto;}
 .scurve-grid-line{stroke:var(--border-soft); stroke-width:1; shape-rendering:crispEdges;}
 .scurve-axis-label{fill:var(--text-muted); font-family:var(--font-mono); font-size:10px;}
 .scurve-axis-label.today{fill:var(--critical);}
 .scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
-.scurve-line-planned{stroke:var(--slate); stroke-width:2; stroke-dasharray:5 4;}
-.scurve-line-real{stroke:var(--steel); stroke-width:2.5;}
+.scurve-line-planned{stroke:var(--steel-strong); stroke-width:2; stroke-dasharray:5 4;}
+.scurve-line-real{stroke:var(--pci-chart); stroke-width:2.5;}
 .scurve-area-real{fill:url(#scurveGradReal);}
-.scurve-dot-real{fill:var(--paper); stroke:var(--steel); stroke-width:2;}
-.scurve-dot-today{fill:var(--steel); animation:scurvePulse 1.8s ease-in-out infinite;}
+.scurve-dot-real{fill:var(--paper); stroke:var(--pci-chart); stroke-width:2;}
+.scurve-dot-today{fill:var(--pci-chart); animation:scurvePulse 1.8s ease-in-out infinite;}
 @keyframes scurvePulse{ 0%,100%{opacity:1; r:6;} 50%{opacity:.45; r:9;} }
 .scurve-legend{display:flex; gap:24px; flex-wrap:wrap; margin-top:14px;}
 .scurve-legend .sl-item{display:flex; align-items:center; gap:9px; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
 .scurve-legend .sl-sw{width:24px; height:3px; border-radius:2px; flex:none;}
-.scurve-legend .sl-sw.planned{background:var(--slate);}
-.scurve-legend .sl-sw.real{background:var(--steel);}
+.scurve-legend .sl-sw.planned{background:var(--steel-strong);}
+.scurve-legend .sl-sw.real{background:var(--pci-chart);}
 .scurve-crosshair{stroke:var(--border); stroke-width:1; pointer-events:none; opacity:0;}
 .scurve-hover-dot{fill:var(--paper); stroke-width:2.5; opacity:0; pointer-events:none;}
 .scurve-overlay{fill:transparent; cursor:crosshair;}
@@ -563,7 +565,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
         <span class="card-note">Acumulado de pessoas&middot;dia — previsto (Emp Semanal) vs. apontado (Efetivo)</span>
       </div>
       <div id="scurve-kpis" class="scurve-kpis"></div>
-      <div id="scurve-chart" class="scurve-wrap"></div>
+      <div id="scurve-chart" class="scurve-wrap tech-chart"></div>
       <div id="scurve-legend" class="scurve-legend"></div>
     </div>
   </section>
@@ -1435,8 +1437,8 @@ function renderScurve(){
   const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Curva S: acumulado empilhado x acumulado real">
       <defs>
         <linearGradient id="scurveGradReal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--steel)" stop-opacity=".12"/>
-          <stop offset="100%" style="stop-color:var(--steel)" stop-opacity="0"/>
+          <stop offset="0%" style="stop-color:var(--pci-chart)" stop-opacity=".12"/>
+          <stop offset="100%" style="stop-color:var(--pci-chart)" stop-opacity="0"/>
         </linearGradient>
       </defs>
       ${gridSvg}${axisSvg}${todayMarker}
@@ -1445,8 +1447,8 @@ function renderScurve(){
       ${realLinePath?`<path class="scurve-line scurve-line-real" id="scurve-path-real" d="${realLinePath}"/>`:''}
       ${dotsSvg}${lastDot}
       <line class="scurve-crosshair" id="scurve-crosshair" y1="${padT}" y2="${padT+innerH}"/>
-      <circle class="scurve-hover-dot" id="scurve-hover-planned" r="5" style="stroke:var(--slate)"/>
-      <circle class="scurve-hover-dot" id="scurve-hover-real" r="5" style="stroke:var(--steel)"/>
+      <circle class="scurve-hover-dot" id="scurve-hover-planned" r="5" style="stroke:var(--steel-strong)"/>
+      <circle class="scurve-hover-dot" id="scurve-hover-real" r="5" style="stroke:var(--pci-chart)"/>
       <rect class="scurve-overlay" id="scurve-overlay" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}"/>
     </svg>
     <div class="scurve-tooltip" id="scurve-tooltip"></div>`;
