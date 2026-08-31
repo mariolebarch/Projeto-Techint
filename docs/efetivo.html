@@ -93,20 +93,22 @@ button{font-family:inherit;}
 
 .app{max-width:1360px;margin:0 auto;padding:0 24px 64px;}
 
-.masthead{background:var(--navy); box-shadow:var(--shadow); width:100vw; margin:0 calc(50% - 50vw); padding:18px calc((100vw - min(100vw,1360px))/2 + 24px); display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
-.masthead-brand{display:flex; align-items:center; gap:16px;}
-.masthead-logo{background:#fff; border-radius:6px; padding:7px 12px; line-height:1; text-align:left; flex:none;}
-.masthead-logo .tk-word{display:block; font-family:var(--font-display); font-weight:800; font-size:16px; letter-spacing:.01em; color:#54565a;}
-.masthead-logo .tk-sub{display:block; font-family:var(--font-body); font-weight:600; font-size:8.5px; letter-spacing:.01em; color:#1a8f45; text-transform:none; margin-top:2px;}
-.masthead-title{display:flex; flex-direction:column; gap:4px;}
-.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
-.masthead h1{font-size:clamp(20px,2.6vw,28px); line-height:1.08; color:#fff; text-transform:uppercase;}
+.masthead-sticky{position:sticky; top:0; z-index:60; width:100vw; margin:0 calc(50% - 50vw); box-shadow:0 4px 18px rgba(0,0,0,.18);}
+.masthead-accent{height:6px; background:var(--green);}
+.masthead{background:var(--navy); padding:28px calc((100vw - min(100vw,1360px))/2 + 24px); display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead-brand{display:flex; align-items:center; gap:18px;}
+.masthead-logo{background:#fff; border-radius:7px; padding:9px 15px; line-height:1; text-align:left; flex:none;}
+.masthead-logo .tk-word{display:block; font-family:var(--font-display); font-weight:800; font-size:19px; letter-spacing:.01em; color:#54565a;}
+.masthead-logo .tk-sub{display:block; font-family:var(--font-body); font-weight:600; font-size:10px; letter-spacing:.01em; color:#1a8f45; text-transform:none; margin-top:2px;}
+.masthead-title{display:flex; flex-direction:column; gap:5px;}
+.eyebrow{font-family:var(--font-mono); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
+.masthead h1{font-size:clamp(24px,3.2vw,34px); line-height:1.08; color:#fff; text-transform:uppercase;}
 .masthead-sub{color:var(--text-secondary); font-size:14px; max-width:60ch;}
-.masthead-actions{display:flex; align-items:center; gap:8px;}
+.masthead-actions{display:flex; align-items:center; gap:10px;}
 .action-wrap{position:relative; display:flex;}
-.hub-link-btn{display:flex; align-items:center; gap:7px; height:38px; padding:0 15px; border-radius:19px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; text-decoration:none; font-size:12.5px; font-weight:600; white-space:nowrap;}
+.hub-link-btn{display:flex; align-items:center; gap:7px; height:44px; padding:0 18px; border-radius:22px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; text-decoration:none; font-size:13.5px; font-weight:600; white-space:nowrap;}
 .hub-link-btn:hover{background:rgba(255,255,255,.18); border-color:#fff;}
-.gear-btn{width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s, border-color .2s; position:relative;}
+.gear-btn{width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s, border-color .2s; position:relative;}
 .gear-btn:hover{background:rgba(255,255,255,.18); border-color:#fff;}
 .gear-btn[aria-expanded="true"]{background:rgba(255,255,255,.18); border-color:#fff;}
 #settings-btn[aria-expanded="true"]{transform:rotate(35deg);}
@@ -155,7 +157,7 @@ button.settings-item:hover{background:var(--sand);}
 .sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
 
 /* Global filter bar */
-.global-filters{display:flex; gap:22px; align-items:flex-end; width:100vw; margin:0 calc(50% - 50vw); padding:14px calc((100vw - min(100vw,1360px))/2 + 24px); background:var(--navy-100); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
+.global-filters{display:flex; gap:22px; align-items:flex-end; padding:18px calc((100vw - min(100vw,1360px))/2 + 24px); background:var(--navy-100); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
 .global-filters .field label{color:var(--steel-strong);}
 .global-filters .hint{font-size:11.5px; color:var(--text-muted); align-self:center; margin-left:auto;}
 .global-filters select, .global-filters .msel-btn, .global-filters .date-toggle{border-radius:999px;}
@@ -417,6 +419,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 
 <div class="app">
 
+  <div class="masthead-sticky">
   <header class="masthead">
     <div class="masthead-brand">
       <div class="masthead-logo"><span class="tk-word">TECHINT</span><span class="tk-sub">Engineering &amp; Construction</span></div>
@@ -465,11 +468,12 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       </div>
     </div>
   </header>
-
+  <div class="masthead-accent"></div>
   <div class="global-filters">
     <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <span class="hint">Esses dois filtros afetam todas as abas abaixo.</span>
+  </div>
   </div>
 
   <nav class="tabbar" id="tabbar">
