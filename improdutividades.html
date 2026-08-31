@@ -413,6 +413,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
     <button class="tabbtn" data-tab="poros" aria-selected="false">Interferências por OS</button>
     <button class="tabbtn" data-tab="sla" aria-selected="false">Previsto &times; Real (SLA)</button>
     <button class="tabbtn" data-tab="curva" aria-selected="false">Curva S</button>
+    <button class="tabbtn" data-tab="rdc" aria-selected="false">Situação RDC</button>
     <button class="tabbtn" data-tab="insights" aria-selected="false">Insights Gerenciais</button>
   </nav>
 
@@ -424,15 +425,9 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
     </div>
     <div class="kpi-grid" id="kpi-grid"></div>
 
-    <div class="ov2-grid">
-      <div class="card">
-        <div class="card-head"><h3>Evolução Diária das Interferências</h3><span class="card-note">Horas reais &times; previstas por dia (não acumulado)</span></div>
-        <div id="ov-daily-chart" class="scurve-wrap"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Top 5 Causas de Improdutividade</h3><span class="card-note">Por horas reais no período filtrado</span></div>
-        <div id="ov-top-causas"></div>
-      </div>
+    <div class="card">
+      <div class="card-head"><h3>Evolução Diária das Interferências</h3><span class="card-note">Horas reais &times; previstas por dia</span></div>
+      <div id="ov-daily-chart" class="scurve-wrap"></div>
     </div>
 
     <div class="card">
@@ -449,16 +444,9 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
       </div>
     </div>
 
-    <div class="ov-grid">
-      <div class="card">
-        <div class="card-head"><h3>Responsabilidade das Interferências</h3><span class="card-note">TECHINT &times; USIMINAS &middot; horas reais</span></div>
-        <div id="ov-resp-chart"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Situação dos RDCs (Export_BI &times; SGE)</h3></div>
-        <p class="card-note" style="margin-bottom:10px;">Situação obtida cruzando o RDC do Export_BI (col. C) com a aba SGE (col. H → Situação, col. G).</p>
-        <div id="ov-sit-chart"></div>
-      </div>
+    <div class="card">
+      <div class="card-head"><h3>Responsabilidade das Interferências</h3><span class="card-note">TECHINT &times; USIMINAS &middot; horas reais</span></div>
+      <div id="ov-resp-chart"></div>
     </div>
   </section>
 
@@ -531,6 +519,37 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
       <div id="scurve-chart" class="scurve-wrap"></div>
       <div id="scurve-legend" class="scurve-legend"></div>
     </div>
+  </section>
+
+  <!-- ================= SITUAÇÃO RDC ================= -->
+  <section class="view" id="view-rdc">
+    <div class="kpi-grid" id="rdc-kpi-grid"></div>
+
+    <div class="card">
+      <div class="card-head"><h3>Situação dos RDCs</h3><span class="card-note">Export_BI (col. C) &times; SGE (col. H &rarr; Situação, col. G)</span></div>
+      <div id="rdc-sit-chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>RDCs por OS</h3><span class="card-note">Composição por situação — quanto mais vermelho/amarelo, mais RDC parado naquela OS</span></div>
+      <div id="rdc-os-stack"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>RDCs Parados no Fluxo &middot; por Encarregado</h3><span class="card-note">Reprovado, em Revisão ou Aguardando Aprovação — quem precisa de acompanhamento</span></div>
+      <div class="table-scroll">
+        <table id="rdc-parados-table">
+          <thead><tr><th>#</th><th>Encarregado</th><th>Supervisor</th><th class="num-col">Total RDCs</th><th class="num-col">Parados</th><th class="num-col">% Parados</th></tr></thead>
+          <tbody id="rdc-parados-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="rdc-parados-empty" style="display:none;">Nenhum RDC parado para os filtros selecionados.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Insights &middot; Situação RDC</h3><span class="card-note">Leitura analítica automática, focada só no fluxo de RDCs</span></div>
+    </div>
+    <div class="insight-grid" id="rdc-insights-grid" style="margin-top:16px;"></div>
   </section>
 
   <!-- ================= INSIGHTS ================= -->
@@ -771,11 +790,8 @@ function renderKPIs(){
   const taxaAprov = rdcRows.length? aprovados/rdcRows.length : 0;
 
   const kpis = [
-    {label:'Interferências registradas', value:fmtInt(n), sub:datesLabel(), cls:''},
     {label:'Horas Reais Apontadas', value:fmtH(real)+'h', sub:'previsto: '+fmtH(plan)+'h', cls:''},
-    {label:'Aderência ao Plano', value:fmtPct1(aderencia), sub: aderencia>1 ? 'real acima do previsto' : 'dentro do previsto', cls: aderencia>1.05?'critical':(aderencia>1?'warning':'good')},
     {label:'Horas Excedentes (SLA)', value:fmtH(exced)+'h', sub: n? fmtPct1(exced/Math.max(real,1))+' das horas reais':'—', cls: exced>0?'critical':'good'},
-    {label:'RDCs no período', value:fmtInt(rdcRows.length), sub:'via aba SGE', cls:''},
     {label:'Taxa de Aprovação RDC', value:fmtPct1(taxaAprov), sub:fmtInt(aprovados)+' aprovados', cls: taxaAprov<0.6?'critical':(taxaAprov<0.8?'warning':'good')},
   ];
   const grid = document.getElementById('kpi-grid');
@@ -791,9 +807,7 @@ function renderKPIs(){
 
   renderCallouts(rows, exced);
   renderRespChart(rows);
-  renderSitChart(rdcRows);
   renderDailyEvolution();
-  renderTopCausas(rows);
   renderSupervisorRanking(rows);
 }
 
@@ -883,96 +897,24 @@ function renderRespChart(rows){
   box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand<=0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div></div>`;
 }
 
-/* ---------- Top 5 Causas de Improdutividade (barras com gradiente de severidade) ---------- */
-function renderTopCausas(rows){
-  const box = document.getElementById('ov-top-causas');
-  const byTipo = new Map();
-  rows.forEach(r=>{ byTipo.set(r.it, (byTipo.get(r.it)||0) + r.real); });
-  const entries = Array.from(byTipo.entries()).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
-  const totalReal = rows.reduce((a,r)=>a+r.real,0);
-  const max = entries[0][1];
-  const opacities = [1, .82, .66, .5, .36];
-  box.innerHTML = entries.map(([it,v],i)=>`
-    <div class="sev-bar-row">
-      <span class="rank">${i+1}</span>
-      <span class="label" title="${escHtml(it)}">${escHtml(it)}</span>
-      <div class="bar-track"><div class="bar-fill sev-bar-fill" style="width:${max?Math.max(3,v/max*100):0}%; opacity:${opacities[i]};"></div></div>
-      <span class="bar-val num">${fmtH(v)}h</span>
-    </div>`).join('') +
-    `<p class="card-note" style="margin-top:10px;">Essas 5 causas somam ${fmtH(entries.reduce((a,e)=>a+e[1],0))}h &middot; ${totalReal?fmtPct1(entries.reduce((a,e)=>a+e[1],0)/totalReal):'0%'} de todas as horas reais do período.</p>`;
-}
-
-/* ---------- Evolução Diária (não acumulada) ---------- */
+/* ---------- Evolução Diária (barras pareadas previsto x real) ---------- */
 function buildDailySeries(){
   const rows = filteredInterfNoDate();
-  const byDate = new Map(DATA.datas.map(d=>[d, {plan:0, real:0}]));
-  rows.forEach(r=>{ const e = byDate.get(r.d); if(e){ e.plan += r.plan; e.real += r.real; } });
-  return DATA.datas.map(d=>({d, ...byDate.get(d)}));
+  const byDate = new Map(DATA.datas.map(d=>[d, {plan:0, real:0, exced:0}]));
+  rows.forEach(r=>{
+    const e = byDate.get(r.d);
+    if(e){ e.plan += r.plan; e.real += r.real; e.exced += slaExced(r.plan, r.real); }
+  });
+  return DATA.datas.map(d=>({d, label:fmtDateLabel(d), ...byDate.get(d)}));
 }
 function renderDailyEvolution(){
   const box = document.getElementById('ov-daily-chart');
   const series = buildDailySeries();
   if(series.length===0){ box.innerHTML = '<div class="empty-state">Sem dados.</div>'; return; }
-
-  const W=560,H=280,padL=48,padR=16,padT=16,padB=30;
-  const innerW=W-padL-padR, innerH=H-padT-padB;
-  const n = series.length;
-  const maxVal = Math.max(1, ...series.map(s=>s.plan), ...series.map(s=>s.real));
-  const xOf = i => padL + (n<=1?0:(innerW*i/(n-1)));
-  const yOf = v => padT + innerH - (innerH*v/maxVal);
-
-  const plannedPts = series.map((s,i)=>[xOf(i),yOf(s.plan)]);
-  const realPts = series.map((s,i)=>[xOf(i),yOf(s.real)]);
-  const pathD = pts => pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const areaPath = pathD(realPts)+' L'+realPts[realPts.length-1][0].toFixed(1)+','+(padT+innerH)+' L'+realPts[0][0].toFixed(1)+','+(padT+innerH)+' Z';
-
-  let gridSvg='', axisSvg='', lastMonth=null;
-  series.forEach((s,i)=>{
-    const month = s.d.slice(0,7);
-    if(month!==lastMonth || i===0){
-      lastMonth = month;
-      const gx=xOf(i);
-      gridSvg += `<line class="scurve-grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${padT+innerH}"/>`;
-      axisSvg += `<text class="scurve-axis-label" x="${gx}" y="${H-8}">${s.d.slice(8,10)}/${s.d.slice(5,7)}</text>`;
-    }
-  });
-  [0,.5,1].forEach(f=>{
-    const gy = padT+innerH-(innerH*f);
-    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
-    axisSvg += `<text class="scurve-axis-label" x="4" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
-  });
-
-  const svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução diária de horas de interferência, real x previsto">
-      <defs>
-        <linearGradient id="dailyGradReal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--steel)" stop-opacity=".14"/>
-          <stop offset="100%" style="stop-color:var(--steel)" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      ${gridSvg}${axisSvg}
-      <path class="scurve-area-real" style="fill:url(#dailyGradReal)" d="${areaPath}"/>
-      <path class="scurve-line scurve-line-planned" d="${pathD(plannedPts)}"/>
-      <path class="scurve-line scurve-line-real" d="${pathD(realPts)}"/>
-      <line class="scurve-crosshair" id="ov-daily-crosshair" y1="${padT}" y2="${padT+innerH}"/>
-      <circle class="scurve-hover-dot" id="ov-daily-hover-planned" r="5" style="stroke:var(--slate)"/>
-      <circle class="scurve-hover-dot" id="ov-daily-hover-real" r="5" style="stroke:var(--steel)"/>
-      <rect class="scurve-overlay" id="ov-daily-overlay" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}"/>
-    </svg>
-    <div class="scurve-tooltip" id="ov-daily-tooltip"></div>
-    <div class="scurve-legend" style="margin-top:8px;">
-      <div class="sl-item"><span class="sl-sw planned"></span>Previsto (dia)</div>
-      <div class="sl-item"><span class="sl-sw real"></span>Real (dia)</div>
-    </div>`;
-  box.innerHTML = svg;
-
-  wireScurveHover({
-    svgSel: '#ov-daily-chart svg', overlaySel: '#ov-daily-overlay', crosshairSel: '#ov-daily-crosshair',
-    plannedDotSel: '#ov-daily-hover-planned', realDotSel: '#ov-daily-hover-real', tooltipSel: '#ov-daily-tooltip',
-    wrapSel: '#ov-daily-chart', W, dias: series.map(s=>s.d), xOf, yOf,
-    plannedSeries: series.map(s=>({val:s.plan})), realSeries: series.map(s=>({val:s.real})),
-    fmtVal: v => fmtH(v)+'h',
-    plannedLabel: 'Previsto (dia)', realLabel: 'Real (dia)',
+  renderPairedBarChart(box, series, {
+    ariaLabel: 'Evolução diária: horas previstas x reais',
+    barWidthPerCategory: 46,
+    rotateLabels: true,
   });
 }
 
@@ -1029,22 +971,183 @@ function renderSupervisorRanking(rows){
   }).join('');
 }
 
+const RDC_SIT_COLORS = {'Aprovado':'var(--good)','Elaboração':'var(--info)','Revisão':'var(--warning)','Aguardando Aprovação':'var(--warning)','Reprovado':'var(--critical)','Cancelado':'var(--slate)','Copiado':'var(--slate)'};
+const RDC_PARADO_SITS = new Set(['Reprovado','Aguardando Aprovação','Revisão']);
+
 function renderSitChart(rdcRows){
-  const box = document.getElementById('ov-sit-chart');
+  const box = document.getElementById('rdc-sit-chart');
   const bySit = new Map();
   rdcRows.forEach(r=>{ const k = r.sit || '—'; bySit.set(k, (bySit.get(k)||0)+1); });
   const entries = Array.from(bySit.entries()).sort((a,b)=>b[1]-a[1]);
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem RDCs para os filtros atuais.</div>'; return; }
   const total = entries.reduce((a,e)=>a+e[1],0);
-  const colors = {'Aprovado':'var(--good)','Elaboração':'var(--info)','Revisão':'var(--warning)','Aguardando Aprovação':'var(--warning)','Reprovado':'var(--critical)','Cancelado':'var(--slate)','Copiado':'var(--slate)'};
   const max = Math.max(...entries.map(e=>e[1]));
-  box.innerHTML = `<div class="stat-strip" style="margin-bottom:10px;"><div class="s"><span class="v">${fmtInt(total)}</span><span class="k">RDCs no período</span></div></div>` +
-    entries.map(([s,v])=>`
+  box.innerHTML = entries.map(([s,v])=>`
     <div class="bar-row">
-      <span class="label" title="${escHtml(s)}">${escHtml(s)}</span>
-      <div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%; background:${colors[s]||'var(--steel)'};"></div></div>
+      <span class="label" title="${escHtml(s)}">${escHtml(s)}${RDC_PARADO_SITS.has(s)?' &#9888;':''}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${max?Math.max(2,v/max*100):0}%; background:${RDC_SIT_COLORS[s]||'var(--steel)'};"></div></div>
       <span class="bar-val num">${fmtInt(v)} (${fmtPct1(v/total)})</span>
     </div>`).join('');
+}
+
+/* ---------- RDCs por OS (barra empilhada por situação) ---------- */
+function renderRdcByOs(rdcRows){
+  const box = document.getElementById('rdc-os-stack');
+  const byOs = new Map();
+  rdcRows.forEach(r=>{
+    const os = r.os || '—';
+    if(!byOs.has(os)) byOs.set(os, {os, total:0, bySit:new Map()});
+    const g = byOs.get(os);
+    g.total++;
+    const k = r.sit || '—';
+    g.bySit.set(k, (g.bySit.get(k)||0)+1);
+  });
+  const allEntries = Array.from(byOs.values()).sort((a,b)=>b.total-a.total);
+  if(allEntries.length===0){ box.innerHTML = '<div class="empty-state">Sem RDCs para os filtros atuais.</div>'; return; }
+  const TOP_N = 15;
+  const entries = allEntries.slice(0, TOP_N);
+  const max = Math.max(...entries.map(e=>e.total));
+  const sitOrder = ['Aprovado','Elaboração','Copiado','Revisão','Aguardando Aprovação','Reprovado','Cancelado'];
+
+  const note = allEntries.length>TOP_N
+    ? `<p class="card-note" style="margin-top:10px;">Mostrando as ${TOP_N} OS com mais RDCs, de ${allEntries.length} OS distintas no período. O Export_BI (interferências) só cobre ${DATA.os_list.length} dessas OS — a aba SGE registra RDC para uma base de OS bem mais ampla.</p>`
+    : '';
+
+  box.innerHTML = entries.map(e=>{
+    const parados = Array.from(e.bySit.entries()).filter(([s])=>RDC_PARADO_SITS.has(s)).reduce((a,[,v])=>a+v,0);
+    const widthPct = max ? Math.max(2, e.total/max*100) : 0;
+    const segs = sitOrder.filter(s=>e.bySit.has(s)).map(s=>{
+      const v = e.bySit.get(s);
+      return `<div style="flex:${v}; background:${RDC_SIT_COLORS[s]||'var(--steel)'};" title="${escHtml(s)}: ${v}"></div>`;
+    }).join('');
+    return `
+    <div class="sev-bar-row">
+      <span class="label" style="width:110px;" title="OS ${escHtml(e.os)}">OS ${escHtml(e.os)}</span>
+      <div class="bar-track" style="width:${widthPct}%; flex:none; display:flex; overflow:hidden;">${segs}</div>
+      <span class="bar-val num" style="width:auto; margin-left:10px;">${fmtInt(e.total)}${parados>0?` <span style="color:var(--critical);">(${fmtInt(parados)} parados)</span>`:''}</span>
+    </div>`;
+  }).join('') + note;
+}
+
+/* ---------- RDCs parados no fluxo, por encarregado ---------- */
+function renderRdcParados(rdcRows){
+  const tbody = document.getElementById('rdc-parados-tbody');
+  const byEnc = new Map();
+  rdcRows.forEach(r=>{
+    const enc = r.enc || '—';
+    if(!byEnc.has(enc)) byEnc.set(enc, {enc, sup:r.sup, total:0, parados:0});
+    const g = byEnc.get(enc);
+    g.total++;
+    if(RDC_PARADO_SITS.has(r.sit)) g.parados++;
+  });
+  const entries = Array.from(byEnc.values()).filter(e=>e.parados>0).sort((a,b)=>b.parados-a.parados).slice(0,15);
+  document.getElementById('rdc-parados-empty').style.display = entries.length ? 'none' : '';
+  tbody.innerHTML = entries.map((e,i)=>`
+    <tr>
+      <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
+      <td class="ov-table-name">${escHtml(e.enc)}</td>
+      <td>${escHtml(e.sup||'—')}</td>
+      <td class="num-col num">${fmtInt(e.total)}</td>
+      <td class="num-col num" style="color:var(--critical); font-weight:600;">${fmtInt(e.parados)}</td>
+      <td class="num-col num">${fmtPct1(e.parados/e.total)}</td>
+    </tr>`).join('');
+}
+
+/* ---------- Insights focados em RDC ---------- */
+function computeRdcInsights(rdcRows){
+  const insights = [];
+  const total = rdcRows.length;
+  if(total===0) return insights;
+
+  const aprovados = rdcRows.filter(r=>r.sit==='Aprovado').length;
+  const parados = rdcRows.filter(r=>RDC_PARADO_SITS.has(r.sit));
+  const pctParados = parados.length/total;
+  insights.push({tone: pctParados>0.25?'critical':(pctParados>0.12?'warning':'good'), eyebrow:'Saúde geral do fluxo', title:'RDCs parados no fluxo',
+    metric: fmtPct1(pctParados),
+    text:`${fmtInt(parados.length)} de ${fmtInt(total)} RDCs estão reprovados, em revisão ou aguardando aprovação. Taxa de aprovação direta: ${fmtPct1(aprovados/total)}.`});
+
+  const byOs = new Map();
+  rdcRows.forEach(r=>{
+    const os = r.os||'—';
+    if(!byOs.has(os)) byOs.set(os, {os, total:0, parados:0});
+    const g = byOs.get(os);
+    g.total++;
+    if(RDC_PARADO_SITS.has(r.sit)) g.parados++;
+  });
+  const worstOs = Array.from(byOs.values()).filter(o=>o.total>=5).map(o=>({...o, pct:o.parados/o.total})).sort((a,b)=>b.pct-a.pct)[0];
+  if(worstOs && worstOs.parados>0){
+    insights.push({tone:'critical', eyebrow:'OS com pior aprovação', title:'OS '+worstOs.os,
+      metric: fmtPct1(worstOs.pct),
+      text:`${fmtInt(worstOs.parados)} de ${fmtInt(worstOs.total)} RDCs dessa OS estão parados — candidata a prioridade de acompanhamento junto ao encarregado responsável.`});
+  }
+
+  const byEnc = new Map();
+  rdcRows.forEach(r=>{
+    const enc = r.enc||'—';
+    if(!byEnc.has(enc)) byEnc.set(enc, {enc, sup:r.sup, parados:0});
+    if(RDC_PARADO_SITS.has(r.sit)) byEnc.get(enc).parados++;
+  });
+  const topEnc = Array.from(byEnc.values()).sort((a,b)=>b.parados-a.parados)[0];
+  if(topEnc && topEnc.parados>0){
+    insights.push({tone:'warning', eyebrow:'Maior concentração de RDCs parados', title:topEnc.enc,
+      metric: fmtInt(topEnc.parados)+' RDCs',
+      text:`Supervisor: ${topEnc.sup||'não identificado'}. Vale uma conversa direcionada para destravar esses registros antes que virem gargalo de fechamento.`});
+  }
+
+  const bySit = new Map();
+  rdcRows.forEach(r=>{ const k=r.sit||'—'; bySit.set(k,(bySit.get(k)||0)+1); });
+  const topSit = Array.from(bySit.entries()).filter(([s])=>s!=='Aprovado').sort((a,b)=>b[1]-a[1])[0];
+  if(topSit){
+    insights.push({tone:'info', eyebrow:'Maior gargalo por situação', title:topSit[0],
+      metric: fmtInt(topSit[1])+' RDCs',
+      text:`Depois de "Aprovado", esta é a situação com mais RDCs no período (${fmtPct1(topSit[1]/total)} do total) — indica onde o fluxo está represando mais.`});
+  }
+
+  return insights;
+}
+function renderRdcInsights(rdcRows){
+  const grid = document.getElementById('rdc-insights-grid');
+  const insights = computeRdcInsights(rdcRows);
+  if(insights.length===0){ grid.innerHTML = '<div class="empty-state">Sem RDCs suficientes para gerar insights com os filtros atuais.</div>'; return; }
+  grid.innerHTML = insights.map(ins => `
+    <div class="insight-card ${ins.tone}">
+      <div class="ic-eyebrow">${escHtml(ins.eyebrow)}</div>
+      <h4>${escHtml(ins.title)}</h4>
+      <div class="ic-metric">${escHtml(ins.metric)}</div>
+      <p>${escHtml(ins.text)}</p>
+    </div>`).join('');
+}
+
+function renderRdcTab(){
+  const rdcRows = filteredRdcs();
+  const total = rdcRows.length;
+  const aprovados = rdcRows.filter(r=>r.sit==='Aprovado').length;
+  const taxaAprov = total? aprovados/total : 0;
+  const parados = rdcRows.filter(r=>RDC_PARADO_SITS.has(r.sit)).length;
+  const pctParados = total? parados/total : 0;
+  const byOs = new Map();
+  rdcRows.forEach(r=>{ const os=r.os||'—'; byOs.set(os, (byOs.get(os)||0)+ (RDC_PARADO_SITS.has(r.sit)?1:0)); });
+  const hotspot = Array.from(byOs.entries()).sort((a,b)=>b[1]-a[1])[0];
+
+  const kpis = [
+    {label:'Total de RDCs', value:fmtInt(total), sub:'via aba SGE', cls:''},
+    {label:'Taxa de Aprovação', value:fmtPct1(taxaAprov), sub:fmtInt(aprovados)+' aprovados', cls: taxaAprov<0.6?'critical':(taxaAprov<0.8?'warning':'good')},
+    {label:'RDCs Parados no Fluxo', value:fmtInt(parados), sub:fmtPct1(pctParados)+' do total', cls: pctParados>0.25?'critical':(pctParados>0.12?'warning':'good')},
+    {label:'OS com mais parados', value: hotspot&&hotspot[1]>0 ? 'OS '+hotspot[0] : '—', sub: hotspot&&hotspot[1]>0 ? fmtInt(hotspot[1])+' RDCs parados' : 'nenhum gargalo por OS', cls: hotspot&&hotspot[1]>0?'critical':'good'},
+  ];
+  const grid = document.getElementById('rdc-kpi-grid');
+  grid.innerHTML = '';
+  kpis.forEach(k=>{
+    const el = document.createElement('div');
+    el.className = 'kpi '+k.cls;
+    el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    grid.appendChild(el);
+  });
+
+  renderSitChart(rdcRows);
+  renderRdcByOs(rdcRows);
+  renderRdcParados(rdcRows);
+  renderRdcInsights(rdcRows);
 }
 
 /* ---------- Interferências por OS ---------- */
@@ -1197,6 +1300,79 @@ function renderSlaThead(){
   });
 }
 /* ---------- Previsto x Real: gráfico comparativo (barras pareadas) ---------- */
+/* ---------- Gráfico genérico de barras pareadas (previsto x real) ---------- */
+function renderPairedBarChart(box, data, opts){
+  opts = opts || {};
+  const rotateLabels = !!opts.rotateLabels;
+  const n = data.length;
+  const W = Math.max(600, n*(opts.barWidthPerCategory||70)), H=340, padL=56, padR=16, padT=16, padB = rotateLabels ? 96 : 40;
+  const innerW = W-padL-padR, innerH = H-padT-padB;
+  const maxVal = Math.max(1, ...data.map(d=>d.plan), ...data.map(d=>d.real));
+  const slot = innerW/n;
+  const barW = Math.min(26, slot*0.32);
+  const gap = 3;
+  const yOf = v => padT + innerH - (innerH*v/maxVal);
+  const ttId = box.id+'-tt', ovClass = box.id+'-hit';
+
+  let bars = '', axisSvg='', gridSvg='', hitboxes = '';
+  [0,.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-(innerH*f);
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
+    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
+  });
+
+  data.forEach((d,i)=>{
+    const cx = padL + slot*i + slot/2;
+    const xPlan = cx - gap/2 - barW;
+    const xReal = cx + gap/2;
+    const yPlan = yOf(d.plan), yReal = yOf(d.real);
+    const hPlan = padT+innerH-yPlan, hReal = padT+innerH-yReal;
+    const realColor = d.exced>0 ? 'var(--critical)' : 'var(--steel)';
+    if(d.plan>0) bars += `<rect x="${xPlan.toFixed(1)}" y="${yPlan.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hPlan).toFixed(1)}" rx="3" style="fill:var(--slate); opacity:.5;"/>`;
+    if(d.real>0) bars += `<rect x="${xReal.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
+    const labelText = d.label.length>14 ? d.label.slice(0,13)+'…' : d.label;
+    if(rotateLabels){
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="end" transform="rotate(-40 ${cx.toFixed(1)} ${(H-padB+16).toFixed(1)})">${escHtml(labelText)}</text>`;
+    } else {
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${H-10}" text-anchor="middle">${escHtml(labelText)}</text>`;
+    }
+    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${innerH}" fill="transparent"/>`;
+  });
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escHtml(opts.ariaLabel||'Comparação previsto x real')}">
+      ${gridSvg}${bars}${axisSvg}${hitboxes}
+    </svg>
+    <div class="scurve-tooltip" id="${ttId}"></div>
+    <div class="scurve-legend" style="margin-top:8px;">
+      <div class="sl-item"><span class="sl-sw" style="background:var(--slate); opacity:.5;"></span>Previsto</div>
+      <div class="sl-item"><span class="sl-sw" style="background:var(--steel);"></span>Real (dentro do plano)</div>
+      <div class="sl-item"><span class="sl-sw" style="background:var(--critical);"></span>Real (excedente de SLA)</div>
+    </div>`;
+
+  const svgEl = box.querySelector('svg');
+  const tooltip = document.getElementById(ttId);
+  box.querySelectorAll('.'+ovClass).forEach(hit=>{
+    const idx = +hit.dataset.idx;
+    const d = data[idx];
+    hit.addEventListener('pointermove', ()=>{
+      tooltip.innerHTML = `<span class="tt-date">${escHtml(d.label)}</span>` +
+        `<div class="tt-row"><span class="sw" style="background:var(--slate);"></span>Previsto<span class="tt-val">${d.plan>0?fmtH(d.plan)+'h':'sem previsto'}</span></div>` +
+        `<div class="tt-row"><span class="sw" style="background:${d.exced>0?'var(--critical)':'var(--steel)'};"></span>Real<span class="tt-val">${fmtH(d.real)}h</span></div>` +
+        (d.exced>0 ? `<div class="tt-row" style="color:var(--critical);"><span class="sw" style="background:var(--critical);"></span>Excedente (SLA)<span class="tt-val" style="color:var(--critical);">${fmtH(d.exced)}h</span></div>` : '');
+      tooltip.classList.add('show');
+      const wrapRect = box.getBoundingClientRect();
+      const svgRect = svgEl.getBoundingClientRect();
+      const scale = W/svgRect.width;
+      const cx = padL + slot*idx + slot/2;
+      const ttW = tooltip.offsetWidth || 160;
+      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
+      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
+      tooltip.style.top = '4px';
+    });
+    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+  });
+}
+
 function buildSlaCompareData(dim){
   const rows = filteredInterf();
   const map = new Map();
@@ -1223,73 +1399,10 @@ function renderSlaCompareChart(){
   const box = document.getElementById('sla-cmp-chart');
   const data = buildSlaCompareData(dim);
   if(data.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
-
-  const n = data.length;
-  const rotateLabels = dim==='it' || dim==='d';
-  const W = Math.max(600, n*(dim==='os'?90:60)), H=340, padL=56, padR=16, padT=16, padB = rotateLabels ? 96 : 40;
-  const innerW = W-padL-padR, innerH = H-padT-padB;
-  const maxVal = Math.max(1, ...data.map(d=>d.plan), ...data.map(d=>d.real));
-  const slot = innerW/n;
-  const barW = Math.min(26, slot*0.32);
-  const gap = 3;
-  const yOf = v => padT + innerH - (innerH*v/maxVal);
-
-  let bars = '', axisSvg='', gridSvg='', hitboxes = '';
-  [0,.25,.5,.75,1].forEach(f=>{
-    const gy = padT+innerH-(innerH*f);
-    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`;
-    axisSvg += `<text class="scurve-axis-label" x="6" y="${gy+3}">${fmtInt(maxVal*f)}</text>`;
-  });
-
-  data.forEach((d,i)=>{
-    const cx = padL + slot*i + slot/2;
-    const xPlan = cx - gap/2 - barW;
-    const xReal = cx + gap/2;
-    const yPlan = yOf(d.plan), yReal = yOf(d.real);
-    const hPlan = padT+innerH-yPlan, hReal = padT+innerH-yReal;
-    const realColor = d.exced>0 ? 'var(--critical)' : 'var(--steel)';
-    if(d.plan>0) bars += `<rect x="${xPlan.toFixed(1)}" y="${yPlan.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hPlan).toFixed(1)}" rx="3" style="fill:var(--slate); opacity:.5;"/>`;
-    if(d.real>0) bars += `<rect x="${xReal.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
-    const labelText = d.label.length>14 ? d.label.slice(0,13)+'…' : d.label;
-    if(rotateLabels){
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="end" transform="rotate(-40 ${cx.toFixed(1)} ${(H-padB+16).toFixed(1)})">${escHtml(labelText)}</text>`;
-    } else {
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${H-10}" text-anchor="middle">${escHtml(labelText)}</text>`;
-    }
-    hitboxes += `<rect class="cmp-hit" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${innerH}" fill="transparent"/>`;
-  });
-
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Comparação previsto x real por ${dim==='os'?'OS':(dim==='it'?'interferência':'data')}">
-      ${gridSvg}${bars}${axisSvg}${hitboxes}
-    </svg>
-    <div class="scurve-tooltip" id="sla-cmp-tooltip"></div>
-    <div class="scurve-legend" style="margin-top:8px;">
-      <div class="sl-item"><span class="sl-sw" style="background:var(--slate); opacity:.5;"></span>Previsto</div>
-      <div class="sl-item"><span class="sl-sw" style="background:var(--steel);"></span>Real (dentro do plano)</div>
-      <div class="sl-item"><span class="sl-sw" style="background:var(--critical);"></span>Real (excedente de SLA)</div>
-    </div>`;
-
-  const svgEl = box.querySelector('svg');
-  const tooltip = document.getElementById('sla-cmp-tooltip');
-  box.querySelectorAll('.cmp-hit').forEach(hit=>{
-    const idx = +hit.dataset.idx;
-    const d = data[idx];
-    hit.addEventListener('pointermove', ()=>{
-      tooltip.innerHTML = `<span class="tt-date">${escHtml(d.label)}</span>` +
-        `<div class="tt-row"><span class="sw" style="background:var(--slate);"></span>Previsto<span class="tt-val">${d.plan>0?fmtH(d.plan)+'h':'sem previsto'}</span></div>` +
-        `<div class="tt-row"><span class="sw" style="background:${d.exced>0?'var(--critical)':'var(--steel)'};"></span>Real<span class="tt-val">${fmtH(d.real)}h</span></div>` +
-        (d.exced>0 ? `<div class="tt-row" style="color:var(--critical);"><span class="sw" style="background:var(--critical);"></span>Excedente (SLA)<span class="tt-val" style="color:var(--critical);">${fmtH(d.exced)}h</span></div>` : '');
-      tooltip.classList.add('show');
-      const wrapRect = box.getBoundingClientRect();
-      const svgRect = svgEl.getBoundingClientRect();
-      const scale = W/svgRect.width;
-      const cx = padL + slot*idx + slot/2;
-      const ttW = tooltip.offsetWidth || 160;
-      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
-      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
-      tooltip.style.top = '4px';
-    });
-    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+  renderPairedBarChart(box, data, {
+    ariaLabel: 'Comparação previsto x real por ' + (dim==='os'?'OS':(dim==='it'?'interferência':'data')),
+    barWidthPerCategory: dim==='os'?90:60,
+    rotateLabels: dim==='it' || dim==='d',
   });
 }
 
@@ -1606,6 +1719,7 @@ function renderAll(){
   renderPorOs();
   renderSla();
   renderScurve();
+  renderRdcTab();
   renderInsights();
 }
 
