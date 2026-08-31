@@ -55,7 +55,7 @@
   --accent-2:#2e7bc4;
 
   --resp-techint:#92d050;
-  --resp-usiminas:#2e7bc4;
+  --resp-usiminas:var(--navy-700);
 }
 
 @media (prefers-color-scheme: dark){
@@ -70,7 +70,7 @@
     --table-accent:#92d050; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
     --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#6fa834; --heat-5:#92d050;
     --navy:#0a3b70; --navy-700:#2e7bc4; --navy-100:#132540; --green:#92d050; --green-dark:#6fa834; --info-blue:#5b9bd8; --accent-2:#5b9bd8;
-    --resp-techint:#9bdd6b; --resp-usiminas:#5b9bd8;
+    --resp-techint:#9bdd6b; --resp-usiminas:var(--navy-700);
   }
 }
 :root[data-theme="dark"]{
@@ -84,7 +84,7 @@
   --table-accent:#92d050; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
   --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#6fa834; --heat-5:#92d050;
   --navy:#0a3b70; --navy-700:#2e7bc4; --navy-100:#132540; --green:#92d050; --green-dark:#6fa834; --info-blue:#5b9bd8; --accent-2:#5b9bd8;
-  --resp-techint:#9bdd6b; --resp-usiminas:#5b9bd8;
+  --resp-techint:#9bdd6b; --resp-usiminas:var(--navy-700);
 }
 
 *{box-sizing:border-box;}
@@ -178,6 +178,7 @@ button.settings-item:hover{background:var(--sand);}
 .view.active{display:block;}
 
 .card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
+.panorama-card{border:2px solid var(--navy);}
 .card + .card{margin-top:16px;}
 .ov-grid > .card, .two-col > .card{margin-top:0;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
@@ -349,6 +350,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .scurve-wrap{width:100%; overflow-x:auto; position:relative;}
 .scurve-wrap svg{display:block; width:100%; height:auto;}
 .scurve-grid-line{stroke:var(--border-soft); stroke-width:1; shape-rendering:crispEdges;}
+.chart-baseline{stroke:var(--border); stroke-width:1.5; shape-rendering:crispEdges;}
 .scurve-axis-label{fill:var(--text-muted); font-family:var(--font-mono); font-size:10px;}
 .scurve-axis-label.today{fill:var(--critical);}
 .col-val-label{fill:var(--text-secondary); font-family:var(--font-mono); font-size:10.5px; font-weight:500;}
@@ -449,7 +451,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
       <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
     </div>
 
-    <div class="card">
+    <div class="card panorama-card">
       <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Horas reais, previstas, SLA e responsabilidade das interferências</span></div>
       <div class="ov-panorama">
         <div class="kpi-grid" id="kpi-grid"></div>
@@ -837,8 +839,8 @@ function renderRespChart(rows){
   const box = document.getElementById('ov-resp-chart');
   const byResp = new Map();
   rows.forEach(r=>{
-    const key = r.resp || 'Não classificado';
-    byResp.set(key, (byResp.get(key)||0) + r.real);
+    if(!r.resp) return;
+    byResp.set(r.resp, (byResp.get(r.resp)||0) + r.real);
   });
   const stats = Array.from(byResp.entries()).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
   const grand = stats.reduce((a,s)=>a+s.v,0);
@@ -862,9 +864,11 @@ function renderRespChart(rows){
     });
   }
 
+  const grandText = fmtH(grand)+'h';
+  const centerFontSize = Math.max(10, Math.min(16, 68/(grandText.length*0.62)));
   const svg = `<svg width="140" height="140" viewBox="0 0 120 120" role="img" aria-label="Horas reais por responsável">
       ${segmentsSvg}
-      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:16px; fill:var(--text-primary);">${fmtH(grand)}h</text>
+      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:${centerFontSize.toFixed(1)}px; fill:var(--text-primary);">${grandText}</text>
       <text x="60" y="73" text-anchor="middle" style="font-size:9.5px; fill:var(--text-muted); font-family:var(--font-body);">horas reais</text>
     </svg>`;
 
@@ -901,9 +905,9 @@ function renderVisaoTiposChart(){
   const rows = filter==='ALL' ? filteredInterf() : filteredInterf().filter(r => r.resp===filter);
   const byTipo = new Map();
   rows.forEach(r=>{
-    const it = r.it || 'Não classificado';
-    if(!byTipo.has(it)) byTipo.set(it, {v:0, resp:r.resp});
-    byTipo.get(it).v += r.real;
+    if(!r.it) return;
+    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
+    byTipo.get(r.it).v += r.real;
   });
   const entries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
   if(filter==='ALL'){
@@ -1266,6 +1270,7 @@ function renderTiposColumnChart(box, entries, opts){
     const gy = padT+innerH-(innerH*f);
     gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`;
   });
+  gridSvg += `<line class="chart-baseline" x1="${padL}" y1="${(padT+innerH).toFixed(1)}" x2="${W-padR}" y2="${(padT+innerH).toFixed(1)}"/>`;
 
   entries.forEach((e,i)=>{
     const cx = padL + slot*i + slot/2;
@@ -1354,6 +1359,7 @@ function renderTiposComboChart(box, entries){
     const gy = padT+innerH-(innerH*f);
     gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`;
   });
+  gridSvg += `<line class="chart-baseline" x1="${padL}" y1="${(padT+innerH).toFixed(1)}" x2="${W-padR}" y2="${(padT+innerH).toFixed(1)}"/>`;
 
   const linePts = [];
   entries.forEach((e,i)=>{
