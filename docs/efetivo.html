@@ -93,18 +93,21 @@ button{font-family:inherit;}
 
 .app{max-width:1360px;margin:0 auto;padding:0 24px 64px;}
 
-.masthead{padding:28px 0 20px; border-bottom:3px solid var(--ink); display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead{background:var(--navy); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:22px; padding:18px 24px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+.masthead-brand{display:flex; align-items:center; gap:16px;}
+.masthead-logo{background:#fff; color:var(--navy); font-family:var(--font-display); font-weight:900; font-size:14px; letter-spacing:.03em; border-radius:8px; padding:8px 12px; line-height:1.2; text-align:left; flex:none;}
+.masthead-logo small{display:block; font-family:var(--font-body); font-weight:500; font-size:8.5px; letter-spacing:.01em; color:var(--text-secondary); text-transform:none;}
 .masthead-title{display:flex; flex-direction:column; gap:4px;}
-.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--steel); font-weight:600;}
-.masthead h1{font-size:clamp(28px,4vw,42px); line-height:.96;}
+.eyebrow{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
+.masthead h1{font-size:clamp(20px,2.6vw,28px); line-height:1.08; color:#fff; text-transform:uppercase;}
 .masthead-sub{color:var(--text-secondary); font-size:14px; max-width:60ch;}
-.masthead-actions{display:flex; align-items:center; gap:10px;}
+.masthead-actions{display:flex; align-items:center; gap:8px;}
 .action-wrap{position:relative; display:flex;}
-.hub-link-btn{display:flex; align-items:center; gap:7px; height:42px; padding:0 16px; border-radius:21px; border:1px solid var(--border); background:var(--paper); color:var(--text-secondary); text-decoration:none; box-shadow:var(--shadow); font-size:12.5px; font-weight:600; white-space:nowrap;}
-.hub-link-btn:hover{color:var(--steel-strong); border-color:var(--steel);}
-.gear-btn{width:42px; height:42px; border-radius:50%; border:1px solid var(--border); background:var(--paper); color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); transition:transform .2s, color .2s, border-color .2s; position:relative;}
-.gear-btn:hover{color:var(--steel-strong); border-color:var(--steel);}
-.gear-btn[aria-expanded="true"]{color:var(--steel-strong); border-color:var(--steel);}
+.hub-link-btn{display:flex; align-items:center; gap:7px; height:38px; padding:0 15px; border-radius:19px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; text-decoration:none; font-size:12.5px; font-weight:600; white-space:nowrap;}
+.hub-link-btn:hover{background:rgba(255,255,255,.18); border-color:#fff;}
+.gear-btn{width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s, border-color .2s; position:relative;}
+.gear-btn:hover{background:rgba(255,255,255,.18); border-color:#fff;}
+.gear-btn[aria-expanded="true"]{background:rgba(255,255,255,.18); border-color:#fff;}
 #settings-btn[aria-expanded="true"]{transform:rotate(35deg);}
 .alert-btn.has-alerts{color:var(--warning); border-color:var(--warning);}
 .alert-badge{position:absolute; top:-4px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--critical); color:#fff; font-family:var(--font-mono); font-size:10px; font-weight:700; align-items:center; justify-content:center; line-height:1;}
@@ -151,9 +154,11 @@ button.settings-item:hover{background:var(--sand);}
 .sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
 
 /* Global filter bar */
-.global-filters{display:flex; gap:22px; align-items:flex-end; padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+.global-filters{display:flex; gap:22px; align-items:flex-end; margin-top:14px; padding:14px 20px; background:var(--navy-100); border:1px solid var(--border-soft); border-radius:var(--radius); flex-wrap:wrap;}
 .global-filters .field label{color:var(--steel-strong);}
 .global-filters .hint{font-size:11.5px; color:var(--text-muted); align-self:center; margin-left:auto;}
+.global-filters select, .global-filters .msel-btn, .global-filters .date-toggle{border-radius:999px;}
+.global-filters .date-toggle{overflow:hidden;}
 
 /* Tabs */
 .tabbar{display:flex; gap:2px; margin-top:14px; border-bottom:1px solid var(--border); overflow-x:auto;}
@@ -412,9 +417,12 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 <div class="app">
 
   <header class="masthead">
-    <div class="masthead-title">
-      <span class="eyebrow">Painel de Confronto &middot; Mão de Obra</span>
-      <h1>Efetivo &times; Empilhamento Semanal</h1>
+    <div class="masthead-brand">
+      <div class="masthead-logo">TECHINT<small>Engenharia e Construção</small></div>
+      <div class="masthead-title">
+        <span class="eyebrow">Painel de Confronto &middot; Mão de Obra</span>
+        <h1>Efetivo &times; Empilhamento Semanal</h1>
+      </div>
     </div>
     <div class="masthead-actions">
       <a class="hub-link-btn" href="index.html" title="Ir para outro painel">&#8646; Trocar de painel</a>
