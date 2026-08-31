@@ -54,8 +54,8 @@
   --info-blue:#2e7bc4;
   --accent-2:#2e7bc4;
 
-  --resp-techint:#2e7bc4;
-  --resp-usiminas:#bd7150;
+  --resp-techint:#92d050;
+  --resp-usiminas:#2e7bc4;
 }
 
 @media (prefers-color-scheme: dark){
@@ -70,7 +70,7 @@
     --table-accent:#92d050; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
     --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#6fa834; --heat-5:#92d050;
     --navy:#0a3b70; --navy-700:#2e7bc4; --navy-100:#132540; --green:#92d050; --green-dark:#6fa834; --info-blue:#5b9bd8; --accent-2:#5b9bd8;
-    --resp-techint:#5b9bd8; --resp-usiminas:#e0913f;
+    --resp-techint:#9bdd6b; --resp-usiminas:#5b9bd8;
   }
 }
 :root[data-theme="dark"]{
@@ -84,7 +84,7 @@
   --table-accent:#92d050; --chart-moa:#3fa6e0; --pci-chart:#9bdd6b; --pci-chart-soft:#1e3315;
   --heat-0:#1b2126; --heat-1:#1e3018; --heat-2:#2c4a1e; --heat-3:#3c6a28; --heat-4:#6fa834; --heat-5:#92d050;
   --navy:#0a3b70; --navy-700:#2e7bc4; --navy-100:#132540; --green:#92d050; --green-dark:#6fa834; --info-blue:#5b9bd8; --accent-2:#5b9bd8;
-  --resp-techint:#5b9bd8; --resp-usiminas:#e0913f;
+  --resp-techint:#9bdd6b; --resp-usiminas:#5b9bd8;
 }
 
 *{box-sizing:border-box;}
@@ -246,8 +246,8 @@ tbody tr:hover td{background:var(--border-soft);}
 .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
 
 .badge-resp{font-family:var(--font-mono); font-size:10px; padding:2px 7px; border-radius:5px; font-weight:700; letter-spacing:.03em;}
-.badge-resp.TECHINT{background:var(--info-soft); color:var(--resp-techint);}
-.badge-resp.USIMINAS{background:var(--warning-soft); color:var(--resp-usiminas);}
+.badge-resp.TECHINT{background:var(--pci-chart-soft); color:var(--green-dark);}
+.badge-resp.USIMINAS{background:var(--info-soft); color:var(--resp-usiminas);}
 
 .stat-strip{display:flex; gap:22px; flex-wrap:wrap; margin-bottom:14px;}
 .stat-strip .s{display:flex; flex-direction:column; gap:2px;}
@@ -355,16 +355,16 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .col-val-label.muted{fill:var(--text-muted); font-size:9.5px; font-weight:400;}
 .scurve-line{fill:none; stroke-linecap:round; stroke-linejoin:round;}
 .scurve-line-planned{stroke:var(--slate); stroke-width:2; stroke-dasharray:5 4;}
-.scurve-line-real{stroke:var(--steel); stroke-width:2.5;}
+.scurve-line-real{stroke:var(--pci-chart); stroke-width:2.5;}
 .scurve-area-real{fill:url(#scurveGradReal);}
-.scurve-dot-real{fill:var(--paper); stroke:var(--steel); stroke-width:2;}
-.scurve-dot-today{fill:var(--steel); animation:scurvePulse 1.8s ease-in-out infinite;}
+.scurve-dot-real{fill:var(--paper); stroke:var(--pci-chart); stroke-width:2;}
+.scurve-dot-today{fill:var(--pci-chart); animation:scurvePulse 1.8s ease-in-out infinite;}
 @keyframes scurvePulse{ 0%,100%{opacity:1; r:6;} 50%{opacity:.45; r:9;} }
 .scurve-legend{display:flex; gap:24px; flex-wrap:wrap; margin-top:14px;}
 .scurve-legend .sl-item{display:flex; align-items:center; gap:9px; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
 .scurve-legend .sl-sw{width:24px; height:3px; border-radius:2px; flex:none;}
 .scurve-legend .sl-sw.planned{background:var(--slate);}
-.scurve-legend .sl-sw.real{background:var(--steel);}
+.scurve-legend .sl-sw.real{background:var(--pci-chart);}
 .scurve-crosshair{stroke:var(--border); stroke-width:1; pointer-events:none; opacity:0;}
 .scurve-hover-dot{fill:var(--paper); stroke-width:2.5; opacity:0; pointer-events:none;}
 .scurve-overlay{fill:transparent; cursor:crosshair;}
@@ -494,7 +494,7 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
       <div class="card-head">
         <h3>Interferências Registradas</h3>
         <div class="filters">
-          <div class="field"><label>Responsabilidade</label><div class="date-toggle" id="poros-tipos-resp"></div></div>
+          <div class="field"><label>Responsabilidade</label><select id="poros-tipos-resp"></select></div>
         </div>
       </div>
       <p class="card-note" style="margin-bottom:10px;">Todas as interferências do período filtrado, com o HH total apontado por tipo — visão para apresentação em reunião.</p>
@@ -928,8 +928,12 @@ function buildDailyAccumSeries(){
   const selectedDates = (state.dates.size ? Array.from(state.dates) : DATA.datas.slice()).sort();
   const byDate = new Map(selectedDates.map(d=>[d, {plan:0, real:0}]));
   rows.forEach(r=>{ const e = byDate.get(r.d); if(e){ e.plan += r.plan; e.real += r.real; } });
+  // corta os dias iniciais sem nenhum registro (plan e real zerados) — evita um
+  // trecho longo e reto em zero antes do período com movimentação de verdade
+  const firstActiveIdx = selectedDates.findIndex(d=>{ const e = byDate.get(d); return e.plan>0 || e.real>0; });
+  const trimmedDates = firstActiveIdx>0 ? selectedDates.slice(firstActiveIdx) : selectedDates;
   let cumP=0, cumR=0;
-  return selectedDates.map(d=>{
+  return trimmedDates.map(d=>{
     const e = byDate.get(d);
     cumP += e.plan; cumR += e.real;
     return {d, plan:cumP, real:cumR};
@@ -973,13 +977,13 @@ function renderDailyEvolution(){
   });
 
   const lastPt = realPts[realPts.length-1];
-  const glow = 'drop-shadow(0 0 3px var(--steel)) drop-shadow(0 0 7px var(--steel))';
+  const glow = 'drop-shadow(0 0 3px var(--pci-chart)) drop-shadow(0 0 7px var(--pci-chart))';
 
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução acumulada de horas: real x previsto, respeitando os filtros ativos">
       <defs>
         <linearGradient id="techGradReal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:var(--steel)" stop-opacity=".22"/>
-          <stop offset="100%" style="stop-color:var(--steel)" stop-opacity="0"/>
+          <stop offset="0%" style="stop-color:var(--pci-chart)" stop-opacity=".22"/>
+          <stop offset="100%" style="stop-color:var(--pci-chart)" stop-opacity="0"/>
         </linearGradient>
       </defs>
       ${gridSvg}${axisSvg}
@@ -989,7 +993,7 @@ function renderDailyEvolution(){
       <circle class="scurve-dot-today" cx="${lastPt[0].toFixed(1)}" cy="${lastPt[1].toFixed(1)}" r="6"/>
       <line class="scurve-crosshair" id="ov-daily-crosshair" y1="${padT}" y2="${padT+innerH}"/>
       <circle class="scurve-hover-dot" id="ov-daily-hover-planned" r="5" style="stroke:var(--slate)"/>
-      <circle class="scurve-hover-dot" id="ov-daily-hover-real" r="5" style="stroke:var(--steel)"/>
+      <circle class="scurve-hover-dot" id="ov-daily-hover-real" r="5" style="stroke:var(--pci-chart)"/>
       <rect class="scurve-overlay" id="ov-daily-overlay" x="${padL}" y="${padT}" width="${innerW}" height="${innerH}" fill="transparent"/>
     </svg>
     <div class="scurve-tooltip" id="ov-daily-tt"></div>
@@ -1506,17 +1510,18 @@ function renderSlaThead(){
 /* ---------- Gráfico genérico de barras pareadas (previsto x real) ---------- */
 function renderPairedBarChart(box, data, opts){
   opts = opts || {};
-  const rotateLabels = !!opts.rotateLabels;
   const n = data.length;
-  const W = Math.max(560, n*(opts.barWidthPerCategory||64)), H=240, padL=16, padR=16, padT=40, padB = rotateLabels ? 74 : 30;
+  const W = Math.max(560, n*(opts.barWidthPerCategory||64)), H=250, padL=16, padR=16, padT=40, padB=48;
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxVal = Math.max(1, ...data.map(d=>d.plan), ...data.map(d=>d.real));
   const slot = innerW/n;
   const barW = Math.min(24, slot*0.32);
+  const maxChars = Math.max(7, Math.floor(slot/6.4));
   const gap = 3;
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const yBase = padT+innerH;
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
+  const planColor = 'var(--critical)', realColor = 'var(--pci-chart)';
 
   let bars = '', valLabels='', axisSvg='', gridSvg='', hitboxes = '';
   const labelBoxes = [];
@@ -1538,23 +1543,19 @@ function renderPairedBarChart(box, data, opts){
     const xReal = cx + gap/2;
     const yPlan = yOf(d.plan), yReal = yOf(d.real);
     const hPlan = yBase-yPlan, hReal = yBase-yReal;
-    const realColor = d.exced>0 ? 'var(--critical)' : 'var(--steel)';
     if(d.plan>0){
-      bars += `<rect class="pbar-anim" data-fy="${yPlan.toFixed(1)}" data-fh="${Math.max(0,hPlan).toFixed(1)}" x="${xPlan.toFixed(1)}" y="${yBase}" width="${barW.toFixed(1)}" height="0" rx="3" style="fill:var(--slate); opacity:.5;"/>`;
+      bars += `<rect class="pbar-anim" data-fy="${yPlan.toFixed(1)}" data-fh="${Math.max(0,hPlan).toFixed(1)}" x="${xPlan.toFixed(1)}" y="${yBase}" width="${barW.toFixed(1)}" height="0" rx="3" style="fill:${planColor};"/>`;
+      valLabels += tryLabel(xPlan+barW/2, yPlan-6, fmtH(d.plan), '', `fill:${planColor};`);
     }
     if(d.real>0){
       bars += `<rect class="pbar-anim" data-fy="${yReal.toFixed(1)}" data-fh="${Math.max(0,hReal).toFixed(1)}" x="${xReal.toFixed(1)}" y="${yBase}" width="${barW.toFixed(1)}" height="0" rx="3" style="fill:${realColor}; filter:drop-shadow(0 0 4px ${realColor});"/>`;
       valLabels += tryLabel(xReal+barW/2, yReal-6, fmtH(d.real), '', `fill:${realColor};`);
     }
-    if(d.plan>0){
-      valLabels += tryLabel(xPlan+barW/2, yPlan-6, fmtH(d.plan), 'muted');
-    }
-    const labelText = d.label.length>14 ? d.label.slice(0,13)+'…' : d.label;
-    if(rotateLabels){
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(H-padB+14).toFixed(1)}" text-anchor="end" transform="rotate(-40 ${cx.toFixed(1)} ${(H-padB+14).toFixed(1)})">${escHtml(labelText)}</text>`;
-    } else {
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${H-8}" text-anchor="middle">${escHtml(labelText)}</text>`;
-    }
+    const lines = wrapChartLabel(d.label, maxChars);
+    const baseY = H-padB+15;
+    lines.forEach((ln,li)=>{
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*12).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
+    });
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
 
@@ -1563,9 +1564,8 @@ function renderPairedBarChart(box, data, opts){
     </svg>
     <div class="scurve-tooltip" id="${ttId}"></div>
     <div class="scurve-legend" style="margin-top:6px;">
-      <div class="sl-item"><span class="sl-sw" style="background:var(--slate); opacity:.5;"></span>Previsto</div>
-      <div class="sl-item"><span class="sl-sw" style="background:var(--steel);"></span>Real (dentro do plano)</div>
-      <div class="sl-item"><span class="sl-sw" style="background:var(--critical);"></span>Real (excedente de SLA)</div>
+      <div class="sl-item"><span class="sl-sw" style="background:${planColor};"></span>Previsto</div>
+      <div class="sl-item"><span class="sl-sw" style="background:${realColor};"></span>Real</div>
     </div>`;
 
   const svgEl = box.querySelector('svg');
@@ -1583,8 +1583,8 @@ function renderPairedBarChart(box, data, opts){
     const d = data[idx];
     hit.addEventListener('pointermove', ()=>{
       tooltip.innerHTML = `<span class="tt-date">${escHtml(d.label)}</span>` +
-        `<div class="tt-row"><span class="sw" style="background:var(--slate);"></span>Previsto<span class="tt-val">${d.plan>0?fmtH(d.plan)+'h':'sem previsto'}</span></div>` +
-        `<div class="tt-row"><span class="sw" style="background:${d.exced>0?'var(--critical)':'var(--steel)'};"></span>Real<span class="tt-val">${fmtH(d.real)}h</span></div>` +
+        `<div class="tt-row"><span class="sw" style="background:${planColor};"></span>Previsto<span class="tt-val">${d.plan>0?fmtH(d.plan)+'h':'sem previsto'}</span></div>` +
+        `<div class="tt-row"><span class="sw" style="background:${realColor};"></span>Real<span class="tt-val">${fmtH(d.real)}h</span></div>` +
         (d.exced>0 ? `<div class="tt-row" style="color:var(--critical);"><span class="sw" style="background:var(--critical);"></span>Excedente (SLA)<span class="tt-val" style="color:var(--critical);">${fmtH(d.exced)}h</span></div>` : '');
       tooltip.classList.add('show');
       const wrapRect = box.getBoundingClientRect();
@@ -1628,8 +1628,7 @@ function renderSlaCompareChart(){
   if(data.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   renderPairedBarChart(box, data, {
     ariaLabel: 'Comparação previsto x real por ' + (dim==='os'?'OS':(dim==='it'?'interferência':'data')),
-    barWidthPerCategory: dim==='os'?90:60,
-    rotateLabels: dim==='it' || dim==='d',
+    barWidthPerCategory: dim==='os'?90:70,
   });
 }
 
@@ -1863,17 +1862,16 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
   porosOsRespBox.appendChild(btn);
 });
 
-const porosTiposRespBox = document.getElementById('poros-tipos-resp');
+const porosTiposRespSelect = document.getElementById('poros-tipos-resp');
 [['all','Todas'],['TECHINT','Techint'],['USIMINAS','Usiminas']].forEach(([val,label])=>{
-  const btn = document.createElement('button');
-  btn.textContent = label;
-  if(state.poros.respFilter===val) btn.classList.add('active');
-  btn.addEventListener('click', ()=>{
-    state.poros.respFilter = val;
-    porosTiposRespBox.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
-    renderPorOs();
-  });
-  porosTiposRespBox.appendChild(btn);
+  const opt = document.createElement('option');
+  opt.value = val; opt.textContent = label;
+  if(state.poros.respFilter===val) opt.selected = true;
+  porosTiposRespSelect.appendChild(opt);
+});
+porosTiposRespSelect.addEventListener('change', e=>{
+  state.poros.respFilter = e.target.value;
+  renderPorOs();
 });
 
 const slaCmpGroupByBox = document.getElementById('sla-cmp-groupby');
