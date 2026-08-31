@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#121212; --steel:#0f4c81; --steel-strong:#002b5c; --steel-soft:#e1e9f0;
+  --ink:#121212; --steel:#007dc3; --steel-strong:#002b5c; --steel-soft:#e1e9f0;
   --slate:#6c6966; --sand:#e5e0da; --paper:#ffffff; --border:#c6c2be; --border-soft:#ddd9d2;
   --text-primary:#121212; --text-secondary:#6c6966; --text-muted:#aba7a2; --text-on-accent:#ffffff;
   --shadow: 0 1px 2px rgba(23,29,36,.06), 0 4px 14px rgba(23,29,36,.06);
@@ -48,13 +48,10 @@ h1{font-size:clamp(30px,5vw,46px); line-height:1; margin-top:6px;}
 .panel-card:hover{transform:translateY(-3px); border-color:var(--steel); box-shadow:0 8px 30px -10px rgba(15,76,129,.35);}
 .panel-card .pc-eyebrow{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); font-weight:600;}
 .panel-card h2{font-size:24px; line-height:1.05;}
-.panel-card p{margin:0; font-size:13.5px; color:var(--text-secondary); line-height:1.6;}
-.panel-card .pc-tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:2px;}
-.panel-card .tag{font-family:var(--font-mono); font-size:10.5px; background:var(--steel-soft); color:var(--steel-strong); padding:3px 9px; border-radius:20px;}
 .panel-card .pc-cta{margin-top:auto; padding-top:10px; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--steel); display:flex; align-items:center; gap:6px;}
 .panel-card:hover .pc-cta{text-decoration:underline;}
-.panel-card.improd{border-top-color:#c8621a;}
-.panel-card.improd .pc-cta{color:#c8621a;}
+.panel-card.improd{border-top-color:#bd7150;}
+.panel-card.improd .pc-cta{color:#bd7150;}
 
 .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
 </style>
@@ -66,18 +63,14 @@ h1{font-size:clamp(30px,5vw,46px); line-height:1; margin-top:6px;}
     <p class="sub">Escolha o painel que deseja abrir. Os dois painéis são independentes e cada um é atualizado por um padrão de planilha próprio, pela engrenagem de configurações.</p>
 
     <div class="grid">
-      <a class="panel-card" href="efetivo.html">
+      <a class="panel-card" href="dashboard.html">
         <span class="pc-eyebrow">Painel &middot; Mão de obra</span>
         <h2>Efetivo &times; Empilhamento Semanal</h2>
-        <p>Cruza o apontamento diário de presença com o planejamento semanal de mão de obra por OS e função, incluindo curva S de empilhado &times; real.</p>
-        <div class="pc-tags"><span class="tag">Efetivo</span><span class="tag">Emp Semanal</span><span class="tag">Depara_Função</span></div>
         <span class="pc-cta">Abrir painel &rarr;</span>
       </a>
       <a class="panel-card improd" href="improdutividades.html">
         <span class="pc-eyebrow">Painel &middot; Interferências</span>
         <h2>Painel de Improdutividades</h2>
-        <p>Cruza interferências registradas com a situação dos RDCs, responsabilidade Techint &times; Usiminas e supervisores, com controle de SLA e insights gerenciais.</p>
-        <div class="pc-tags"><span class="tag">Export_BI</span><span class="tag">SGE</span><span class="tag">Interferências</span><span class="tag">Supervisores</span></div>
         <span class="pc-cta">Abrir painel &rarr;</span>
       </a>
     </div>

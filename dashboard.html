@@ -9,7 +9,7 @@
 /* ============ TOKENS ============ */
 :root{
   --ink:#121212;
-  --steel:#0f4c81;
+  --steel:#007dc3;
   --steel-strong:#002b5c;
   --steel-soft:#e1e9f0;
   --slate:#6c6966;
@@ -828,7 +828,7 @@ function renderKPIs(){
   const rows = buildConfrontoMulti();
 
   const kpis = [
-    {label:'Efetivo Contratos', value:fmtInt(total), sub:datesLabel(), cls:''},
+    {label:'Contratados', value:fmtInt(total), sub:datesLabel(), cls:''},
     {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
     {label:'Ausentes', value:fmtInt(ausentes), sub:pct<0.85?'atenção à cobertura':'dentro do esperado', cls: ausentes>total*0.15?'critical':'warning'},
   ];
