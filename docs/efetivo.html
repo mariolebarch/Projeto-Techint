@@ -190,6 +190,10 @@ button.settings-item:hover{background:var(--sand);}
 .kpi .kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-weight:600;}
 .kpi .kpi-value{font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1;}
 .kpi .kpi-sub{font-size:12px; color:var(--text-secondary);}
+.kpi-split{display:flex; gap:18px;}
+.kpi-split-item{display:flex; flex-direction:column; gap:2px;}
+.kpi-split-value{font-family:var(--font-mono); font-size:22px; font-weight:600; line-height:1; color:var(--text-primary);}
+.kpi-split-label{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600;}
 
 .callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
 .callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
@@ -900,7 +904,9 @@ function renderKPIs(){
   const ef = efetivoForDates();
   const total = ef.length;
   const presentes = ef.filter(r=>r.presente).length;
-  const ausentes = total - presentes;
+  const ausentesRows = ef.filter(r=>!r.presente);
+  const feriasCount = ausentesRows.filter(r=>r.status==='Férias').length;
+  const ausenciaCount = ausentesRows.length - feriasCount;
   const pct = total? presentes/total : 0;
 
   const rows = buildConfrontoMulti();
@@ -908,14 +914,22 @@ function renderKPIs(){
   const kpis = [
     {label:'Contratados', value:fmtInt(total), sub:datesLabel(), cls:''},
     {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
-    {label:'Ausentes', value:fmtInt(ausentes), sub:pct<0.85?'atenção à cobertura':'dentro do esperado', cls: ausentes>total*0.15?'critical':'warning'},
+    {label:'Ausentes', cls: ausenciaCount>total*0.15?'critical':(ausenciaCount>0?'warning':'good'),
+      split:[{value:fmtInt(ausenciaCount), label:'Ausência'}, {value:fmtInt(feriasCount), label:'Férias'}],
+      sub: ausenciaCount>total*0.15?'atenção à cobertura':'dentro do esperado'},
   ];
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = '';
   kpis.forEach(k=>{
     const el = document.createElement('div');
     el.className = 'kpi '+k.cls;
-    el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    if(k.split){
+      el.innerHTML = `<span class="kpi-label">${k.label}</span>
+        <div class="kpi-split">${k.split.map(s=>`<div class="kpi-split-item"><span class="kpi-split-value">${s.value}</span><span class="kpi-split-label">${s.label}</span></div>`).join('')}</div>
+        <span class="kpi-sub">${k.sub}</span>`;
+    } else {
+      el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+    }
     grid.appendChild(el);
   });
 
