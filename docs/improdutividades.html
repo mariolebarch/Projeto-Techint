@@ -178,7 +178,7 @@ button.settings-item:hover{background:var(--sand);}
 .view.active{display:block;}
 
 .card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
-.panorama-card{border:2px solid var(--navy);}
+.panorama-card{border:4px solid var(--navy);}
 .card + .card{margin-top:16px;}
 .ov-grid > .card, .two-col > .card{margin-top:0;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
@@ -320,6 +320,8 @@ tr.os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:
 tr.detail-row td{background:var(--sand); border-top:none;}
 tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
+.resp-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; flex:none;}
+tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; padding:6px 12px 6px 20px; border-top:1px solid var(--border);}
 
 /* Donut chart */
 .donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
@@ -372,8 +374,14 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 /* Interferências Registradas (Visão Geral) */
 .tipos-chart{background:var(--sand); border-radius:8px; padding:10px;}
 #ov-tipos-bars .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+#ov-tipos-bars .scurve-axis-label{fill:var(--text-primary);}
 #ov-tipos-resp{background:var(--navy); color:#fff; border-color:var(--navy-700);}
 #ov-tipos-resp:hover{border-color:var(--steel);}
+.sup-filter-chip{display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 8px 0 12px; border-radius:16px; background:var(--navy-100); border:1px solid var(--navy-700); font-size:12.5px; color:var(--text-primary); white-space:nowrap;}
+.sup-filter-chip button{border:none; background:var(--navy-700); color:#fff; width:18px; height:18px; border-radius:50%; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0;}
+.sup-filter-chip button:hover{background:var(--navy);}
+.sup-row{cursor:pointer; transition:border-color .15s, box-shadow .15s;}
+.sup-row.selected{border-color:var(--navy); box-shadow:0 0 0 2px var(--navy-700) inset;}
 </style>
 
 <div class="app">
@@ -461,20 +469,21 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 
     <div class="card">
       <div class="card-head">
-        <h3>Interferências Registradas</h3>
-        <div class="filters">
-          <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
-        </div>
+        <h3>Ranking de Supervisores</h3>
+        <span class="card-note">Horas de interferência sob cada supervisor, com tendência 1&ordf; vs. 2&ordf; metade do período &middot; clique num supervisor para filtrar o gráfico abaixo</span>
       </div>
-      <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
+      <div id="ov-sup-bars"></div>
     </div>
 
     <div class="card">
       <div class="card-head">
-        <h3>Ranking de Supervisores</h3>
-        <span class="card-note">Horas de interferência sob cada supervisor, com tendência 1&ordf; vs. 2&ordf; metade do período</span>
+        <h3>Interferências Registradas</h3>
+        <div class="filters">
+          <div id="ov-tipos-sup-chip"></div>
+          <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
+        </div>
       </div>
-      <div id="ov-sup-bars"></div>
+      <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
     </div>
   </section>
 
@@ -568,7 +577,7 @@ const state = {
   grupo: 'all',
   sup: 'all',
   poros: {expanded:new Set(), osRespFilter:'all'},
-  ovTipos: {filter:'TECHINT'},
+  ovTipos: {filter:'TECHINT', sup:null},
 };
 
 function fmtDateLabel(iso){
@@ -883,10 +892,10 @@ function renderRespChart(rows){
 }
 
 /* ---------- Interferências Registradas (Visão Geral) ---------- */
-function buildTiposRealPrevData(){
-  const rows = filteredInterf().filter(r => SLA_INTERFERENCIAS.has(r.it));
+function buildTiposRealPrevData(rows){
+  const scoped = rows.filter(r => SLA_INTERFERENCIAS.has(r.it));
   const map = new Map();
-  rows.forEach(r=>{
+  scoped.forEach(r=>{
     const key = (r.it==='Almoço' || r.it==='Jantar') ? 'Refeição' : r.it;
     if(!map.has(key)) map.set(key, {key, label:key, plan:0, real:0});
     const g = map.get(key);
@@ -895,14 +904,30 @@ function buildTiposRealPrevData(){
   return Array.from(map.values()).sort((a,b)=>b.real-a.real);
 }
 
+function renderTiposSupChip(){
+  const el = document.getElementById('ov-tipos-sup-chip');
+  if(!el) return;
+  const sup = state.ovTipos.sup;
+  if(!sup){ el.innerHTML = ''; return; }
+  el.innerHTML = `<span class="sup-filter-chip">Supervisor: <b>${escHtml(sup)}</b><button type="button" id="ov-tipos-sup-clear" title="Limpar filtro de supervisor" aria-label="Limpar filtro de supervisor">&times;</button></span>`;
+  document.getElementById('ov-tipos-sup-clear').addEventListener('click', ()=>{
+    state.ovTipos.sup = null;
+    renderVisaoTiposChart();
+    renderSupervisorRanking(filteredInterf());
+  });
+}
+
 function renderVisaoTiposChart(){
   const box = document.getElementById('ov-tipos-bars');
   const filter = state.ovTipos.filter;
+  const supFilter = state.ovTipos.sup;
+  const baseRows = supFilter ? filteredInterf().filter(r=>r.sup===supFilter) : filteredInterf();
+  renderTiposSupChip();
   if(filter==='REALPREV'){
-    renderTiposComboChart(box, buildTiposRealPrevData());
+    renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
     return;
   }
-  const rows = filter==='ALL' ? filteredInterf() : filteredInterf().filter(r => r.resp===filter);
+  const rows = filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
   const byTipo = new Map();
   rows.forEach(r=>{
     if(!r.it) return;
@@ -952,8 +977,10 @@ function renderSupervisorRanking(rows){
     }
     const pct = totalReal ? e.real/totalReal : 0;
     const widthPct = max ? Math.max(3, e.real/max*100) : 0;
+    const selectable = e.sup!=='—';
+    const selected = state.ovTipos.sup===e.sup;
     return `
-    <div class="sup-row">
+    <div class="sup-row${selected?' selected':''}"${selectable?` data-sup="${escHtml(e.sup)}" title="Clique para filtrar Interferências Registradas por ${escHtml(e.sup)}"`:' style="cursor:default;"'}>
       <div class="sup-row-top">
         <span class="sup-rank">${i+1}</span>
         <span class="sup-name" title="${escHtml(e.sup)}">${escHtml(e.sup)}</span>
@@ -967,6 +994,15 @@ function renderSupervisorRanking(rows){
       </div>
     </div>`;
   }).join('') + `</div>`;
+
+  barsBox.querySelectorAll('.sup-row[data-sup]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const sup = el.dataset.sup;
+      state.ovTipos.sup = state.ovTipos.sup===sup ? null : sup;
+      renderVisaoTiposChart();
+      renderSupervisorRanking(rows);
+    });
+  });
 }
 
 const RDC_SIT_COLORS = {'Aprovado':'var(--good)','Elaboração':'var(--info)','Revisão':'var(--warning)','Aguardando Aprovação':'var(--warning)','Reprovado':'var(--critical)','Cancelado':'var(--slate)','Copiado':'var(--slate)'};
@@ -1157,11 +1193,18 @@ function renderPorOs(){
   const rows = osRespFilter==='all' ? allRows : allRows.filter(r=>r.resp===osRespFilter);
   const byOs = new Map();
   rows.forEach(r=>{
-    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, n:0, plan:0, real:0, exced:0});
+    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, n:0, plan:0, real:0, planSla:0, realSla:0});
     const g = byOs.get(r.os);
-    g.n += r.n; g.plan += r.plan; g.real += r.real; g.exced += slaExced(r.plan, r.real, r.it);
+    g.n += r.n; g.plan += r.plan; g.real += r.real;
+    if(SLA_INTERFERENCIAS.has(r.it)){ g.planSla += r.plan; g.realSla += r.real; }
   });
-  const entries = Array.from(byOs.values()).sort((a,b)=>b.real-a.real);
+  // Excedente calculado sobre o total já agregado (plan x real), não somado
+  // linha a linha — assim um real menor que o plan nunca aparece como
+  // excedente só porque uma linha isolada passou do seu próprio previsto.
+  const entries = Array.from(byOs.values()).map(g=>{
+    const exced = g.planSla>0 ? Math.max(0, g.realSla-g.planSla) : 0;
+    return Object.assign(g, {exced});
+  }).sort((a,b)=>b.real-a.real);
 
   const totalReal = entries.reduce((a,e)=>a+e.real,0);
   const totalExced = entries.reduce((a,e)=>a+e.exced,0);
@@ -1217,16 +1260,24 @@ function renderPorOs(){
       tr.classList.add('expanded');
       const byInterf = new Map();
       rows.filter(r=>r.os===e.os).forEach(r=>{
-        const key = r.gi+' — '+r.it;
-        if(!byInterf.has(key)) byInterf.set(key, {label:key, plan:0, real:0, exced:0});
+        const resp = r.resp==='USIMINAS' ? 'USIMINAS' : 'TECHINT';
+        const key = r.gi+' — '+r.it+'||'+resp;
+        if(!byInterf.has(key)) byInterf.set(key, {label:r.gi+' — '+r.it, it:r.it, resp, plan:0, real:0});
         const g = byInterf.get(key);
-        g.plan += r.plan; g.real += r.real; g.exced += slaExced(r.plan, r.real, r.it);
+        g.plan += r.plan; g.real += r.real;
       });
-      Array.from(byInterf.values()).sort((a,b)=>b.real-a.real).forEach(d=>{
+      const groups = Array.from(byInterf.values()).map(g=>{
+        const eligible = SLA_INTERFERENCIAS.has(g.it);
+        const exced = eligible && g.plan>0 ? Math.max(0, g.real-g.plan) : 0;
+        return Object.assign(g, {exced});
+      });
+
+      const respDot = resp => `<span class="resp-dot" style="background:${resp==='USIMINAS'?'var(--resp-usiminas)':'var(--resp-techint)'};" title="${resp==='USIMINAS'?'Usiminas':'Techint'}"></span>`;
+      const renderDetailRow = d => {
         const dtr = document.createElement('tr');
         dtr.className = 'detail-row';
         dtr.innerHTML = `
-          <td class="detail-name">${escHtml(d.label)}</td>
+          <td class="detail-name">${respDot(d.resp)}${escHtml(d.label)}</td>
           <td></td>
           <td class="num-col num">${fmtH(d.plan)}</td>
           <td class="num-col num">${fmtH(d.real)}</td>
@@ -1234,20 +1285,43 @@ function renderPorOs(){
           <td></td>
           <td class="num-col">${sevChip(d.plan, d.real, d.exced)}</td>`;
         tbody.appendChild(dtr);
-      });
+      };
+      const renderSection = (title, list) => {
+        if(list.length===0) return;
+        const hdr = document.createElement('tr');
+        hdr.className = 'detail-group-header';
+        hdr.innerHTML = `<td colspan="7">${title}</td>`;
+        tbody.appendChild(hdr);
+        // Techint primeiro, depois Usiminas — dentro de cada responsabilidade,
+        // ordenado por horas reais.
+        list.sort((a,b)=> a.resp===b.resp ? b.real-a.real : (a.resp==='TECHINT'?-1:1)).forEach(renderDetailRow);
+      };
+      renderSection('Com previsto', groups.filter(g=>g.plan>0));
+      renderSection('Sem previsto', groups.filter(g=>g.plan<=0));
     }
   });
 }
 
 /* ---------- Interferências Registradas (gráfico em colunas) ---------- */
-function wrapChartLabel(text, maxChars){
-  if(text.length<=maxChars) return [text];
-  let splitAt = text.lastIndexOf(' ', maxChars);
-  if(splitAt<=0) splitAt = maxChars;
-  const line1 = text.slice(0, splitAt).trim();
-  let line2 = text.slice(splitAt).trim();
-  if(line2.length>maxChars) line2 = line2.slice(0, maxChars-1)+'…';
-  return [line1, line2];
+function wrapChartLabel(text, maxChars, maxLines){
+  maxLines = maxLines || 3;
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  words.forEach(w=>{
+    const test = cur ? cur+' '+w : w;
+    if(test.length<=maxChars || !cur){ cur = test; }
+    else { lines.push(cur); cur = w; }
+  });
+  if(cur) lines.push(cur);
+  if(lines.length>maxLines){
+    const kept = lines.slice(0, maxLines);
+    let last = kept[maxLines-1];
+    if(last.length>maxChars) last = last.slice(0, maxChars-1);
+    kept[maxLines-1] = last+'…';
+    return kept;
+  }
+  return lines;
 }
 
 function renderTiposColumnChart(box, entries, opts){
@@ -1255,12 +1329,12 @@ function renderTiposColumnChart(box, entries, opts){
   const colorOf = opts.colorFn || (() => opts.flatColor || 'var(--resp-techint)');
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   const n = entries.length;
-  const W = Math.max(760, n*72), H=310, padL=16, padR=16, padT=42, padB=48;
+  const W = Math.max(760, n*84), H=326, padL=16, padR=16, padT=42, padB=64;
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxVal = Math.max(1, ...entries.map(e=>e.v));
   const slot = innerW/n;
   const barW = Math.min(30, slot*0.5);
-  const maxChars = Math.max(8, Math.floor(slot/6.4));
+  const maxChars = Math.max(9, Math.floor(slot/5.8));
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
 
@@ -1290,7 +1364,7 @@ function renderTiposColumnChart(box, entries, opts){
     const lines = wrapChartLabel(e.k, maxChars);
     const baseY = H-padB+15;
     lines.forEach((ln,li)=>{
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*12).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*11).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
     });
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
@@ -1336,12 +1410,12 @@ function renderTiposColumnChart(box, entries, opts){
 function renderTiposComboChart(box, entries){
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   const n = entries.length;
-  const W = Math.max(900, n*140), H=310, padL=16, padR=16, padT=42, padB=48;
+  const W = Math.max(900, n*140), H=326, padL=16, padR=16, padT=42, padB=64;
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxVal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
   const slot = innerW/n;
   const barW = Math.min(50, slot*0.36);
-  const maxChars = Math.max(8, Math.floor(slot/6.4));
+  const maxChars = Math.max(9, Math.floor(slot/5.8));
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
   const realColor = 'var(--resp-techint)', planColor = 'var(--steel-strong)';
@@ -1379,7 +1453,7 @@ function renderTiposComboChart(box, entries){
     const lines = wrapChartLabel(e.label, maxChars);
     const baseY = H-padB+15;
     lines.forEach((ln,li)=>{
-      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*12).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
+      axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*11).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
     });
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
