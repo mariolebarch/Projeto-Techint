@@ -178,7 +178,6 @@ button.settings-item:hover{background:var(--sand);}
 .view.active{display:block;}
 
 .card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
-.panorama-card{border:4px solid var(--navy);}
 .card + .card{margin-top:16px;}
 .ov-grid > .card, .two-col > .card{margin-top:0;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;}
@@ -216,6 +215,7 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .date-toggle{display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden;}
 .date-toggle button{border:none; background:var(--sand); color:var(--text-secondary); padding:7px 14px; cursor:pointer; font-family:var(--font-mono); font-size:13px; font-weight:500;}
 .date-toggle button.active{background:var(--steel); color:var(--text-on-accent);}
+#poros-os-resp button.active{background:var(--navy); color:var(--text-on-accent);}
 .date-toggle button:not(:last-child){border-right:1px solid var(--border);}
 
 /* Multi-select filter */
@@ -322,6 +322,8 @@ tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; posit
 tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
 .resp-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; flex:none;}
 tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; padding:6px 12px 6px 20px; border-top:1px solid var(--border);}
+tr.detail-subtotal-row td{background:var(--sand); border-top:1px solid var(--border-soft); font-weight:700; color:var(--text-primary);}
+tr.detail-subtotal-row td:first-child{padding-left:34px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-secondary);}
 
 /* Donut chart */
 .donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
@@ -459,20 +461,12 @@ tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong);
       <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
     </div>
 
-    <div class="card panorama-card">
+    <div class="card">
       <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Horas reais, previstas, SLA e responsabilidade das interferências</span></div>
       <div class="ov-panorama">
         <div class="kpi-grid" id="kpi-grid"></div>
         <div id="ov-resp-chart" class="ov-panorama-donut"></div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h3>Ranking de Supervisores</h3>
-        <span class="card-note">Horas de interferência sob cada supervisor, com tendência 1&ordf; vs. 2&ordf; metade do período &middot; clique num supervisor para filtrar o gráfico abaixo</span>
-      </div>
-      <div id="ov-sup-bars"></div>
     </div>
 
     <div class="card">
@@ -484,6 +478,14 @@ tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong);
         </div>
       </div>
       <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Ranking de Supervisores</h3>
+        <span class="card-note">Horas de interferência sob cada supervisor, com tendência 1&ordf; vs. 2&ordf; metade do período &middot; clique num supervisor para filtrar o gráfico acima</span>
+      </div>
+      <div id="ov-sup-bars"></div>
     </div>
   </section>
 
@@ -577,7 +579,7 @@ const state = {
   grupo: 'all',
   sup: 'all',
   poros: {expanded:new Set(), osRespFilter:'all'},
-  ovTipos: {filter:'TECHINT', sup:null},
+  ovTipos: {filter:'ALL', sup:null},
 };
 
 function fmtDateLabel(iso){
@@ -1259,7 +1261,7 @@ function renderPorOs(){
     if(state.poros.expanded.has(e.os)){
       tr.classList.add('expanded');
       const byInterf = new Map();
-      rows.filter(r=>r.os===e.os).forEach(r=>{
+      rows.filter(r=>r.os===e.os && (r.gi || r.it)).forEach(r=>{
         const resp = r.resp==='USIMINAS' ? 'USIMINAS' : 'TECHINT';
         const key = r.gi+' — '+r.it+'||'+resp;
         if(!byInterf.has(key)) byInterf.set(key, {label:r.gi+' — '+r.it, it:r.it, resp, plan:0, real:0});
@@ -1286,6 +1288,21 @@ function renderPorOs(){
           <td class="num-col">${sevChip(d.plan, d.real, d.exced)}</td>`;
         tbody.appendChild(dtr);
       };
+      const renderSubtotalRow = list => {
+        const plan = list.reduce((a,g)=>a+g.plan,0);
+        const real = list.reduce((a,g)=>a+g.real,0);
+        const exced = list.reduce((a,g)=>a+g.exced,0);
+        const str = tbody.appendChild(document.createElement('tr'));
+        str.className = 'detail-subtotal-row';
+        str.innerHTML = `
+          <td>Subtotal</td>
+          <td></td>
+          <td class="num-col num">${fmtH(plan)}</td>
+          <td class="num-col num">${fmtH(real)}</td>
+          <td class="num-col num" style="color:${exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(exced)}</td>
+          <td></td>
+          <td class="num-col">${sevChip(plan, real, exced)}</td>`;
+      };
       const renderSection = (title, list) => {
         if(list.length===0) return;
         const hdr = document.createElement('tr');
@@ -1295,6 +1312,7 @@ function renderPorOs(){
         // Techint primeiro, depois Usiminas — dentro de cada responsabilidade,
         // ordenado por horas reais.
         list.sort((a,b)=> a.resp===b.resp ? b.real-a.real : (a.resp==='TECHINT'?-1:1)).forEach(renderDetailRow);
+        renderSubtotalRow(list);
       };
       renderSection('Com previsto', groups.filter(g=>g.plan>0));
       renderSection('Sem previsto', groups.filter(g=>g.plan<=0));
