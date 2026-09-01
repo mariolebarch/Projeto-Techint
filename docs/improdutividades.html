@@ -233,6 +233,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
 .msel-item:hover{background:var(--sand);}
 .msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
+#poros-status-msel .msel-btn{background:var(--navy); border-color:var(--navy); color:#fff;}
+#poros-status-msel .msel-btn::after{color:#fff;}
+#poros-status-msel .msel-btn:hover, #poros-status-msel.open .msel-btn{border-color:var(--navy-700);}
 .msel-item .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .msel-empty{padding:10px 6px; font-size:12.5px; color:var(--text-muted);}
 
@@ -449,7 +452,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
   <nav class="tabbar" id="tabbar">
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
-    <button class="tabbtn" data-tab="poros" aria-selected="false">Interferências por OS</button>
+    <button class="tabbtn" data-tab="poros" aria-selected="false">Interferência (SLA)</button>
     <button class="tabbtn" data-tab="rdc" aria-selected="false">Situação RDC</button>
     <button class="tabbtn" data-tab="insights" aria-selected="false">Insights Gerenciais</button>
   </nav>
@@ -491,7 +494,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h3>Impacto das Interferências por OS</h3>
         <div class="filters">
           <div class="field"><label>Responsabilidade</label><div class="date-toggle" id="poros-os-resp"></div></div>
-          <div class="field"><label>Status</label><select id="poros-status-select"></select></div>
+          <div class="field"><label>Status</label><div class="msel" id="poros-status-msel"></div></div>
         </div>
       </div>
       <div class="table-scroll">
@@ -572,7 +575,7 @@ const state = {
   os: new Set(),
   grupo: 'all',
   sup: 'all',
-  poros: {expanded:new Set(), osRespFilter:'all', statusFilter:'all'},
+  poros: {expanded:new Set(), osRespFilter:'all', statusFilter:new Set()},
   ovTipos: {filter:'ALL', sup:null},
 };
 
@@ -746,6 +749,68 @@ function buildOsMultiSelect(){
     state.os.clear();
     panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
     updateBtnLabel(); renderAll();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+}
+
+function buildStatusMultiSelect(){
+  const container = document.getElementById('poros-status-msel');
+  const wasOpen = container.classList.contains('open');
+  const prevScroll = container.querySelector('.msel-panel')?.scrollTop || 0;
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  const statusKeys = Object.keys(STATUS_LABELS);
+  function updateBtnLabel(){
+    const sel = state.poros.statusFilter;
+    if(sel.size===0) btn.textContent = 'Todos os status';
+    else if(sel.size<=2) btn.textContent = Array.from(sel).map(k=>STATUS_LABELS[k]).join(', ');
+    else btn.textContent = sel.size + ' status selecionados';
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todos</button><button type="button" data-act="none">Limpar</button>`;
+  panel.appendChild(actions);
+
+  statusKeys.forEach(key=>{
+    const row = document.createElement('label'); row.className='msel-item';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.poros.statusFilter.has(key);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) state.poros.statusFilter.add(key); else state.poros.statusFilter.delete(key);
+      updateBtnLabel();
+      renderPorOs();
+    });
+    const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = STATUS_LABELS[key];
+    row.appendChild(cb); row.appendChild(lbl);
+    panel.appendChild(row);
+  });
+
+  updateBtnLabel();
+  panel.scrollTop = prevScroll;
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    statusKeys.forEach(k=>state.poros.statusFilter.add(k));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); renderPorOs();
+  });
+  actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
+    state.poros.statusFilter.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    updateBtnLabel(); renderPorOs();
   });
 
   btn.addEventListener('click', (e)=>{
@@ -1201,7 +1266,8 @@ function renderPorOs(){
     return Object.assign(g, {exced, status: sevStatus(g.plan, g.real, exced)});
   }).sort((a,b)=>b.real-a.real);
 
-  if(state.poros.statusFilter!=='all') entries = entries.filter(e=>e.status===state.poros.statusFilter);
+  if(state.poros.statusFilter.size>0) entries = entries.filter(e=>state.poros.statusFilter.has(e.status));
+  buildStatusMultiSelect();
 
   const tbody = document.getElementById('poros-tbody');
   const maxReal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
@@ -1621,13 +1687,6 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
     renderPorOs();
   });
   porosOsRespBox.appendChild(btn);
-});
-const porosStatusSelect = document.getElementById('poros-status-select');
-porosStatusSelect.innerHTML = '<option value="all">Todos os status</option>' +
-  Object.entries(STATUS_LABELS).map(([val,label])=>`<option value="${val}">${label}</option>`).join('');
-porosStatusSelect.addEventListener('change', e=>{
-  state.poros.statusFilter = e.target.value;
-  renderPorOs();
 });
 
 const ovTiposSelect = document.getElementById('ov-tipos-resp');
