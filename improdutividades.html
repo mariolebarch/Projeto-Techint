@@ -442,6 +442,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
     <div class="field"><label>Supervisor</label><select id="sup-select-global"></select></div>
+    <div class="field"><label>&nbsp;</label><button class="small-btn" id="global-clear-btn" type="button">Limpar filtros</button></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
   </div>
@@ -1611,6 +1612,12 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 });
 
 document.getElementById('sup-select-global').addEventListener('change', e=>{ state.sup = e.target.value; renderAll(); });
+document.getElementById('global-clear-btn').addEventListener('click', ()=>{
+  state.dates = new Set(DATA.datas || []);
+  state.os.clear();
+  state.sup = 'all';
+  renderAll();
+});
 
 const porosOsRespBox = document.getElementById('poros-os-resp');
 [['all','Todas'],['TECHINT','Techint'],['USIMINAS','Usiminas']].forEach(([val,label])=>{
