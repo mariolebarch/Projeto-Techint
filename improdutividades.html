@@ -456,11 +456,6 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
   <!-- ================= VISÃO GERAL ================= -->
   <section class="view active" id="view-visao">
-    <div class="card-head" style="margin-bottom:12px;">
-      <span class="card-note">Visão gerencial do período filtrado &middot; <span id="ov-period-label"></span></span>
-      <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
-    </div>
-
     <div class="card">
       <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Horas reais, previstas, SLA e responsabilidade das interferências</span></div>
       <div class="ov-panorama">
@@ -496,10 +491,9 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h3>Impacto das Interferências por OS</h3>
         <div class="filters">
           <div class="field"><label>Responsabilidade</label><div class="date-toggle" id="poros-os-resp"></div></div>
+          <div class="field"><label>Status</label><select id="poros-status-select"></select></div>
         </div>
       </div>
-      <p class="card-note" style="margin-bottom:10px;">Ranking por horas reais apontadas. Clique duas vezes numa OS para ver o detalhamento por Grupo/Interferência.</p>
-      <div class="stat-strip" id="poros-stats"></div>
       <div class="table-scroll">
         <table id="poros-table">
           <thead><tr><th>OS</th><th class="num-col">Ocorrências</th><th class="num-col">Plan (h)</th><th class="num-col">Real (h)</th><th class="num-col">Excedente SLA (h)</th><th>Real &times; Plan</th><th class="num-col">Status</th></tr></thead>
@@ -578,7 +572,7 @@ const state = {
   os: new Set(),
   grupo: 'all',
   sup: 'all',
-  poros: {expanded:new Set(), osRespFilter:'all'},
+  poros: {expanded:new Set(), osRespFilter:'all', statusFilter:'all'},
   ovTipos: {filter:'ALL', sup:null},
 };
 
@@ -624,6 +618,8 @@ function filteredRdcs(){
    gera SLA, mesmo com previsto cadastrado. Dentro da lista, só gera excedente
    quando há previsto cadastrado e o real ultrapassa esse previsto. */
 const SLA_INTERFERENCIAS = new Set(['Almoço','DDS','Deslocamento','DGS','Elaboração da ART','Jantar']);
+const STATUS_LABELS = {dentro:'Dentro do plano', leve:'Leve excedente', alto:'Excedente alto', sem_previsao:'Sem previsão', sem_registro:'Sem registro'};
+const STATUS_CLASS = {dentro:'good', leve:'warning', alto:'critical', sem_previsao:'info', sem_registro:'good'};
 function slaExced(plan, real, it){
   if(!SLA_INTERFERENCIAS.has(it)) return 0;
   return (plan>0 && real>plan) ? (real-plan) : 0;
@@ -795,8 +791,6 @@ function renderKPIs(){
     el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
     grid.appendChild(el);
   });
-
-  document.getElementById('ov-period-label').textContent = datesLabel();
 
   renderCallouts(rows, exced);
   renderRespChart(rows);
@@ -1197,18 +1191,17 @@ function renderPorOs(){
   // Excedente calculado sobre o total já agregado (plan x real), não somado
   // linha a linha — assim um real menor que o plan nunca aparece como
   // excedente só porque uma linha isolada passou do seu próprio previsto.
-  const entries = Array.from(byOs.values()).map(g=>{
+  function sevStatus(plan, real, exced){
+    if(plan<=0) return real>0 ? 'sem_previsao' : 'sem_registro';
+    if(exced<=0) return 'dentro';
+    return (exced/plan)<=0.15 ? 'leve' : 'alto';
+  }
+  let entries = Array.from(byOs.values()).map(g=>{
     const exced = g.planSla>0 ? Math.max(0, g.realSla-g.planSla) : 0;
-    return Object.assign(g, {exced});
+    return Object.assign(g, {exced, status: sevStatus(g.plan, g.real, exced)});
   }).sort((a,b)=>b.real-a.real);
 
-  const totalReal = entries.reduce((a,e)=>a+e.real,0);
-  const totalExced = entries.reduce((a,e)=>a+e.exced,0);
-  document.getElementById('poros-stats').innerHTML = `
-    <div class="s"><span class="v">${entries.length}</span><span class="k">OS com interferências</span></div>
-    <div class="s"><span class="v">${fmtH(totalReal)}h</span><span class="k">Horas reais totais</span></div>
-    <div class="s"><span class="v" style="color:${totalExced>0?'var(--critical)':'var(--good)'}">${fmtH(totalExced)}h</span><span class="k">Excedente SLA total</span></div>
-    <div class="s"><span class="v">${entries.length ? entries[0].os : '—'}</span><span class="k">OS com maior impacto</span></div>`;
+  if(state.poros.statusFilter!=='all') entries = entries.filter(e=>e.status===state.poros.statusFilter);
 
   const tbody = document.getElementById('poros-tbody');
   const maxReal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
@@ -1221,10 +1214,8 @@ function renderPorOs(){
     return (exced/plan)<=0.15 ? 'var(--warning)' : 'var(--critical)';
   }
   function sevChip(plan, real, exced){
-    if(plan<=0) return real>0 ? '<span class="chip info">Sem previsão</span>' : '<span class="chip good">Sem registro</span>';
-    if(exced<=0) return '<span class="chip good">Dentro do plano</span>';
-    if((exced/plan)<=0.15) return '<span class="chip warning">Leve excedente</span>';
-    return '<span class="chip critical">Excedente alto</span>';
+    const s = sevStatus(plan, real, exced);
+    return `<span class="chip ${STATUS_CLASS[s]}">${STATUS_LABELS[s]}</span>`;
   }
 
   entries.forEach(e=>{
@@ -1631,6 +1622,13 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
   });
   porosOsRespBox.appendChild(btn);
 });
+const porosStatusSelect = document.getElementById('poros-status-select');
+porosStatusSelect.innerHTML = '<option value="all">Todos os status</option>' +
+  Object.entries(STATUS_LABELS).map(([val,label])=>`<option value="${val}">${label}</option>`).join('');
+porosStatusSelect.addEventListener('change', e=>{
+  state.poros.statusFilter = e.target.value;
+  renderPorOs();
+});
 
 const ovTiposSelect = document.getElementById('ov-tipos-resp');
 [['ALL','Todas'],['TECHINT','Techint'],['USIMINAS','Usiminas'],['REALPREV','Real × Previsto']].forEach(([val,label])=>{
@@ -1642,12 +1640,6 @@ const ovTiposSelect = document.getElementById('ov-tipos-resp');
 ovTiposSelect.addEventListener('change', e=>{
   state.ovTipos.filter = e.target.value;
   renderVisaoTiposChart();
-});
-
-document.getElementById('ov-clear-btn').addEventListener('click', ()=>{
-  state.dates = new Set(DATA.datas || []);
-  state.os.clear(); state.grupo='all'; state.sup='all'; state.poros.expanded.clear();
-  renderAll();
 });
 
 /* ---------- Tema claro/escuro ---------- */
