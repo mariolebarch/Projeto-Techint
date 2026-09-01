@@ -300,8 +300,11 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 
 .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
 
-.ov-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; align-items:start;}
+.ov-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; align-items:stretch;}
 @media (max-width:1000px){.ov-grid{grid-template-columns:1fr;}}
+.ov-left-card{display:flex; flex-direction:column;}
+.ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
+.ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
 .bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border);}
@@ -472,13 +475,16 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <div class="global-filters">
     <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
-    <span class="hint">Esses dois filtros afetam todas as abas abaixo.</span>
+    <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
+    <div class="field"><label>Supervisor</label><select id="supervisor-select-global"></select></div>
+    <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
   </div>
 
   <nav class="tabbar" id="tabbar">
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
     <button class="tabbtn" data-tab="confronto" aria-selected="false">Confronto Diário</button>
+    <button class="tabbtn" data-tab="detalhe" aria-selected="false">Detalhe do Apontamento</button>
     <button class="tabbtn" data-tab="planejamento" aria-selected="false">Planejamento Semanal</button>
     <button class="tabbtn" data-tab="ausencias" aria-selected="false">Ausências &amp; Absenteísmo</button>
     <button class="tabbtn" data-tab="apoio" aria-selected="false">Apoio Distribuído</button>
@@ -487,7 +493,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= VISÃO GERAL ================= -->
   <section class="view active" id="view-visao">
     <div class="ov-grid">
-      <div class="card">
+      <div class="card ov-left-card">
         <div class="card-head"><h3>Apontamentos por Contrato</h3><span class="card-note">MOA &times; PCI</span></div>
         <div id="ov-contrato-chart"></div>
         <div class="card-head" style="margin-top:18px; margin-bottom:4px;"><h4 style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;">Pessoas presentes por OS</h4></div>
@@ -541,6 +547,27 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
         </table>
       </div>
       <div class="empty-state" id="cf-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
+    </div>
+  </section>
+
+  <!-- ================= DETALHE DO APONTAMENTO ================= -->
+  <section class="view" id="view-detalhe">
+    <div class="card">
+      <div class="card-head">
+        <h3>Detalhe do Apontamento por OS</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar função</label><input class="search-input" id="det-search" placeholder="ex: montador"></div>
+        </div>
+      </div>
+      <p class="card-note" style="margin-bottom:10px;">Pessoas apontadas por função em cada OS, na data e nos filtros selecionados. Dê dois cliques numa OS para ver as funções e quantidades.</p>
+      <div class="stat-strip" id="det-stats"></div>
+      <div class="table-scroll">
+        <table id="det-table">
+          <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do total</th></tr></thead>
+          <tbody id="det-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="det-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
     </div>
   </section>
 
@@ -702,11 +729,14 @@ function highlightMatch(text, term){
 const state = {
   dates: new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []),
   contrato: 'all',
+  osGlobal: new Set(),
+  supervisor: 'all',
   cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
   apoio: {expanded:new Set()},
   ovColab: {expanded:new Set()},
+  det: {expanded:new Set(), search:''},
 };
 
 function fmtDateLabel(iso){
@@ -733,11 +763,13 @@ function datesLabel(){
 
 /* ---------- filtered accessors (contrato-aware) ---------- */
 function passContrato(c){ return state.contrato==='all' || c===state.contrato; }
-function efetivoForDate(date){ return DATA.efetivo.filter(r => r.data===date && r.os!==null && passContrato(r.contrato)); }
-function planForDate(date){ return DATA.emp_semanal.filter(r => r.data===date && passContrato(contratoOfOs(r.os))); }
-function efetivoForDates(){ return DATA.efetivo.filter(r => state.dates.has(r.data) && r.os!==null && passContrato(r.contrato)); }
-function planForDates(){ return DATA.emp_semanal.filter(r => state.dates.has(r.data) && passContrato(contratoOfOs(r.os))); }
-function planAll(){ return DATA.emp_semanal.filter(r => passContrato(contratoOfOs(r.os))); }
+function passOsGlobal(os){ return state.osGlobal.size===0 || state.osGlobal.has(String(os)); }
+function passSupervisorGlobal(sup){ return state.supervisor==='all' || (sup||'') === state.supervisor; }
+function efetivoForDate(date){ return DATA.efetivo.filter(r => r.data===date && r.os!==null && passContrato(r.contrato) && passOsGlobal(r.os) && passSupervisorGlobal(r.supervisor)); }
+function planForDate(date){ return DATA.emp_semanal.filter(r => r.data===date && passContrato(contratoOfOs(r.os)) && passOsGlobal(r.os)); }
+function efetivoForDates(){ return DATA.efetivo.filter(r => state.dates.has(r.data) && r.os!==null && passContrato(r.contrato) && passOsGlobal(r.os) && passSupervisorGlobal(r.supervisor)); }
+function planForDates(){ return DATA.emp_semanal.filter(r => state.dates.has(r.data) && passContrato(contratoOfOs(r.os)) && passOsGlobal(r.os)); }
+function planAll(){ return DATA.emp_semanal.filter(r => passContrato(contratoOfOs(r.os)) && passOsGlobal(r.os)); }
 
 /* ---------- confronto build ---------- */
 function buildConfrontoFrom(ef, plan){
@@ -848,6 +880,18 @@ function renderGlobalFilters(){
     btn.addEventListener('click', ()=>{ state.contrato=val; renderAll(); });
     cbox.appendChild(btn);
   });
+
+  const osOptionsAll = Object.keys(DATA.os_meta)
+    .filter(k=>passContrato(DATA.os_meta[k].contrato))
+    .sort((a,b)=>osSortVal(a)-osSortVal(b))
+    .map(k=>({value:k, label:osLabel(k)+(DATA.os_meta[k].titulo? ' — '+DATA.os_meta[k].titulo.slice(0,34):''), contrato:DATA.os_meta[k].contrato}));
+  const validOsSet = new Set(osOptionsAll.map(o=>o.value));
+  Array.from(state.osGlobal).forEach(v=>{ if(!validOsSet.has(v)) state.osGlobal.delete(v); });
+  buildOsMultiSelect('os-msel-global', osOptionsAll, state.osGlobal, ()=>renderAll(), 'Todas as OS');
+
+  const supSel = document.getElementById('supervisor-select-global');
+  const supervisores = Array.from(new Set(DATA.efetivo.map(r=>r.supervisor).filter(Boolean))).sort();
+  populateSelect(supSel, supervisores.map(s=>({value:s,label:s})), 'Todos os supervisores', state.supervisor);
 }
 
 /* ---------- KPIs & Visão Geral ---------- */
@@ -931,7 +975,7 @@ function renderContratoChart(ef){
     return {c, total: rows.length, presentes, ausentes: rows.length-presentes};
   });
   const grand = stats.reduce((a,s)=>a+s.presentes,0);
-  const colorStyle = c => c==='MOA' ? 'var(--chart-moa)' : 'var(--pci-chart)';
+  const colorStyle = c => c==='MOA' ? 'var(--navy)' : 'var(--pci-chart)';
 
   const r=46, cx=60, cy=60, sw=18;
   const C = 2*Math.PI*r;
@@ -1009,7 +1053,7 @@ function renderOsColabTable(ef){
     return html;
   }).join('');
 
-  box.innerHTML = `<div class="table-scroll" style="max-height:340px; overflow-y:auto;">
+  box.innerHTML = `<div class="table-scroll" style="overflow-y:auto;">
       <table>
         <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do total</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
@@ -1023,6 +1067,76 @@ function renderOsColabTable(ef){
       else state.ovColab.expanded.add(os);
       renderOsColabTable(ef);
     });
+  });
+}
+
+/* ---------- Detalhe do Apontamento (função por OS) ---------- */
+function renderApontamento(){
+  const ef = efetivoForDates().filter(r=>r.presente);
+  const search = state.det.search.trim().toLowerCase();
+
+  const byOs = new Map();
+  ef.forEach(r=>{
+    const os = String(r.os);
+    if(!byOs.has(os)) byOs.set(os, {total:0, cargos:new Map()});
+    const rec = byOs.get(os);
+    rec.total++;
+    rec.cargos.set(r.cargo, (rec.cargos.get(r.cargo)||0)+1);
+  });
+
+  let entries = Array.from(byOs.entries());
+  if(search) entries = entries.filter(([,rec])=>Array.from(rec.cargos.keys()).some(c=>(c||'').toLowerCase().includes(search)));
+  entries.sort((a,b)=>b[1].total-a[1].total);
+
+  const grand = entries.reduce((a,[,rec])=>a+rec.total,0);
+  const funcoes = new Set();
+  entries.forEach(([,rec])=>rec.cargos.forEach((v,c)=>funcoes.add(c)));
+
+  document.getElementById('det-stats').innerHTML = `
+    <div class="s"><span class="v">${entries.length}</span><span class="k">OS com apontamento</span></div>
+    <div class="s"><span class="v">${fmtInt(grand)}</span><span class="k">Pessoas apontadas</span></div>
+    <div class="s"><span class="v">${funcoes.size}</span><span class="k">Funções distintas</span></div>`;
+
+  const validOs = new Set(entries.map(([os])=>os));
+  Array.from(state.det.expanded).forEach(k=>{ if(!validOs.has(k)) state.det.expanded.delete(k); });
+
+  const tbody = document.getElementById('det-tbody');
+  document.getElementById('det-empty').style.display = entries.length? 'none' : '';
+  tbody.innerHTML = '';
+
+  entries.forEach(([os,rec],i)=>{
+    const contrato = contratoOfOs(os);
+    const cargoEntries = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1]);
+    const funcoesTitle = cargoEntries.map(([cargo,v])=>`${cargo}: ${v}`).join(' · ');
+    const pct = grand? rec.total/grand : 0;
+    const expanded = state.det.expanded.has(os);
+    const tr = document.createElement('tr');
+    tr.title = funcoesTitle;
+    tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
+    tr.innerHTML = `
+      <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
+      <td class="ov-table-name">OS ${escHtml(osLabel(os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
+      <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
+      <td class="num-col num">${rec.total}</td>
+      <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pct)}</td>`;
+    tr.addEventListener('dblclick', ()=>{
+      if(state.det.expanded.has(os)) state.det.expanded.delete(os); else state.det.expanded.add(os);
+      renderApontamento();
+    });
+    tbody.appendChild(tr);
+
+    if(expanded){
+      cargoEntries.forEach(([cargo,v])=>{
+        const dtr = document.createElement('tr');
+        dtr.className = 'cf-detail-row';
+        dtr.innerHTML = `
+          <td></td>
+          <td class="cf-cargo-name" colspan="2">${escHtml(cargo || '(sem função)')}</td>
+          <td class="num-col num">${v}</td>
+          <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(rec.total? v/rec.total : 0)}</td>`;
+        tbody.appendChild(dtr);
+      });
+    }
   });
 }
 
@@ -1252,7 +1366,7 @@ function renderEquipes(){
     row.className = 'bar-row eq-row';
     row.title = n + ' — ' + osBreakdown + ' (2 cliques p/ detalhar)';
     row.innerHTML = `<span class="label">${highlightMatch(n, state.eq.search)}<span class="expand-hint">${expanded?'▾':'▸'}</span></span>
-      <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:var(--steel);"></span></span>
+      <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:var(--navy);"></span></span>
       <span class="bar-val num">${total}</span>`;
     row.addEventListener('dblclick', ()=>{
       if(state.eq.expanded.has(n)) state.eq.expanded.delete(n);
@@ -1802,6 +1916,7 @@ function renderAll(){
   renderKPIs();
   renderConfrontoTable();
   renderEquipes();
+  renderApontamento();
   renderPlanejamento();
   renderAusencias();
   renderApoio();
@@ -1816,6 +1931,8 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 
 document.getElementById('cf-disc').addEventListener('change', e=>{state.cf.disc=e.target.value; renderConfrontoTable();});
 document.getElementById('cf-status').addEventListener('change', e=>{state.cf.status=e.target.value; renderConfrontoTable();});
+document.getElementById('supervisor-select-global').addEventListener('change', e=>{ state.supervisor=e.target.value; renderAll(); });
+document.getElementById('det-search').addEventListener('input', e=>{ state.det.search=e.target.value; renderApontamento(); });
 
 
 const eqModeBox = document.getElementById('eq-mode');

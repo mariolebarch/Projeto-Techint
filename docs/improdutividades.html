@@ -321,9 +321,9 @@ tr.detail-row td{background:var(--sand); border-top:none;}
 tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
 .resp-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; flex:none;}
-tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; padding:6px 12px 6px 20px; border-top:1px solid var(--border);}
-tr.detail-subtotal-row td{background:var(--sand); border-top:1px solid var(--border-soft); font-weight:700; color:var(--text-primary);}
-tr.detail-subtotal-row td:first-child{padding-left:34px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-secondary);}
+tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.03em; padding:7px 12px; border-top:1px solid var(--border);}
+tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercase; letter-spacing:.07em; font-size:10.5px;}
+tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
 /* Donut chart */
 .donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
@@ -441,7 +441,6 @@ tr.detail-subtotal-row td:first-child{padding-left:34px; font-family:var(--font-
   <div class="global-filters">
     <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
-    <div class="field"><label>Grupo Interferência</label><select id="grupo-select-global"></select></div>
     <div class="field"><label>Supervisor</label><select id="sup-select-global"></select></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
@@ -770,7 +769,6 @@ function populateSelect(sel, options, allLabel, current){
 function renderGlobalFilters(){
   buildDateMultiSelect();
   buildOsMultiSelect();
-  populateSelect(document.getElementById('grupo-select-global'), DATA.grupos || [], 'Todos os grupos', state.grupo);
   populateSelect(document.getElementById('sup-select-global'), DATA.supervisores || [], 'Todos os supervisores', state.sup);
 }
 
@@ -1163,15 +1161,10 @@ function renderRdcTab(){
   const taxaAprov = total? aprovados/total : 0;
   const parados = rdcRows.filter(r=>RDC_PARADO_SITS.has(r.sit)).length;
   const pctParados = total? parados/total : 0;
-  const byOs = new Map();
-  rdcRows.forEach(r=>{ const os=r.os||'—'; byOs.set(os, (byOs.get(os)||0)+ (RDC_PARADO_SITS.has(r.sit)?1:0)); });
-  const hotspot = Array.from(byOs.entries()).sort((a,b)=>b[1]-a[1])[0];
-
   const kpis = [
     {label:'Total de RDCs', value:fmtInt(total), sub:'via aba SGE', cls:''},
     {label:'Taxa de Aprovação', value:fmtPct1(taxaAprov), sub:fmtInt(aprovados)+' aprovados', cls: taxaAprov<0.6?'critical':(taxaAprov<0.8?'warning':'good')},
     {label:'RDCs Parados no Fluxo', value:fmtInt(parados), sub:fmtPct1(pctParados)+' do total', cls: pctParados>0.25?'critical':(pctParados>0.12?'warning':'good')},
-    {label:'OS com mais parados', value: hotspot&&hotspot[1]>0 ? 'OS '+hotspot[0] : '—', sub: hotspot&&hotspot[1]>0 ? fmtInt(hotspot[1])+' RDCs parados' : 'nenhum gargalo por OS', cls: hotspot&&hotspot[1]>0?'critical':'good'},
   ];
   const grid = document.getElementById('rdc-kpi-grid');
   grid.innerHTML = '';
@@ -1279,7 +1272,7 @@ function renderPorOs(){
         const dtr = document.createElement('tr');
         dtr.className = 'detail-row';
         dtr.innerHTML = `
-          <td class="detail-name">${respDot(d.resp)}${escHtml(d.label)}</td>
+          <td class="detail-name">${escHtml(d.label)}</td>
           <td></td>
           <td class="num-col num">${fmtH(d.plan)}</td>
           <td class="num-col num">${fmtH(d.real)}</td>
@@ -1288,34 +1281,28 @@ function renderPorOs(){
           <td class="num-col">${sevChip(d.plan, d.real, d.exced)}</td>`;
         tbody.appendChild(dtr);
       };
-      const renderSubtotalRow = list => {
+      // Cabeçalho de cada responsabilidade já traz o subtotal (plan/real/excedente/status)
+      // agregado na mesma linha do nome — sem linha extra de "Subtotal".
+      const renderSection = (resp, label, list) => {
+        if(list.length===0) return;
         const plan = list.reduce((a,g)=>a+g.plan,0);
         const real = list.reduce((a,g)=>a+g.real,0);
         const exced = list.reduce((a,g)=>a+g.exced,0);
-        const str = tbody.appendChild(document.createElement('tr'));
-        str.className = 'detail-subtotal-row';
-        str.innerHTML = `
-          <td>Subtotal</td>
-          <td></td>
-          <td class="num-col num">${fmtH(plan)}</td>
-          <td class="num-col num">${fmtH(real)}</td>
-          <td class="num-col num" style="color:${exced>0?'var(--critical)':'var(--text-secondary)'};">${fmtH(exced)}</td>
-          <td></td>
-          <td class="num-col">${sevChip(plan, real, exced)}</td>`;
-      };
-      const renderSection = (title, list) => {
-        if(list.length===0) return;
         const hdr = document.createElement('tr');
         hdr.className = 'detail-group-header';
-        hdr.innerHTML = `<td colspan="7">${title}</td>`;
+        hdr.innerHTML = `
+          <td>${respDot(resp)}${label}</td>
+          <td></td>
+          <td class="num-col">${fmtH(plan)}</td>
+          <td class="num-col">${fmtH(real)}</td>
+          <td class="num-col" style="color:${exced>0?'var(--critical)':'inherit'};">${fmtH(exced)}</td>
+          <td></td>
+          <td class="num-col">${sevChip(plan, real, exced)}</td>`;
         tbody.appendChild(hdr);
-        // Techint primeiro, depois Usiminas — dentro de cada responsabilidade,
-        // ordenado por horas reais.
-        list.sort((a,b)=> a.resp===b.resp ? b.real-a.real : (a.resp==='TECHINT'?-1:1)).forEach(renderDetailRow);
-        renderSubtotalRow(list);
+        list.sort((a,b)=>b.real-a.real).forEach(renderDetailRow);
       };
-      renderSection('Com previsto', groups.filter(g=>g.plan>0));
-      renderSection('Sem previsto', groups.filter(g=>g.plan<=0));
+      renderSection('TECHINT', 'Techint', groups.filter(g=>g.resp==='TECHINT'));
+      renderSection('USIMINAS', 'Usiminas', groups.filter(g=>g.resp==='USIMINAS'));
     }
   });
 }
@@ -1465,7 +1452,8 @@ function renderTiposComboChart(box, entries){
     linePts.push([cx, yPlan]);
 
     const labelY = Math.min(yReal, yPlan) - 9;
-    valLabels += drawLabel(cx-LABEL_GAP/2, labelY, e.real, realColor, 'end');
+    const realLabelColor = e.real > e.plan ? 'var(--critical)' : realColor;
+    valLabels += drawLabel(cx-LABEL_GAP/2, labelY, e.real, realLabelColor, 'end');
     valLabels += drawLabel(cx+LABEL_GAP/2, labelY, e.plan, planColor, 'start');
 
     const lines = wrapChartLabel(e.label, maxChars);
@@ -1622,7 +1610,6 @@ document.getElementById('tabbar').addEventListener('click', e=>{
   document.getElementById('view-'+btn.dataset.tab).classList.add('active');
 });
 
-document.getElementById('grupo-select-global').addEventListener('change', e=>{ state.grupo = e.target.value; renderAll(); });
 document.getElementById('sup-select-global').addEventListener('change', e=>{ state.sup = e.target.value; renderAll(); });
 
 const porosOsRespBox = document.getElementById('poros-os-resp');
