@@ -1690,7 +1690,9 @@ function computeAbsenteeism(ef, field){
     const rec = map.get(key);
     const matr = r.matr_usm || r.matr_tct || r.nome;
     rec.escalados.add(matr);
-    if(!r.presente){ rec.faltas.add(matr); rec.pessoas.push(r); }
+    // Férias não conta como falta — o absenteísmo mede quem está de fato
+    // ausente, não quem está de licença planejada.
+    if(!r.presente && r.status!=='Férias'){ rec.faltas.add(matr); rec.pessoas.push(r); }
   });
   return Array.from(map.entries()).map(([key,rec])=>({
     key, escalados:rec.escalados.size, faltas:rec.faltas.size,
@@ -1732,7 +1734,8 @@ function renderAbsenteeRow(tbody, item, groupLabel){
 function renderAusencias(){
   const ef = efetivoForDates();
   const totalEsc = new Set(ef.map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
-  const totalFalt = new Set(ef.filter(r=>!r.presente).map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const totalFalt = new Set(ef.filter(r=>!r.presente && r.status!=='Férias').map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
+  const totalFerias = new Set(ef.filter(r=>!r.presente && r.status==='Férias').map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
   const pctGeral = totalEsc? totalFalt/totalEsc : 0;
 
   const byCargo = computeAbsenteeism(ef, 'cargo');
@@ -1741,6 +1744,7 @@ function renderAusencias(){
   document.getElementById('ab-stats').innerHTML = `
     <div class="s"><span class="v num">${totalEsc}</span><span class="k">Escalados (matrículas distintas)</span></div>
     <div class="s"><span class="v num">${totalFalt}</span><span class="k">Faltas (matrículas distintas)</span></div>
+    <div class="s"><span class="v num">${totalFerias}</span><span class="k">Férias (matrículas distintas)</span></div>
     <div class="s"><span class="v num" style="color:var(--${pctStatus(pctGeral)})">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>`;
 
   const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
@@ -1760,7 +1764,9 @@ function renderApoio(){
   const total = ef.length;
   const present = ef.filter(r=>r.presente);
   const presentes = present.length;
-  const ausentes = total - presentes;
+  // Férias não conta como ausência — é licença planejada, não falta.
+  const feriasCount = ef.filter(r=>!r.presente && r.status==='Férias').length;
+  const ausentes = total - presentes - feriasCount;
   const pct = total? presentes/total : 0;
   const osCount = new Set(ef.map(r=>String(r.os))).size;
 
@@ -1871,6 +1877,7 @@ function renderApoio(){
       <div class="s"><span class="v num">${fmtInt(total)}</span><span class="k">Apontados (apoio)</span></div>
       <div class="s"><span class="v num" style="color:var(--good)">${fmtInt(presentes)}</span><span class="k">Presentes</span></div>
       <div class="s"><span class="v num" style="color:${ausentes>0?'var(--critical)':'var(--good)'}">${fmtInt(ausentes)}</span><span class="k">Ausentes</span></div>
+      <div class="s"><span class="v num">${fmtInt(feriasCount)}</span><span class="k">Férias</span></div>
       <div class="s"><span class="v num">${fmtPct(pct)}</span><span class="k">% Presença</span></div>
       <div class="s"><span class="v num">${osCount}</span><span class="k">OS com apoio</span></div>
     </div>
