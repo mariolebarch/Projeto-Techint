@@ -387,7 +387,19 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 .sup-filter-chip button:hover{background:var(--navy);}
 .sup-row{cursor:pointer; transition:border-color .15s, box-shadow .15s;}
 .sup-row.selected{border-color:var(--navy); box-shadow:0 0 0 2px var(--navy-700) inset;}
+
+#page-loader{position:fixed; inset:0; z-index:500; background:var(--navy); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; transition:opacity .45s ease, visibility .45s ease;}
+#page-loader.hide{opacity:0; visibility:hidden; pointer-events:none;}
+#page-loader .pl-spinner{width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.22); border-top-color:var(--green); animation:pl-spin .8s linear infinite;}
+@keyframes pl-spin{to{transform:rotate(360deg);}}
+.app{opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;}
+.app.loaded{opacity:1; transform:translateY(0);}
 </style>
+
+<div id="page-loader">
+  <div class="masthead-logo"><span class="tk-word">TECHINT</span><span class="tk-sub">Engineering &amp; Construction</span></div>
+  <div class="pl-spinner"></div>
+</div>
 
 <div class="app">
 
@@ -2029,6 +2041,11 @@ async function sbInit(){
 document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
 initTheme();
 renderAll();
+setTimeout(()=>{
+  document.querySelector('.app').classList.add('loaded');
+  const loader = document.getElementById('page-loader');
+  if(loader) loader.classList.add('hide');
+}, 350);
 sbInit();
 
 })();
