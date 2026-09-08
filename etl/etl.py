@@ -23,8 +23,10 @@ def parse_os_key(val):
     """Extrai o número da OS de qualquer formato de célula: 37131, "37131", "OS_037131" -> 37131."""
     if val is None:
         return None
-    if isinstance(val, str) and val.strip() == '-':
-        return 'Apoio'
+    if isinstance(val, str):
+        s = val.strip()
+        if s == '-' or s.lower() == 'apoio':
+            return 'Apoio'
     m = re.search(r'\d+', str(val))
     return int(m.group()) if m else None
 
@@ -138,7 +140,7 @@ for os_val, s, e in blocks:
     titulo = clean(ws_es.cell(row=header_row, column=3).value)
     status_os = clean(ws_es.cell(row=header_row, column=4).value)
     disciplina = clean(ws_es.cell(row=header_row, column=5).value)
-    os_key = 'Apoio' if os_val == 'Apoio' else int(os_val)
+    os_key = parse_os_key(os_val)
     os_meta[str(os_key)] = {"titulo": titulo, "status": status_os, "disciplina": disciplina, "contrato": contrato_of(os_key)}
 
     for r in range(s+1, e+1):
@@ -179,7 +181,7 @@ for row in efetivo_rows:
 for key, counter in ef_os_disc.items():
     if key not in os_meta:
         top_disc = counter.most_common(1)[0][0] if counter else None
-        os_key_parsed = key if key == 'Apoio' else int(key)
+        os_key_parsed = parse_os_key(key)
         os_meta[key] = {"titulo": None, "status": None, "disciplina": top_disc, "somente_efetivo": True, "contrato": contrato_of(os_key_parsed)}
 
 week_info = [{"semana": wk, "inicio": week_day_to_date(wk,'Seg').isoformat(), "fim": week_day_to_date(wk,'Dom').isoformat()} for wk,_ in week_blocks]

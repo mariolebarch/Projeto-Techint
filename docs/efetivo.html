@@ -2107,7 +2107,10 @@ document.addEventListener('keydown', (e)=>{
 const PCI_OS_SET = new Set([35732,37131,37132,37581]);
 function parseOsKey(val){
   if(val===undefined || val===null || val==='') return null;
-  if(typeof val==='string' && val.trim()==='-') return 'Apoio';
+  if(typeof val==='string'){
+    const s = val.trim();
+    if(s==='-' || s.toLowerCase()==='apoio') return 'Apoio';
+  }
   const m = String(val).match(/\d+/);
   return m ? parseInt(m[0],10) : NaN;
 }
@@ -2234,7 +2237,7 @@ function parseWorkbookToBundle(wb){
     const titulo = cleanStr(cellVal(wsEs,headerRow,3));
     const statusOs = cleanStr(cellVal(wsEs,headerRow,4));
     const disciplina = cleanStr(cellVal(wsEs,headerRow,5));
-    const osKey = (osVal==='Apoio') ? 'Apoio' : parseInt(osVal,10);
+    const osKey = parseOsKey(osVal);
     os_meta[String(osKey)] = {titulo, status: statusOs, disciplina, contrato: contratoOfImport(osKey)};
 
     for(let r=s+1;r<=e;r++){
@@ -2273,7 +2276,7 @@ function parseWorkbookToBundle(wb){
       const counter = efOsDisc[key];
       let topDisc=null, topCount=-1;
       Object.keys(counter).forEach(d=>{ if(counter[d]>topCount){topCount=counter[d]; topDisc=d;} });
-      const osKeyParsed = (key==='Apoio') ? 'Apoio' : parseInt(key,10);
+      const osKeyParsed = parseOsKey(key);
       os_meta[key] = {titulo:null, status:null, disciplina: topDisc, somente_efetivo:true, contrato: contratoOfImport(osKeyParsed)};
     }
   });
