@@ -1910,7 +1910,7 @@ function renderAbsenceTrend(){
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; legend.innerHTML=''; return; }
 
   const n = entries.length;
-  const W = Math.max(900, n*(n>40?26:60)), H=340, padL=48, padR=48, padT=24, padB=40;
+  const W = Math.max(900, n*(n>40?26:60)), H=340, padL=48, padR=48, padT=42, padB=40;
   const innerW=W-padL-padR, innerH=H-padT-padB;
   const maxEsc = Math.max(1, ...entries.map(e=>e.escalados));
   const maxPct = Math.max(0.05, ...entries.map(e=>e.pct)) * 1.25;
