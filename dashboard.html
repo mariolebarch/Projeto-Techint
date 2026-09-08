@@ -2105,6 +2105,12 @@ document.addEventListener('keydown', (e)=>{
 
 /* ---------- Importação de dados (.xlsx) no navegador ---------- */
 const PCI_OS_SET = new Set([35732,37131,37132,37581]);
+function parseOsKey(val){
+  if(val===undefined || val===null || val==='') return null;
+  if(typeof val==='string' && val.trim()==='-') return 'Apoio';
+  const m = String(val).match(/\d+/);
+  return m ? parseInt(m[0],10) : NaN;
+}
 function contratoOfImport(osKey){
   if(osKey==='Apoio') return 'MOA';
   const n = parseInt(osKey,10);
@@ -2170,10 +2176,7 @@ function parseWorkbookToBundle(wb){
     const sgeN = (typeof sge==='number') ? sge : 0;
     const presente = facilN>0 || sgeN>0;
 
-    let osKey;
-    if(typeof osVal==='string' && osVal.trim()==='-') osKey='Apoio';
-    else if(osVal===undefined || osVal===null || osVal==='') osKey=null;
-    else osKey = parseInt(osVal,10);
+    const osKey = parseOsKey(osVal);
 
     let dataIso = null;
     if(dataVal instanceof Date) dataIso = isoStrImport(dataVal);

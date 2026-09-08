@@ -19,6 +19,15 @@ def clean(s):
     if s is None: return None
     return re.sub(r'\s+', ' ', str(s).strip())
 
+def parse_os_key(val):
+    """Extrai o número da OS de qualquer formato de célula: 37131, "37131", "OS_037131" -> 37131."""
+    if val is None:
+        return None
+    if isinstance(val, str) and val.strip() == '-':
+        return 'Apoio'
+    m = re.search(r'\d+', str(val))
+    return int(m.group()) if m else None
+
 PCI_OS = {35732, 37131, 37132, 37581}
 def contrato_of(os_key):
     if os_key == 'Apoio': return 'MOA'
@@ -65,12 +74,7 @@ for r in range(2, ws_ef.max_row+1):
     sge_n = sge if isinstance(sge, (int, float)) else 0
     presente = (facil_n > 0) or (sge_n > 0)
 
-    if isinstance(os_val, str) and os_val.strip() == '-':
-        os_key = 'Apoio'
-    elif os_val is None:
-        os_key = None
-    else:
-        os_key = int(os_val)
+    os_key = parse_os_key(os_val)
 
     data_iso = data_val.date().isoformat() if isinstance(data_val, datetime.datetime) else (data_val.isoformat() if isinstance(data_val, datetime.date) else None)
 
