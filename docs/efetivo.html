@@ -622,7 +622,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <section class="view" id="view-planejamento">
     <div class="card">
       <div class="card-head">
-        <h3>Empilhamento por OS &middot; Sem. 32&ndash;35 / 2026</h3>
+        <h3 id="plan-title">Empilhamento por OS</h3>
         <div class="filters">
           <div class="field"><label>OS</label><div class="msel" id="hm-os-msel"></div></div>
           <div class="field"><label>Buscar função</label><input class="search-input" id="hm-search" placeholder="ex: soldador"></div>
@@ -1448,6 +1448,13 @@ function renderEquipes(){
 
 /* ---------- Planejamento por OS (accordion) ---------- */
 function renderPlanejamento(){
+  const titleEl = document.getElementById('plan-title');
+  if(titleEl && DATA.semanas && DATA.semanas.length){
+    const weeks = DATA.semanas.map(w=>w.semana).sort((a,b)=>a-b);
+    const year = new Date(DATA.semanas[0].inicio+'T00:00:00').getFullYear();
+    const range = weeks.length>1 ? (weeks[0]+'–'+weeks[weeks.length-1]) : String(weeks[0]);
+    titleEl.textContent = 'Empilhamento por OS · Sem. '+range+' / '+year;
+  }
   const box = document.getElementById('plan-accordions');
   const plan = planAll();
   const empty = document.getElementById('plan-empty');
@@ -2135,6 +2142,7 @@ const DAY_ISO_IMPORT = {'Seg':1,'Ter':2,'Qua':3,'Qui':4,'Sex':5,'Sáb':6,'Dom':7
 function parseWorkbookToBundle(wb){
   function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
   function maxRow(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.r+1; }
+  function maxCol(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.c+1; }
   function cellVal(s,row,col){ const addr = XLSX.utils.encode_cell({r:row-1,c:col-1}); const c=s[addr]; return c? c.v : undefined; }
   function cleanStr(v){ if(v===undefined||v===null||v==='') return null; return String(v).replace(/\s+/g,' ').trim(); }
   function normStr(v){ const c=cleanStr(v); return c===null? null : c.toLowerCase(); }
@@ -2202,7 +2210,8 @@ function parseWorkbookToBundle(wb){
   const weekBlocks = [];
   {
     let c=1;
-    while(c<=40){
+    const maxWeekCol = Math.max(maxCol(wsEs), 40);
+    while(c<=maxWeekCol){
       const v2 = cellVal(wsEs,2,c);
       if(typeof v2==='string' && v2.startsWith('Sem')){
         const m = v2.match(/\d+/);

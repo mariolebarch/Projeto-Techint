@@ -101,7 +101,8 @@ max_row = ws_es.max_row
 
 week_blocks = []
 c = 1
-while c <= 40:
+max_week_col = max(ws_es.max_column, 40)
+while c <= max_week_col:
     v2 = ws_es.cell(row=2, column=c).value
     if isinstance(v2, str) and v2.startswith('Sem'):
         wk = int(re.search(r'\d+', v2).group())
