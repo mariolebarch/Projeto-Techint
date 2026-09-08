@@ -405,8 +405,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 .scurve-wrap{width:100%; overflow-x:auto; position:relative;}
 .tech-chart{background-color:var(--pci-chart-soft); background-image:radial-gradient(circle, var(--heat-2) 1px, transparent 1px); background-size:24px 24px; background-position:-6px -6px; border-radius:8px; padding:10px;}
 .tech-chart-gray{background-color:var(--sand); background-image:none;}
-.ab-trend-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+.ab-trend-val-label{stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
 .chart-baseline{stroke:var(--border); stroke-width:1.5; shape-rendering:crispEdges;}
+#ab-trend-chart .scurve-axis-label{fill:var(--text-primary);}
+#ab-trend-legend .sl-item{color:var(--text-primary);}
 .scurve-wrap svg{display:block; width:100%; height:auto;}
 .scurve-grid-line{stroke:var(--border-soft); stroke-width:1; shape-rendering:crispEdges;}
 .scurve-axis-label{fill:var(--text-muted); font-family:var(--font-mono); font-size:10px;}
@@ -1916,7 +1918,7 @@ function renderAbsenceTrend(){
   const barW = Math.min(46, slot*0.5);
   const yEscOf = v => padT + innerH - innerH*(v/maxEsc);
   const yPctOf = v => padT + innerH - innerH*(Math.min(v,maxPct)/maxPct);
-  const barColor = 'var(--steel-strong)';
+  const barColor = 'var(--green)';
   const lineColor = 'var(--critical)';
   const ttId='ab-trend-tt', hitClass='ab-trend-hit';
 
