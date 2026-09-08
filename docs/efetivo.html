@@ -405,8 +405,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 .scurve-wrap{width:100%; overflow-x:auto; position:relative;}
 .tech-chart{background-color:var(--pci-chart-soft); background-image:radial-gradient(circle, var(--heat-2) 1px, transparent 1px); background-size:24px 24px; background-position:-6px -6px; border-radius:8px; padding:10px;}
 .tech-chart-gray{background-color:var(--sand); background-image:none;}
-.ab-trend-esc-label{font-weight:700; stroke:#fff; stroke-width:2px; stroke-linejoin:round; paint-order:stroke fill;}
-.ab-trend-pct-label{stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+.ab-trend-esc-label{font-weight:700;}
 .chart-baseline{stroke:var(--border); stroke-width:1.5; shape-rendering:crispEdges;}
 #ab-trend-chart .scurve-axis-label{fill:var(--text-primary);}
 #ab-trend-legend .sl-item{color:var(--text-primary);}
@@ -1934,6 +1933,7 @@ function renderAbsenceTrend(){
 
   const labelEvery = Math.max(1, Math.ceil(n/24));
   const linePts = [];
+  const escLabelYs = [];
   entries.forEach((e,i)=>{
     const cx = padL + slot*i + slot/2;
     const x = cx - barW/2;
@@ -1941,7 +1941,11 @@ function renderAbsenceTrend(){
     const hEsc = padT+innerH-yEsc;
     bars += `<rect x="${x.toFixed(1)}" y="${yEsc.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hEsc).toFixed(1)}" rx="3" style="fill:${barColor};"/>`;
     if(e.escalados>0){
-      dataLabels += `<text class="scurve-axis-label ab-trend-esc-label" x="${cx.toFixed(1)}" y="${(yEsc-6).toFixed(1)}" text-anchor="middle" style="fill:${barColor};">${fmtInt(e.escalados)}</text>`;
+      const escLabelY = yEsc-6;
+      escLabelYs.push(escLabelY);
+      dataLabels += `<text class="scurve-axis-label ab-trend-esc-label" x="${cx.toFixed(1)}" y="${escLabelY.toFixed(1)}" text-anchor="middle" style="fill:${barColor};">${fmtInt(e.escalados)}</text>`;
+    } else {
+      escLabelYs.push(null);
     }
     linePts.push([cx, yPctOf(e.pct)]);
     if(i%labelEvery===0 || i===n-1){
@@ -1951,7 +1955,16 @@ function renderAbsenceTrend(){
   });
   const pathD = linePts.map((p,idx)=>(idx===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
   const dots = linePts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" style="fill:var(--paper); stroke:${lineColor}; stroke-width:2;"/>`).join('');
-  const pctLabels = linePts.map(([x,y],idx)=>`<text class="scurve-axis-label ab-trend-pct-label" x="${x.toFixed(1)}" y="${(y-10).toFixed(1)}" text-anchor="middle" style="fill:${lineColor};">${fmtPct1(entries[idx].pct)}</text>`).join('');
+  const labelMinGap = 15;
+  const pctLabels = linePts.map(([x,y],idx)=>{
+    let ly = y-10;
+    const escY = escLabelYs[idx];
+    if(escY!=null && Math.abs(ly-escY)<labelMinGap){
+      ly = ly<=escY ? escY-labelMinGap : escY+labelMinGap;
+    }
+    ly = Math.max(10, ly);
+    return `<text class="scurve-axis-label ab-trend-pct-label" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" style="fill:${lineColor};">${fmtPct1(entries[idx].pct)}</text>`;
+  }).join('');
 
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Absenteísmo: escalados em colunas e taxa de absenteísmo em linha">
       ${gridSvg}${bars}${dataLabels}
