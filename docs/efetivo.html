@@ -1956,13 +1956,15 @@ function renderAbsenceTrend(){
   const pathD = linePts.map((p,idx)=>(idx===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
   const dots = linePts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" style="fill:var(--paper); stroke:${lineColor}; stroke-width:2;"/>`).join('');
   const labelMinGap = 15;
+  const pctFloor = 10;
+  const pctCeil = padT+innerH-6;
   const pctLabels = linePts.map(([x,y],idx)=>{
-    let ly = y-10;
+    let ly = Math.min(pctCeil, y+16);
     const escY = escLabelYs[idx];
     if(escY!=null && Math.abs(ly-escY)<labelMinGap){
       ly = ly<=escY ? escY-labelMinGap : escY+labelMinGap;
     }
-    ly = Math.max(10, ly);
+    ly = Math.max(pctFloor, Math.min(pctCeil, ly));
     return `<text class="scurve-axis-label ab-trend-pct-label" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" style="fill:${lineColor};">${fmtPct1(entries[idx].pct)}</text>`;
   }).join('');
 
