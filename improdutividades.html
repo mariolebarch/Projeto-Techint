@@ -540,7 +540,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
           <h4 id="ov-tipos-drill-title" style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;"></h4>
           <button class="small-btn" id="ov-tipos-drill-close" type="button">&times; Fechar</button>
         </div>
-        <div id="ov-tipos-drill-chart" class="scurve-wrap tech-chart"></div>
+        <div id="ov-tipos-drill-chart" class="scurve-wrap tipos-chart"></div>
       </div>
     </div>
 
@@ -1018,11 +1018,16 @@ function renderRespChart(rows){
 }
 
 /* ---------- Interferências Registradas (Visão Geral) ---------- */
+function normalizeTipoLabel(it){
+  if(it==='Almoço' || it==='Jantar') return 'Refeição';
+  if(it==='DDS' || it==='DGS') return 'DDS/DGS';
+  return it;
+}
 function buildTiposRealPrevData(rows){
   const scoped = rows.filter(r => SLA_INTERFERENCIAS.has(r.it));
   const map = new Map();
   scoped.forEach(r=>{
-    const key = (r.it==='Almoço' || r.it==='Jantar') ? 'Refeição' : r.it;
+    const key = normalizeTipoLabel(r.it);
     if(!map.has(key)) map.set(key, {key, label:key, plan:0, real:0});
     const g = map.get(key);
     g.plan += r.plan; g.real += r.real;
@@ -1060,8 +1065,9 @@ function renderVisaoTiposChart(){
   const byTipo = new Map();
   rows.forEach(r=>{
     if(!r.it) return;
-    if(!byTipo.has(r.it)) byTipo.set(r.it, {v:0, resp:r.resp});
-    byTipo.get(r.it).v += r.real;
+    const key = normalizeTipoLabel(r.it);
+    if(!byTipo.has(key)) byTipo.set(key, {v:0, resp:r.resp});
+    byTipo.get(key).v += r.real;
   });
   const entries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
   const onDblClick = e => renderTiposDrilldown(rows, e, filter);
@@ -1087,7 +1093,7 @@ function renderTiposDrilldown(rows, entry, filter){
   wrap.hidden = false;
   title.textContent = 'Acumulado por data — ' + entry.k;
   const byDate = new Map();
-  rows.filter(r=>r.it===entry.k).forEach(r=>{
+  rows.filter(r=>normalizeTipoLabel(r.it)===entry.k).forEach(r=>{
     byDate.set(r.d, (byDate.get(r.d)||0) + r.real);
   });
   const dateEntries = Array.from(byDate.entries())
