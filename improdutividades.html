@@ -386,7 +386,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
 /* Interferências Registradas (Visão Geral) */
 .tipos-chart{background:var(--sand); border-radius:8px; padding:10px;}
-#ov-tipos-bars .col-val-label, #ov-tipos-drill-chart .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+#ov-tipos-bars .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
 #ov-tipos-bars .scurve-axis-label, #ov-tipos-drill-chart .scurve-axis-label{fill:var(--text-primary);}
 #ov-tipos-resp{background:var(--navy); color:#fff; border-color:var(--navy-700);}
 #ov-tipos-resp:hover{border-color:var(--steel);}
@@ -540,7 +540,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
           <h4 id="ov-tipos-drill-title" style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;"></h4>
           <button class="small-btn" id="ov-tipos-drill-close" type="button">&times; Fechar</button>
         </div>
-        <div id="ov-tipos-drill-chart" class="scurve-wrap tipos-chart"></div>
+        <div id="ov-tipos-drill-chart" class="scurve-wrap tech-chart"></div>
       </div>
     </div>
 
@@ -1096,7 +1096,79 @@ function renderTiposDrilldown(rows, entry, filter){
   const color = filter==='ALL'
     ? (entry.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)')
     : (filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)');
-  renderTiposColumnChart(chartBox, dateEntries, {flatColor: color});
+  renderAreaChart(chartBox, dateEntries, {color, valueLabel:'Horas', unit:'h', ariaLabel:'Acumulado por data de '+entry.k});
+}
+
+function renderAreaChart(box, entries, opts){
+  opts = opts || {};
+  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+  const n = entries.length;
+  const W = Math.max(760, n*(n>40?22:56)), H=300, padL=52, padR=24, padT=24, padB=40;
+  const innerW = W-padL-padR, innerH = H-padT-padB;
+  const maxV = Math.max(1, ...entries.map(e=>e.v));
+  const xOf = i => n<=1 ? padL+innerW/2 : padL + innerW*i/(n-1);
+  const yOf = v => padT + innerH - innerH*v/maxV;
+  const color = opts.color || 'var(--resp-techint)';
+  const gradId = 'areaGrad'+Math.random().toString(36).slice(2,9);
+
+  let gridSvg='', axisSvg='';
+  [0,.25,.5,.75,1].forEach(f=>{
+    const gy = padT+innerH-innerH*f;
+    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`;
+    axisSvg += `<text class="scurve-axis-label" x="${(padL-8).toFixed(1)}" y="${(gy+3).toFixed(1)}" text-anchor="end">${fmtH(maxV*f)}</text>`;
+  });
+  gridSvg += `<line class="chart-baseline" x1="${padL}" y1="${(padT+innerH).toFixed(1)}" x2="${W-padR}" y2="${(padT+innerH).toFixed(1)}"/>`;
+
+  const pts = entries.map((e,i)=>[xOf(i), yOf(e.v)]);
+  const labelEvery = Math.max(1, Math.ceil(n/16));
+  entries.forEach((e,i)=>{
+    if(i%labelEvery===0 || i===n-1){
+      axisSvg += `<text class="scurve-axis-label" x="${xOf(i).toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="middle">${escHtml(e.k)}</text>`;
+    }
+  });
+
+  const pathD = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const areaD = pathD + ` L${pts[pts.length-1][0].toFixed(1)} ${(padT+innerH).toFixed(1)} L${pts[0][0].toFixed(1)} ${(padT+innerH).toFixed(1)} Z`;
+  const dots = pts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" style="fill:var(--paper); stroke:${color}; stroke-width:2;"/>`).join('');
+
+  const ttId = 'area-tt-'+gradId, hitClass = 'area-hit-'+gradId;
+  const slot = n<=1 ? innerW : innerW/(n-1);
+  const hitboxes = pts.map(([x],i)=>`<rect class="${hitClass}" data-idx="${i}" x="${(x-slot/2).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`).join('');
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escHtml(opts.ariaLabel||'Gráfico de área')}">
+      <defs>
+        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" style="stop-color:${color};" stop-opacity=".28"/>
+          <stop offset="100%" style="stop-color:${color};" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridSvg}
+      <path d="${areaD}" style="fill:url(#${gradId});"/>
+      <path class="scurve-line" d="${pathD}" style="stroke:${color}; stroke-width:2.5;"/>
+      ${dots}${axisSvg}${hitboxes}
+    </svg>
+    <div class="scurve-tooltip" id="${ttId}"></div>`;
+
+  const svgEl = box.querySelector('svg');
+  const tooltip = document.getElementById(ttId);
+  box.querySelectorAll('.'+hitClass).forEach(hit=>{
+    const idx = +hit.dataset.idx;
+    const e = entries[idx];
+    hit.addEventListener('pointermove', ()=>{
+      tooltip.innerHTML = `<span class="tt-date">${escHtml(e.k)}</span>` +
+        `<div class="tt-row"><span class="sw" style="background:${color};"></span>${escHtml(opts.valueLabel||'Valor')}<span class="tt-val">${fmtH(e.v)}${opts.unit||''}</span></div>`;
+      tooltip.classList.add('show');
+      const wrapRect = box.getBoundingClientRect();
+      const svgRect = svgEl.getBoundingClientRect();
+      const scale = W/svgRect.width;
+      const cx = xOf(idx);
+      const ttW = tooltip.offsetWidth || 160;
+      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
+      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
+      tooltip.style.top = '4px';
+    });
+    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+  });
 }
 
 /* ---------- Ranking de Supervisores ---------- */
