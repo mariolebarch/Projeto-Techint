@@ -386,8 +386,8 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
 /* Interferências Registradas (Visão Geral) */
 .tipos-chart{background:var(--sand); border-radius:8px; padding:10px;}
-#ov-tipos-bars .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
-#ov-tipos-bars .scurve-axis-label{fill:var(--text-primary);}
+#ov-tipos-bars .col-val-label, #ov-tipos-drill-chart .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
+#ov-tipos-bars .scurve-axis-label, #ov-tipos-drill-chart .scurve-axis-label{fill:var(--text-primary);}
 #ov-tipos-resp{background:var(--navy); color:#fff; border-color:var(--navy-700);}
 #ov-tipos-resp:hover{border-color:var(--steel);}
 .sup-filter-chip{display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 8px 0 12px; border-radius:16px; background:var(--navy-100); border:1px solid var(--navy-700); font-size:12.5px; color:var(--text-primary); white-space:nowrap;}
@@ -533,7 +533,15 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
           <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
         </div>
       </div>
+      <p class="card-note" style="margin-bottom:10px;">Dê dois cliques numa barra para ver o acumulado por data registrada daquela interferência.</p>
       <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
+      <div id="ov-tipos-drill" hidden style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-soft);">
+        <div class="card-head" style="margin-bottom:10px;">
+          <h4 id="ov-tipos-drill-title" style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;"></h4>
+          <button class="small-btn" id="ov-tipos-drill-close" type="button">&times; Fechar</button>
+        </div>
+        <div id="ov-tipos-drill-chart" class="scurve-wrap tipos-chart"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -634,7 +642,7 @@ const state = {
   grupo: 'all',
   sup: 'all',
   poros: {expanded:new Set(), osRespFilter:'all', statusFilter:new Set()},
-  ovTipos: {filter:'ALL', sup:null},
+  ovTipos: {filter:'ALL', sup:null, drillType:null},
 };
 
 function fmtDateLabel(iso){
@@ -1041,8 +1049,11 @@ function renderVisaoTiposChart(){
   const supFilter = state.ovTipos.sup;
   const baseRows = supFilter ? filteredInterf().filter(r=>r.sup===supFilter) : filteredInterf();
   renderTiposSupChip();
+  const drillEl = document.getElementById('ov-tipos-drill');
   if(filter==='REALPREV'){
     renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
+    state.ovTipos.drillType = null;
+    drillEl.hidden = true;
     return;
   }
   const rows = filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
@@ -1053,11 +1064,39 @@ function renderVisaoTiposChart(){
     byTipo.get(r.it).v += r.real;
   });
   const entries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
+  const onDblClick = e => renderTiposDrilldown(rows, e, filter);
   if(filter==='ALL'){
-    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
+    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onDblClick});
   } else {
-    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
+    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onDblClick});
   }
+  const stillValid = state.ovTipos.drillType && entries.find(e=>e.k===state.ovTipos.drillType);
+  if(stillValid){
+    renderTiposDrilldown(rows, stillValid, filter);
+  } else {
+    state.ovTipos.drillType = null;
+    drillEl.hidden = true;
+  }
+}
+
+function renderTiposDrilldown(rows, entry, filter){
+  state.ovTipos.drillType = entry.k;
+  const wrap = document.getElementById('ov-tipos-drill');
+  const title = document.getElementById('ov-tipos-drill-title');
+  const chartBox = document.getElementById('ov-tipos-drill-chart');
+  wrap.hidden = false;
+  title.textContent = 'Acumulado por data — ' + entry.k;
+  const byDate = new Map();
+  rows.filter(r=>r.it===entry.k).forEach(r=>{
+    byDate.set(r.d, (byDate.get(r.d)||0) + r.real);
+  });
+  const dateEntries = Array.from(byDate.entries())
+    .sort((a,b)=> a[0]<b[0] ? -1 : (a[0]>b[0] ? 1 : 0))
+    .map(([d,v])=>({k: d.slice(8,10)+'/'+d.slice(5,7), v}));
+  const color = filter==='ALL'
+    ? (entry.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)')
+    : (filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)');
+  renderTiposColumnChart(chartBox, dateEntries, {flatColor: color});
 }
 
 /* ---------- Ranking de Supervisores ---------- */
@@ -1487,7 +1526,7 @@ function renderTiposColumnChart(box, entries, opts){
     lines.forEach((ln,li)=>{
       axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*11).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
     });
-    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
+    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"${opts.onDblClick ? ' style="cursor:pointer;"' : ''}/>`;
   });
 
   let legend = '';
@@ -1524,6 +1563,9 @@ function renderTiposColumnChart(box, entries, opts){
       tooltip.style.top = '4px';
     });
     hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+    if(opts.onDblClick){
+      hit.addEventListener('dblclick', ()=>opts.onDblClick(e));
+    }
   });
 }
 
@@ -1757,6 +1799,11 @@ const ovTiposSelect = document.getElementById('ov-tipos-resp');
 ovTiposSelect.addEventListener('change', e=>{
   state.ovTipos.filter = e.target.value;
   renderVisaoTiposChart();
+});
+
+document.getElementById('ov-tipos-drill-close').addEventListener('click', ()=>{
+  state.ovTipos.drillType = null;
+  document.getElementById('ov-tipos-drill').hidden = true;
 });
 
 /* ---------- Tema claro/escuro ---------- */
