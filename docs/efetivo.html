@@ -591,7 +591,13 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= APONTAMENTO DETALHADO ================= -->
   <section class="view" id="view-apont">
     <div class="card" style="margin-top:0;">
-      <div class="card-head"><h3>Apontamento Detalhado</h3><span class="card-note">Supervisor, encarregado, cargo e OS &middot; dois cliques numa linha para ver as pessoas</span></div>
+      <div class="card-head">
+        <h3>Apontamento Detalhado</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar encarregado</label><input class="search-input" id="apont-search" placeholder="ex: Antonio"></div>
+        </div>
+      </div>
+      <p class="card-note" style="margin-bottom:10px;">Supervisor, encarregado, cargo e OS &middot; dois cliques numa linha para ver as pessoas</p>
       <div class="table-scroll" style="max-height:600px; overflow-y:auto;">
         <table>
           <thead><tr><th>Supervisor</th><th>Encarregado</th><th>Cargo</th><th class="num-col">Pessoas</th><th>OS</th></tr></thead>
@@ -701,9 +707,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="card" style="margin-top:16px;">
       <div class="card-head">
         <h3>Absenteísmo</h3>
-        <div class="filters">
-          <div class="field"><label>Visualizar por</label><div class="date-toggle" id="ab-trend-mode"></div></div>
-        </div>
       </div>
       <div id="ab-trend-chart" class="scurve-wrap tech-chart-gray"></div>
       <div id="ab-trend-legend" class="scurve-legend" style="margin-top:10px;"></div>
@@ -792,9 +795,8 @@ const state = {
   cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
-  apont: {expanded:new Set()},
+  apont: {expanded:new Set(), search:''},
   ovColab: {expanded:new Set()},
-  ab: {trendMode:'dia'},
 };
 
 function fmtDateLabel(iso){
@@ -845,11 +847,6 @@ function isoWeekOf(iso){
   firstThursday.setUTCDate(firstThursday.getUTCDate()-firstDayNum+3);
   const week = 1 + Math.round((d-firstThursday)/(7*24*3600*1000));
   return {week, year:d.getUTCFullYear()};
-}
-function fmtMonthLabel(ym){
-  const [y,m] = ym.split('-').map(Number);
-  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  return meses[m-1]+'/'+String(y).slice(2);
 }
 
 function refDate(){
@@ -1901,7 +1898,7 @@ function renderAusencias(){
 
 /* ---------- Absenteísmo ao Longo do Tempo ---------- */
 function computeAbsenceTrendDaily(){
-  const validDates = DATA.datas_apontamento.filter(d=>!isWeekendOrHoliday(d));
+  const validDates = Array.from(state.dates).filter(d=>!isWeekendOrHoliday(d)).sort();
   return validDates.map(d=>{
     const rows = efetivoForDate(d);
     const escSet = new Set(), faltSet = new Set();
@@ -1910,37 +1907,14 @@ function computeAbsenceTrendDaily(){
       escSet.add(matr);
       if(!r.presente && r.status!=='Férias') faltSet.add(matr);
     });
-    return {data:d, escalados:escSet.size, faltas:faltSet.size};
+    return {label: fmtDateLabel(d).slice(0,5), escalados:escSet.size, faltas:faltSet.size, pct: escSet.size? faltSet.size/escSet.size : 0};
   }).filter(x=>x.escalados>0);
-}
-function bucketAbsenceTrend(daily, mode){
-  const buckets = new Map();
-  daily.forEach(d=>{
-    let key, label;
-    if(mode==='semana'){
-      const {week, year} = isoWeekOf(d.data);
-      key = year+'-W'+String(week).padStart(2,'0');
-      label = 'S'+week;
-    } else if(mode==='mes'){
-      key = d.data.slice(0,7);
-      label = fmtMonthLabel(key);
-    } else {
-      key = d.data;
-      label = fmtDateLabel(d.data).slice(0,5);
-    }
-    if(!buckets.has(key)) buckets.set(key, {key,label,escalados:0,faltas:0});
-    const b = buckets.get(key);
-    b.escalados += d.escalados;
-    b.faltas += d.faltas;
-  });
-  return Array.from(buckets.values()).sort((a,b)=>a.key<b.key?-1:(a.key>b.key?1:0)).map(b=>({...b, pct: b.escalados? b.faltas/b.escalados : 0}));
 }
 function renderAbsenceTrend(){
   const box = document.getElementById('ab-trend-chart');
   const legend = document.getElementById('ab-trend-legend');
   if(!box) return;
-  const daily = computeAbsenceTrendDaily();
-  const entries = bucketAbsenceTrend(daily, state.ab.trendMode);
+  const entries = computeAbsenceTrendDaily();
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; legend.innerHTML=''; return; }
 
   const n = entries.length;
@@ -1991,10 +1965,13 @@ function renderAbsenceTrend(){
   const dots = linePts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" style="fill:var(--paper); stroke:${lineColor}; stroke-width:2;"/>`).join('');
   const labelMinGap = 15;
   const pctCeil = padT+innerH-6;
+  // O rótulo do % sempre acompanha o próprio ponto da linha (y+16) — só é
+  // empurrado para baixo quando isso colidiria de fato com o rótulo de
+  // escalados logo acima dele, nunca pulando para longe do ponto.
   const pctLabels = linePts.map(([x,y],idx)=>{
     let ly = y+16;
     const escY = escLabelYs[idx];
-    if(escY!=null) ly = Math.max(ly, escY+labelMinGap);
+    if(escY!=null && Math.abs(escY-ly)<labelMinGap) ly = escY+labelMinGap;
     ly = Math.min(pctCeil, ly);
     return `<text class="scurve-axis-label ab-trend-pct-label" x="${x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" style="fill:${lineColor};">${fmtPct1(entries[idx].pct)}</text>`;
   }).join('');
@@ -2062,9 +2039,17 @@ function renderApont(){
     if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoByName.get(enc) || '—', pessoas:[]});
     groups.get(key).pessoas.push(r);
   });
-  const entries = Array.from(groups.values()).sort((a,b)=>b.pessoas.length-a.pessoas.length);
+  const search = state.apont.search.toLowerCase();
+  let entries = Array.from(groups.values()).sort((a,b)=>b.pessoas.length-a.pessoas.length);
+  if(search) entries = entries.filter(e=>e.enc.toLowerCase().includes(search));
   const validKeys = new Set(entries.map(e=>e.sup+'||'+e.enc+'||'+e.os));
   Array.from(state.apont.expanded).forEach(k=>{ if(!validKeys.has(k)) state.apont.expanded.delete(k); });
+
+  if(entries.length===0){
+    tbody.innerHTML = '';
+    emptyEl.style.display = '';
+    return;
+  }
 
   tbody.innerHTML = '';
   entries.forEach(e=>{
@@ -2075,7 +2060,7 @@ function renderApont(){
     tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
     tr.innerHTML = `
       <td class="ov-table-name">${escHtml(e.sup)}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
-      <td>${escHtml(e.enc)}</td>
+      <td>${highlightMatch(e.enc, state.apont.search)}</td>
       <td>${escHtml(e.cargo)}</td>
       <td class="num-col num">${e.pessoas.length}</td>
       <td><span class="badge-contrato ${contrato}">OS ${escHtml(osLabel(e.os))}</span></td>`;
@@ -2189,19 +2174,7 @@ const eqModeBox = document.getElementById('eq-mode');
   eqModeBox.appendChild(btn);
 });
 document.getElementById('eq-search').addEventListener('input', e=>{state.eq.search=e.target.value; renderEquipes();});
-
-const abTrendModeBox = document.getElementById('ab-trend-mode');
-[['dia','Diário'],['semana','Semanal'],['mes','Mensal']].forEach(([val,label])=>{
-  const btn = document.createElement('button');
-  btn.textContent = label;
-  if(state.ab.trendMode===val) btn.classList.add('active');
-  btn.addEventListener('click', ()=>{
-    state.ab.trendMode = val;
-    abTrendModeBox.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
-    renderAbsenceTrend();
-  });
-  abTrendModeBox.appendChild(btn);
-});
+document.getElementById('apont-search').addEventListener('input', e=>{state.apont.search=e.target.value; renderApont();});
 
 document.getElementById('hm-search').addEventListener('input', e=>{state.hm.search=e.target.value; renderPlanejamento();});
 document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ state.hm.scurve = !state.hm.scurve; renderScurve(); });
@@ -2526,6 +2499,8 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       state.cf.os = new Set(); state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
       state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
       state.eq.search='';
+      state.apont.search='';
+      document.getElementById('apont-search').value = '';
       renderAll();
       renderQualidade();
       statusEl.className = 'settings-status ok';
