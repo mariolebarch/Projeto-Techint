@@ -2047,23 +2047,28 @@ function renderApont(){
   }
   emptyEl.style.display = 'none';
 
+  // Cargo do próprio encarregado (não o dos colaboradores apontados por ele) —
+  // buscado no cadastro completo, já que o encarregado pode não estar
+  // presente na data filtrada.
+  const cargoByName = new Map();
+  DATA.efetivo.forEach(r=>{ if(r.nome && r.cargo && !cargoByName.has(r.nome)) cargoByName.set(r.nome, r.cargo); });
+
   const groups = new Map();
   ef.forEach(r=>{
     const sup = r.supervisor || '—';
     const enc = r.encarregado || '—';
-    const cargo = r.cargo || '—';
     const os = String(r.os);
-    const key = sup+'||'+enc+'||'+cargo+'||'+os;
-    if(!groups.has(key)) groups.set(key, {sup, enc, cargo, os, pessoas:[]});
+    const key = sup+'||'+enc+'||'+os;
+    if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoByName.get(enc) || '—', pessoas:[]});
     groups.get(key).pessoas.push(r);
   });
   const entries = Array.from(groups.values()).sort((a,b)=>b.pessoas.length-a.pessoas.length);
-  const validKeys = new Set(entries.map(e=>e.sup+'||'+e.enc+'||'+e.cargo+'||'+e.os));
+  const validKeys = new Set(entries.map(e=>e.sup+'||'+e.enc+'||'+e.os));
   Array.from(state.apont.expanded).forEach(k=>{ if(!validKeys.has(k)) state.apont.expanded.delete(k); });
 
   tbody.innerHTML = '';
   entries.forEach(e=>{
-    const key = e.sup+'||'+e.enc+'||'+e.cargo+'||'+e.os;
+    const key = e.sup+'||'+e.enc+'||'+e.os;
     const expanded = state.apont.expanded.has(key);
     const contrato = contratoOfOs(e.os);
     const tr = document.createElement('tr');
@@ -2085,7 +2090,7 @@ function renderApont(){
       dtr.className = 'cf-detail-row';
       const chips = e.pessoas.map(p=>{
         const matr = p.matr_usm || p.matr_tct || p.sap;
-        return `<span class="person-chip"><span class="n">${escHtml(p.nome||'—')}</span><span class="m">${escHtml(matr!=null?String(matr):'—')} &middot; ${escHtml(p.status||'—')}</span></span>`;
+        return `<span class="person-chip"><span class="n">${escHtml(p.nome||'—')}</span><span class="m">${escHtml(p.cargo||'—')} &middot; ${escHtml(matr!=null?String(matr):'—')}</span></span>`;
       }).join('');
       dtr.innerHTML = `<td colspan="5" class="cf-cargo-name"><div style="display:flex; flex-wrap:wrap;">${chips}</div></td>`;
       tbody.appendChild(dtr);

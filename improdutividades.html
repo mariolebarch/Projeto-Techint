@@ -248,7 +248,12 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .table-scroll{overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
 .sup-detail-scroll{max-height:480px; overflow-y:auto;}
 .sup-detail-scroll td.num, .sup-detail-scroll th.num-col{font-family:var(--font-mono);}
+.sup-detail-scroll td.num-col, .sup-detail-scroll th.num-col{text-align:center;}
 .sup-detail-scroll tbody tr:first-child td{border-top:none;}
+.sup-detail-scroll td.sd-freeze, .sup-detail-scroll th.sd-freeze{position:sticky; z-index:2; width:172px; min-width:172px; max-width:172px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:var(--paper); box-shadow:2px 0 4px -2px rgba(0,0,0,.15);}
+.sup-detail-scroll thead th.sd-freeze{background:var(--table-accent); z-index:5;}
+.sup-detail-scroll .sd-freeze-1{left:0;}
+.sup-detail-scroll .sd-freeze-2{left:172px;}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
@@ -537,7 +542,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
       <div class="card-head">
         <h3>Interferências Registradas</h3>
         <div class="filters">
-          <div id="ov-tipos-sup-chip"></div>
+          <div class="field"><label>Supervisor</label><select id="ov-tipos-sup-filter"></select></div>
           <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
         </div>
       </div>
@@ -546,7 +551,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
     <div class="card">
       <div class="card-head">
-        <h3>Detalhamento por Supervisor</h3>
+        <h3>Detalhamento</h3>
         <div class="filters">
           <div class="field"><label>&nbsp;</label><button class="small-btn" id="sup-detail-enc-toggle" type="button">+ Encarregado</button></div>
         </div>
@@ -1097,16 +1102,17 @@ function buildTiposRealPrevData(rows){
   return Array.from(map.values()).sort((a,b)=>b.real-a.real);
 }
 
-function renderTiposSupChip(){
-  const el = document.getElementById('ov-tipos-sup-chip');
-  if(!el) return;
-  const sup = state.ovTipos.sup;
-  if(!sup){ el.innerHTML = ''; return; }
-  el.innerHTML = `<span class="sup-filter-chip">Supervisor: <b>${escHtml(sup)}</b><button type="button" id="ov-tipos-sup-clear" title="Limpar filtro de supervisor" aria-label="Limpar filtro de supervisor">&times;</button></span>`;
-  document.getElementById('ov-tipos-sup-clear').addEventListener('click', ()=>{
-    state.ovTipos.sup = null;
-    renderVisaoTiposChart();
-  });
+function populateOvTiposSupSelect(){
+  const sel = document.getElementById('ov-tipos-sup-filter');
+  if(!sel) return;
+  const supPresent = new Set(filteredInterf().map(r=>r.sup).filter(Boolean));
+  if(state.ovTipos.sup && !supPresent.has(state.ovTipos.sup)) state.ovTipos.sup = null;
+  const options = (DATA.supervisores || []).filter(s=>supPresent.has(s));
+  sel.innerHTML = '';
+  const optAll = document.createElement('option'); optAll.value=''; optAll.textContent='Todos os supervisores';
+  sel.appendChild(optAll);
+  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt); });
+  sel.value = state.ovTipos.sup || '';
 }
 
 function renderVisaoTiposChart(){
@@ -1114,7 +1120,7 @@ function renderVisaoTiposChart(){
   const filter = state.ovTipos.filter;
   const supFilter = state.ovTipos.sup;
   const baseRows = supFilter ? filteredInterf().filter(r=>r.sup===supFilter) : filteredInterf();
-  renderTiposSupChip();
+  populateOvTiposSupSelect();
   if(filter==='REALPREV'){
     renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
     renderSupDetailTable(baseRows);
@@ -1137,7 +1143,19 @@ function renderVisaoTiposChart(){
   renderSupDetailTable(rows);
 }
 
-/* ---------- Detalhamento por Supervisor ---------- */
+/* ---------- Detalhamento ---------- */
+function toTitleCase(s){
+  if(!s) return s;
+  return s.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+}
+function heatBucket(ratio){
+  if(ratio<=0) return 0;
+  if(ratio<0.2) return 1;
+  if(ratio<0.4) return 2;
+  if(ratio<0.6) return 3;
+  if(ratio<0.8) return 4;
+  return 5;
+}
 function renderSupDetailTable(rows){
   const box = document.getElementById('sup-detail-table');
   const emptyEl = document.getElementById('sup-detail-empty');
@@ -1149,7 +1167,7 @@ function renderSupDetailTable(rows){
     const key = normalizeTipoLabel(r.it);
     typeTotals.set(key, (typeTotals.get(key)||0) + r.real);
   });
-  const types = Array.from(typeTotals.entries()).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
+  const types = Array.from(typeTotals.entries()).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
 
   const groups = new Map();
   rows.forEach(r=>{
@@ -1173,20 +1191,26 @@ function renderSupDetailTable(rows){
   }
   emptyEl.style.display = 'none';
 
+  const colMax = new Map(types.map(t=>[t, Math.max(1, ...entries.map(g=>g.byType.get(t)||0))]));
+  const supFreezeClass = byEnc ? 'sd-freeze sd-freeze-2' : 'sd-freeze sd-freeze-1';
+
   const thead = `<thead><tr>
-      ${byEnc ? '<th>Encarregado</th>' : ''}
-      <th>Supervisor</th>
+      ${byEnc ? '<th class="sd-freeze sd-freeze-1">Encarregado</th>' : ''}
+      <th class="${supFreezeClass}">Supervisor</th>
       ${types.map(t=>`<th class="num-col">${escHtml(t)}</th>`).join('')}
       <th class="num-col">HH Total</th>
     </tr></thead>`;
 
   const tbody = '<tbody>' + entries.map(g=>`
     <tr>
-      ${byEnc ? `<td>${escHtml(g.enc)}</td>` : ''}
-      <td class="ov-table-name">${escHtml(g.sup)}</td>
+      ${byEnc ? `<td class="sd-freeze sd-freeze-1">${escHtml(toTitleCase(g.enc))}</td>` : ''}
+      <td class="ov-table-name sd-freeze ${byEnc ? 'sd-freeze-2' : 'sd-freeze-1'}">${escHtml(g.sup)}</td>
       ${types.map(t=>{
         const v = g.byType.get(t)||0;
-        return `<td class="num-col num">${v ? fmtH(v) : '—'}</td>`;
+        if(!v) return '<td class="num-col num">—</td>';
+        const bucket = heatBucket(v/colMax.get(t));
+        const style = `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '');
+        return `<td class="num-col num" style="${style}">${fmtH(v)}</td>`;
       }).join('')}
       <td class="num-col num" style="font-weight:700;">${fmtH(g.total)}</td>
     </tr>`).join('') + '</tbody>';
@@ -1451,8 +1475,8 @@ function renderPorOs(){
       const groups = Array.from(byInterf.values()).map(g=>{
         const eligible = SLA_INTERFERENCIAS.has(g.it);
         const exced = eligible && g.plan>0 ? Math.max(0, g.real-g.plan) : 0;
-        return Object.assign(g, {exced});
-      });
+        return Object.assign(g, {exced, status: sevStatus(g.plan, g.real, exced)});
+      }).filter(g => state.poros.statusFilter.size===0 || state.poros.statusFilter.has(g.status));
 
       const respDot = resp => `<span class="resp-dot" style="background:${resp==='USIMINAS'?'var(--resp-usiminas)':'var(--resp-techint)'};" title="${resp==='USIMINAS'?'Usiminas':'Techint'}"></span>`;
       const renderDetailRow = d => {
@@ -1816,6 +1840,11 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
     renderPorOs();
   });
   porosOsRespBox.appendChild(btn);
+});
+
+document.getElementById('ov-tipos-sup-filter').addEventListener('change', e=>{
+  state.ovTipos.sup = e.target.value || null;
+  renderVisaoTiposChart();
 });
 
 const ovTiposSelect = document.getElementById('ov-tipos-resp');
