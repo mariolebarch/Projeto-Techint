@@ -233,6 +233,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
 .msel-actions button:hover{text-decoration:underline;}
 .msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
+.msel-week-row{display:flex; flex-wrap:wrap; gap:5px; padding:2px 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px;}
+.msel-week-btn{border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); border-radius:12px; padding:3px 9px; font-size:11px; font-family:var(--font-mono); cursor:pointer;}
+.msel-week-btn:hover{border-color:var(--steel); color:var(--steel-strong); background:var(--steel-soft);}
 .msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
 .msel-item:hover{background:var(--sand);}
 .msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
@@ -243,6 +246,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-empty{padding:10px 6px; font-size:12.5px; color:var(--text-muted);}
 
 .table-scroll{overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
+.sup-detail-scroll{max-height:480px; overflow-y:auto;}
+.sup-detail-scroll td.num, .sup-detail-scroll th.num-col{font-family:var(--font-mono);}
+.sup-detail-scroll tbody tr:first-child td{border-top:none;}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
@@ -321,6 +327,8 @@ tbody tr:hover td{background:var(--border-soft);}
 .small-btn{border:1px solid var(--border); background:var(--sand); border-radius:7px; padding:6px 11px; font-size:12.5px; cursor:pointer; color:var(--text-secondary);}
 .small-btn:hover{border-color:var(--steel); color:var(--steel-strong);}
 .small-btn.active{background:var(--steel); border-color:var(--steel); color:var(--text-on-accent);}
+.clear-x-btn{width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; transition:background .15s, border-color .15s, color .15s;}
+.clear-x-btn:hover{background:var(--critical); border-color:var(--critical); color:#fff;}
 
 /* Expandable OS rows */
 tr.os-row{cursor:pointer;}
@@ -387,7 +395,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 /* Interferências Registradas (Visão Geral) */
 .tipos-chart{background:var(--sand); border-radius:8px; padding:10px;}
 #ov-tipos-bars .col-val-label{font-weight:700; stroke:var(--sand); stroke-width:3px; stroke-linejoin:round; paint-order:stroke fill;}
-#ov-tipos-bars .scurve-axis-label, #ov-tipos-drill-chart .scurve-axis-label{fill:var(--text-primary);}
+#ov-tipos-bars .scurve-axis-label{fill:var(--text-primary);}
 #ov-tipos-resp{background:var(--navy); color:#fff; border-color:var(--navy-700);}
 #ov-tipos-resp:hover{border-color:var(--steel);}
 .sup-filter-chip{display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 8px 0 12px; border-radius:16px; background:var(--navy-100); border:1px solid var(--navy-700); font-size:12.5px; color:var(--text-primary); white-space:nowrap;}
@@ -503,7 +511,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
     <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
     <div class="field"><label>Supervisor</label><select id="sup-select-global"></select></div>
-    <div class="field"><label>&nbsp;</label><button class="small-btn" id="global-clear-btn" type="button">Limpar filtros</button></div>
+    <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
   </div>
@@ -533,23 +541,21 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
           <div class="field"><label>Filtro</label><select id="ov-tipos-resp"></select></div>
         </div>
       </div>
-      <p class="card-note" style="margin-bottom:10px;">Dê dois cliques numa barra para ver o acumulado por data registrada daquela interferência.</p>
       <div id="ov-tipos-bars" class="scurve-wrap tipos-chart"></div>
-      <div id="ov-tipos-drill" hidden style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-soft);">
-        <div class="card-head" style="margin-bottom:10px;">
-          <h4 id="ov-tipos-drill-title" style="font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-family:var(--font-body); font-weight:700;"></h4>
-          <button class="small-btn" id="ov-tipos-drill-close" type="button">&times; Fechar</button>
-        </div>
-        <div id="ov-tipos-drill-chart" class="scurve-wrap tipos-chart"></div>
-      </div>
     </div>
 
     <div class="card">
       <div class="card-head">
-        <h3>Ranking de Supervisores</h3>
-        <span class="card-note">Horas de interferência sob cada supervisor, com tendência 1&ordf; vs. 2&ordf; metade do período &middot; clique num supervisor para filtrar o gráfico acima</span>
+        <h3>Detalhamento por Supervisor</h3>
+        <div class="filters">
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="sup-detail-enc-toggle" type="button">+ Encarregado</button></div>
+        </div>
       </div>
-      <div id="ov-sup-bars"></div>
+      <p class="card-note" style="margin-bottom:10px;">Horas por tipo de interferência, cruzadas com o filtro do gráfico acima.</p>
+      <div class="table-scroll sup-detail-scroll">
+        <table id="sup-detail-table"></table>
+      </div>
+      <div class="empty-state" id="sup-detail-empty" style="display:none;">Sem dados para os filtros atuais.</div>
     </div>
   </section>
 
@@ -642,7 +648,7 @@ const state = {
   grupo: 'all',
   sup: 'all',
   poros: {expanded:new Set(), osRespFilter:'all', statusFilter:new Set()},
-  ovTipos: {filter:'ALL', sup:null, drillType:null},
+  ovTipos: {filter:'ALL', sup:null, byEncarregado:false},
 };
 
 function fmtDateLabel(iso){
@@ -654,6 +660,16 @@ function fmtDateLabelFull(iso){
   const d = new Date(iso+'T00:00:00');
   const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' — '+dias[d.getDay()];
+}
+function isoWeekOf(iso){
+  const d = new Date(iso+'T00:00:00Z');
+  const dayNum = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate()-dayNum+3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const firstDayNum = (firstThursday.getUTCDay()+6)%7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate()-firstDayNum+3);
+  const week = 1 + Math.round((d-firstThursday)/(7*24*3600*1000));
+  return {week, year:d.getUTCFullYear()};
 }
 function datesLabel(){
   const arr = Array.from(state.dates).sort();
@@ -723,6 +739,34 @@ function buildDateMultiSelect(){
   actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="none">Limpar</button>`;
   panel.appendChild(actions);
 
+  const weekMap = new Map();
+  DATA.datas.forEach(d=>{
+    const {week, year} = isoWeekOf(d);
+    const key = year+'-W'+String(week).padStart(2,'0');
+    if(!weekMap.has(key)) weekMap.set(key, {week, year, dates:[]});
+    weekMap.get(key).dates.push(d);
+  });
+  if(weekMap.size>1){
+    const weekLabel = document.createElement('div'); weekLabel.className='msel-group-label'; weekLabel.textContent='Semana do ano';
+    panel.appendChild(weekLabel);
+    const weekRow = document.createElement('div'); weekRow.className='msel-week-row';
+    Array.from(weekMap.values()).sort((a,b)=> a.year-b.year || a.week-b.week).forEach(w=>{
+      const wbtn = document.createElement('button');
+      wbtn.type = 'button'; wbtn.className = 'msel-week-btn'; wbtn.textContent = 'S'+w.week;
+      wbtn.title = w.dates.length+' data(s) na semana '+w.week;
+      wbtn.addEventListener('click', ()=>{
+        state.dates.clear();
+        w.dates.forEach(d=>state.dates.add(d));
+        panel.querySelectorAll('input[type=checkbox]').forEach((cb,i)=>{ cb.checked = w.dates.includes(DATA.datas[i]); });
+        updateBtnLabel(); renderAll();
+      });
+      weekRow.appendChild(wbtn);
+    });
+    panel.appendChild(weekRow);
+    const datesLabelEl = document.createElement('div'); datesLabelEl.className='msel-group-label'; datesLabelEl.textContent='Datas';
+    panel.appendChild(datesLabelEl);
+  }
+
   DATA.datas.forEach(d=>{
     const row = document.createElement('label'); row.className='msel-item';
     const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.dates.has(d);
@@ -778,7 +822,16 @@ function buildOsMultiSelect(){
     else btn.textContent = state.os.size + ' OS selecionadas';
   }
 
-  const osOptions = DATA.os_list || [];
+  const dateActive = state.dates.size>0;
+  const passDateFacet = d => !dateActive || state.dates.has(d);
+  const osPresent = new Set(
+    DATA.interferencias
+      .filter(r => passDateFacet(r.d) && (state.sup==='all' || r.sup===state.sup))
+      .map(r=>r.os)
+  );
+  const osOptions = (DATA.os_list || []).filter(os=>osPresent.has(os));
+  const validOsSet = new Set(osOptions);
+  Array.from(state.os).forEach(v=>{ if(!validOsSet.has(v)) state.os.delete(v); });
   if(osOptions.length===0){
     panel.innerHTML = '<div class="msel-empty">Nenhuma OS disponível.</div>';
     updateBtnLabel();
@@ -897,7 +950,17 @@ function populateSelect(sel, options, allLabel, current){
 function renderGlobalFilters(){
   buildDateMultiSelect();
   buildOsMultiSelect();
-  populateSelect(document.getElementById('sup-select-global'), DATA.supervisores || [], 'Todos os supervisores', state.sup);
+  const dateActive = state.dates.size>0;
+  const passDateFacet = d => !dateActive || state.dates.has(d);
+  const supPresent = new Set(
+    DATA.interferencias
+      .filter(r => passDateFacet(r.d) && (state.os.size===0 || state.os.has(r.os)))
+      .map(r=>r.sup)
+      .filter(Boolean)
+  );
+  const supervisorOptions = (DATA.supervisores || []).filter(s=>supPresent.has(s));
+  if(state.sup!=='all' && !supPresent.has(state.sup)) state.sup = 'all';
+  populateSelect(document.getElementById('sup-select-global'), supervisorOptions, 'Todos os supervisores', state.sup);
 }
 
 /* ---------- KPIs & Visão Geral ---------- */
@@ -926,7 +989,6 @@ function renderKPIs(){
   renderCallouts(rows, exced);
   renderRespChart(rows);
   renderVisaoTiposChart();
-  renderSupervisorRanking(rows);
 }
 
 function renderCallouts(rows, excedTotal){
@@ -1044,7 +1106,6 @@ function renderTiposSupChip(){
   document.getElementById('ov-tipos-sup-clear').addEventListener('click', ()=>{
     state.ovTipos.sup = null;
     renderVisaoTiposChart();
-    renderSupervisorRanking(filteredInterf());
   });
 }
 
@@ -1054,11 +1115,9 @@ function renderVisaoTiposChart(){
   const supFilter = state.ovTipos.sup;
   const baseRows = supFilter ? filteredInterf().filter(r=>r.sup===supFilter) : filteredInterf();
   renderTiposSupChip();
-  const drillEl = document.getElementById('ov-tipos-drill');
   if(filter==='REALPREV'){
     renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
-    state.ovTipos.drillType = null;
-    drillEl.hidden = true;
+    renderSupDetailTable(baseRows);
     return;
   }
   const rows = filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
@@ -1070,174 +1129,69 @@ function renderVisaoTiposChart(){
     byTipo.get(key).v += r.real;
   });
   const entries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
-  const onDblClick = e => renderTiposDrilldown(rows, e, filter);
   if(filter==='ALL'){
-    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onDblClick});
+    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
   } else {
-    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onDblClick});
+    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
   }
-  const stillValid = state.ovTipos.drillType && entries.find(e=>e.k===state.ovTipos.drillType);
-  if(stillValid){
-    renderTiposDrilldown(rows, stillValid, filter);
-  } else {
-    state.ovTipos.drillType = null;
-    drillEl.hidden = true;
-  }
+  renderSupDetailTable(rows);
 }
 
-function renderTiposDrilldown(rows, entry, filter){
-  state.ovTipos.drillType = entry.k;
-  const wrap = document.getElementById('ov-tipos-drill');
-  const title = document.getElementById('ov-tipos-drill-title');
-  const chartBox = document.getElementById('ov-tipos-drill-chart');
-  wrap.hidden = false;
-  title.textContent = 'Acumulado por data — ' + entry.k;
-  const byDate = new Map();
-  rows.filter(r=>normalizeTipoLabel(r.it)===entry.k).forEach(r=>{
-    byDate.set(r.d, (byDate.get(r.d)||0) + r.real);
-  });
-  const dateEntries = Array.from(byDate.entries())
-    .sort((a,b)=> a[0]<b[0] ? -1 : (a[0]>b[0] ? 1 : 0))
-    .map(([d,v])=>({k: d.slice(8,10)+'/'+d.slice(5,7), v}));
-  const color = filter==='ALL'
-    ? (entry.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)')
-    : (filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)');
-  renderAreaChart(chartBox, dateEntries, {color, valueLabel:'Horas', unit:'h', ariaLabel:'Acumulado por data de '+entry.k});
-}
+/* ---------- Detalhamento por Supervisor ---------- */
+function renderSupDetailTable(rows){
+  const box = document.getElementById('sup-detail-table');
+  const emptyEl = document.getElementById('sup-detail-empty');
+  const byEnc = state.ovTipos.byEncarregado;
 
-function renderAreaChart(box, entries, opts){
-  opts = opts || {};
-  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
-  const n = entries.length;
-  const W = Math.max(760, n*(n>40?22:56)), H=300, padL=52, padR=24, padT=24, padB=40;
-  const innerW = W-padL-padR, innerH = H-padT-padB;
-  const maxV = Math.max(1, ...entries.map(e=>e.v));
-  const xOf = i => n<=1 ? padL+innerW/2 : padL + innerW*i/(n-1);
-  const yOf = v => padT + innerH - innerH*v/maxV;
-  const color = opts.color || 'var(--resp-techint)';
-  const gradId = 'areaGrad'+Math.random().toString(36).slice(2,9);
-
-  let gridSvg='', axisSvg='';
-  [0,.25,.5,.75,1].forEach(f=>{
-    const gy = padT+innerH-innerH*f;
-    gridSvg += `<line class="scurve-grid-line" x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}"/>`;
-    axisSvg += `<text class="scurve-axis-label" x="${(padL-8).toFixed(1)}" y="${(gy+3).toFixed(1)}" text-anchor="end">${fmtH(maxV*f)}</text>`;
-  });
-  gridSvg += `<line class="chart-baseline" x1="${padL}" y1="${(padT+innerH).toFixed(1)}" x2="${W-padR}" y2="${(padT+innerH).toFixed(1)}"/>`;
-
-  const pts = entries.map((e,i)=>[xOf(i), yOf(e.v)]);
-  const labelEvery = Math.max(1, Math.ceil(n/16));
-  entries.forEach((e,i)=>{
-    if(i%labelEvery===0 || i===n-1){
-      axisSvg += `<text class="scurve-axis-label" x="${xOf(i).toFixed(1)}" y="${(H-padB+16).toFixed(1)}" text-anchor="middle">${escHtml(e.k)}</text>`;
-    }
-  });
-
-  const pathD = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
-  const areaD = pathD + ` L${pts[pts.length-1][0].toFixed(1)} ${(padT+innerH).toFixed(1)} L${pts[0][0].toFixed(1)} ${(padT+innerH).toFixed(1)} Z`;
-  const dots = pts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" style="fill:var(--paper); stroke:${color}; stroke-width:2;"/>`).join('');
-
-  const ttId = 'area-tt-'+gradId, hitClass = 'area-hit-'+gradId;
-  const slot = n<=1 ? innerW : innerW/(n-1);
-  const hitboxes = pts.map(([x],i)=>`<rect class="${hitClass}" data-idx="${i}" x="${(x-slot/2).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`).join('');
-
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${escHtml(opts.ariaLabel||'Gráfico de área')}">
-      <defs>
-        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" style="stop-color:${color};" stop-opacity=".28"/>
-          <stop offset="100%" style="stop-color:${color};" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      ${gridSvg}
-      <path d="${areaD}" style="fill:url(#${gradId});"/>
-      <path class="scurve-line" d="${pathD}" style="stroke:${color}; stroke-width:2.5;"/>
-      ${dots}${axisSvg}${hitboxes}
-    </svg>
-    <div class="scurve-tooltip" id="${ttId}"></div>`;
-
-  const svgEl = box.querySelector('svg');
-  const tooltip = document.getElementById(ttId);
-  box.querySelectorAll('.'+hitClass).forEach(hit=>{
-    const idx = +hit.dataset.idx;
-    const e = entries[idx];
-    hit.addEventListener('pointermove', ()=>{
-      tooltip.innerHTML = `<span class="tt-date">${escHtml(e.k)}</span>` +
-        `<div class="tt-row"><span class="sw" style="background:${color};"></span>${escHtml(opts.valueLabel||'Valor')}<span class="tt-val">${fmtH(e.v)}${opts.unit||''}</span></div>`;
-      tooltip.classList.add('show');
-      const wrapRect = box.getBoundingClientRect();
-      const svgRect = svgEl.getBoundingClientRect();
-      const scale = W/svgRect.width;
-      const cx = xOf(idx);
-      const ttW = tooltip.offsetWidth || 160;
-      let left = (svgRect.left-wrapRect.left) + cx/scale - ttW/2;
-      tooltip.style.left = Math.max(0, Math.min(wrapRect.width-ttW, left))+'px';
-      tooltip.style.top = '4px';
-    });
-    hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
-  });
-}
-
-/* ---------- Ranking de Supervisores ---------- */
-function renderSupervisorRanking(rows){
-  const barsBox = document.getElementById('ov-sup-bars');
-  const datesSorted = Array.from(state.dates).sort();
-  const mid = Math.floor(datesSorted.length/2);
-  const firstHalf = new Set(datesSorted.slice(0,mid));
-  const secondHalf = new Set(datesSorted.slice(mid));
-  const hasTrend = datesSorted.length>=4;
-
-  const bySup = new Map();
+  const typeTotals = new Map();
   rows.forEach(r=>{
-    const key = r.sup || '—';
-    if(!bySup.has(key)) bySup.set(key, {sup:key, real:0, encs:new Set(), first:0, second:0});
-    const g = bySup.get(key);
-    g.real += r.real;
-    if(r.enc) g.encs.add(r.enc);
-    if(firstHalf.has(r.d)) g.first += r.real;
-    if(secondHalf.has(r.d)) g.second += r.real;
+    if(!r.it) return;
+    const key = normalizeTipoLabel(r.it);
+    typeTotals.set(key, (typeTotals.get(key)||0) + r.real);
   });
-  const entries = Array.from(bySup.values()).sort((a,b)=>b.real-a.real);
-  if(entries.length===0){ barsBox.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
+  const types = Array.from(typeTotals.entries()).sort((a,b)=>b[1]-a[1]).map(([k])=>k);
 
-  const totalReal = entries.reduce((a,e)=>a+e.real,0);
-  const max = entries[0].real;
-  const top = entries.slice(0,8);
-  barsBox.innerHTML = `<div class="sup-rank-list">` + top.map((e,i)=>{
-    let trendHtml = '<span class="trend-cell flat">sem tendência</span>';
-    if(hasTrend && e.first>0){
-      const delta = (e.second-e.first)/e.first;
-      const dir = delta>0.05 ? 'up' : (delta<-0.05 ? 'down' : 'flat');
-      const arrow = dir==='up' ? '▲' : (dir==='down' ? '▼' : '—');
-      trendHtml = `<span class="trend-cell ${dir}">${arrow} ${delta>=0?'+':''}${fmtPct1(delta)} vs. 1&ordf; metade</span>`;
+  const groups = new Map();
+  rows.forEach(r=>{
+    const sup = r.sup || '—';
+    const enc = r.enc || '—';
+    const key = byEnc ? enc+'||'+sup : sup;
+    if(!groups.has(key)) groups.set(key, {sup, enc, byType:new Map(), total:0});
+    const g = groups.get(key);
+    if(r.it){
+      const tk = normalizeTipoLabel(r.it);
+      g.byType.set(tk, (g.byType.get(tk)||0) + r.real);
     }
-    const pct = totalReal ? e.real/totalReal : 0;
-    const widthPct = max ? Math.max(3, e.real/max*100) : 0;
-    const selectable = e.sup!=='—';
-    const selected = state.ovTipos.sup===e.sup;
-    return `
-    <div class="sup-row${selected?' selected':''}"${selectable?` data-sup="${escHtml(e.sup)}" title="Clique para filtrar Interferências Registradas por ${escHtml(e.sup)}"`:' style="cursor:default;"'}>
-      <div class="sup-row-top">
-        <span class="sup-rank">${i+1}</span>
-        <span class="sup-name" title="${escHtml(e.sup)}">${escHtml(e.sup)}</span>
-        <span class="sup-hours num">${fmtH(e.real)}h</span>
-        <span class="sup-pct num">${fmtPct1(pct)}</span>
-      </div>
-      <div class="sup-row-bar"><div class="sup-bar-fill" style="width:${widthPct}%;"></div></div>
-      <div class="sup-row-meta">
-        <span class="sup-chip">${e.encs.size} recurso${e.encs.size===1?'':'s'}</span>
-        ${trendHtml}
-      </div>
-    </div>`;
-  }).join('') + `</div>`;
-
-  barsBox.querySelectorAll('.sup-row[data-sup]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const sup = el.dataset.sup;
-      state.ovTipos.sup = state.ovTipos.sup===sup ? null : sup;
-      renderVisaoTiposChart();
-      renderSupervisorRanking(rows);
-    });
+    g.total += r.real;
   });
+  const entries = Array.from(groups.values()).sort((a,b)=>b.total-a.total);
+
+  if(entries.length===0 || types.length===0){
+    box.innerHTML = '';
+    emptyEl.style.display = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const thead = `<thead><tr>
+      ${byEnc ? '<th>Encarregado</th>' : ''}
+      <th>Supervisor</th>
+      ${types.map(t=>`<th class="num-col">${escHtml(t)}</th>`).join('')}
+      <th class="num-col">HH Total</th>
+    </tr></thead>`;
+
+  const tbody = '<tbody>' + entries.map(g=>`
+    <tr>
+      ${byEnc ? `<td>${escHtml(g.enc)}</td>` : ''}
+      <td class="ov-table-name">${escHtml(g.sup)}</td>
+      ${types.map(t=>{
+        const v = g.byType.get(t)||0;
+        return `<td class="num-col num">${v ? fmtH(v) : '—'}</td>`;
+      }).join('')}
+      <td class="num-col num" style="font-weight:700;">${fmtH(g.total)}</td>
+    </tr>`).join('') + '</tbody>';
+
+  box.innerHTML = thead + tbody;
 }
 
 const RDC_SIT_COLORS = {'Aprovado':'var(--good)','Elaboração':'var(--info)','Revisão':'var(--warning)','Aguardando Aprovação':'var(--warning)','Reprovado':'var(--critical)','Cancelado':'var(--slate)','Copiado':'var(--slate)'};
@@ -1604,7 +1558,7 @@ function renderTiposColumnChart(box, entries, opts){
     lines.forEach((ln,li)=>{
       axisSvg += `<text class="scurve-axis-label" x="${cx.toFixed(1)}" y="${(baseY+li*11).toFixed(1)}" text-anchor="middle">${escHtml(ln)}</text>`;
     });
-    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"${opts.onDblClick ? ' style="cursor:pointer;"' : ''}/>`;
+    hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
 
   let legend = '';
@@ -1641,9 +1595,6 @@ function renderTiposColumnChart(box, entries, opts){
       tooltip.style.top = '4px';
     });
     hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
-    if(opts.onDblClick){
-      hit.addEventListener('dblclick', ()=>opts.onDblClick(e));
-    }
   });
 }
 
@@ -1879,9 +1830,12 @@ ovTiposSelect.addEventListener('change', e=>{
   renderVisaoTiposChart();
 });
 
-document.getElementById('ov-tipos-drill-close').addEventListener('click', ()=>{
-  state.ovTipos.drillType = null;
-  document.getElementById('ov-tipos-drill').hidden = true;
+const supDetailEncToggle = document.getElementById('sup-detail-enc-toggle');
+supDetailEncToggle.addEventListener('click', ()=>{
+  state.ovTipos.byEncarregado = !state.ovTipos.byEncarregado;
+  supDetailEncToggle.classList.toggle('active', state.ovTipos.byEncarregado);
+  supDetailEncToggle.textContent = state.ovTipos.byEncarregado ? '− Encarregado' : '+ Encarregado';
+  renderVisaoTiposChart();
 });
 
 /* ---------- Tema claro/escuro ---------- */

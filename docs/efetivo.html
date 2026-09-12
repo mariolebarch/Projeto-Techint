@@ -229,6 +229,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
 .msel-actions button:hover{text-decoration:underline;}
 .msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
+.msel-week-row{display:flex; flex-wrap:wrap; gap:5px; padding:2px 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px;}
+.msel-week-btn{border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); border-radius:12px; padding:3px 9px; font-size:11px; font-family:var(--font-mono); cursor:pointer;}
+.msel-week-btn:hover{border-color:var(--steel); color:var(--steel-strong); background:var(--steel-soft);}
 .msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
 .msel-item:hover{background:var(--sand);}
 .msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
@@ -369,13 +372,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 .donut-legend-row .txt{display:flex; flex-direction:column; gap:1px;}
 .donut-legend-row .txt .n{font-weight:600; font-size:13.5px;}
 .donut-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
-.apoio-legend-row{display:flex; align-items:flex-start; gap:10px;}
-.apoio-legend-row .sw{width:12px; height:12px; border-radius:3px; flex:none; margin-top:3px;}
-.apoio-legend-body{display:flex; flex-direction:column; gap:5px; flex:1;}
-.apoio-legend-top{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
-.apoio-legend-body .bar-track{flex:none; width:100%;}
-.apoio-legend-top .n{font-weight:600; font-size:13.5px;}
-.apoio-legend-top .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); flex:none;}
 
 /* Colab. por OS — dynamic accordion + data bars */
 .colab-acc-wrap{display:flex; flex-direction:column; gap:10px;}
@@ -557,10 +553,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 
   <nav class="tabbar" id="tabbar">
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
+    <button class="tabbtn" data-tab="apont" aria-selected="false">Apontamento detalhado</button>
     <button class="tabbtn" data-tab="confronto" aria-selected="false">Confronto Diário</button>
     <button class="tabbtn" data-tab="planejamento" aria-selected="false">Planejamento Semanal</button>
     <button class="tabbtn" data-tab="ausencias" aria-selected="false">Ausências &amp; Absenteísmo</button>
-    <button class="tabbtn" data-tab="apoio" aria-selected="false">Apoio Distribuído</button>
   </nav>
 
   <!-- ================= VISÃO GERAL ================= -->
@@ -589,6 +585,20 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
           <div class="empty-state" id="eq-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ================= APONTAMENTO DETALHADO ================= -->
+  <section class="view" id="view-apont">
+    <div class="card" style="margin-top:0;">
+      <div class="card-head"><h3>Apontamento Detalhado</h3><span class="card-note">Supervisor, encarregado, cargo e OS &middot; dois cliques numa linha para ver as pessoas</span></div>
+      <div class="table-scroll" style="max-height:600px; overflow-y:auto;">
+        <table>
+          <thead><tr><th>Supervisor</th><th>Encarregado</th><th>Cargo</th><th class="num-col">Pessoas</th><th>OS</th></tr></thead>
+          <tbody id="apont-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="apont-empty" style="display:none;">Sem apontamentos para os filtros atuais.</div>
     </div>
   </section>
 
@@ -700,20 +710,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     </div>
   </section>
 
-  <!-- ================= APOIO DISTRIBUÍDO ================= -->
-  <section class="view" id="view-apoio">
-    <div class="two-col" style="margin-top:0;">
-      <div class="card">
-        <div class="card-head"><h3>Detalhado por OS</h3><span class="card-note">Solda, Pintura, Topografia, Movimentação de Carga, Andaime &middot; por volume de pessoas</span></div>
-        <div id="apoio-os-list"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Distribuição por Disciplina</h3><span class="card-note">Apoio presente &times; disciplina</span></div>
-        <div id="apoio-disc-overview"></div>
-      </div>
-    </div>
-  </section>
-
   <!-- ================= QUALIDADE ================= -->
   <section class="view" id="view-qualidade">
     <div class="two-col">
@@ -796,7 +792,7 @@ const state = {
   cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
-  apoio: {expanded:new Set()},
+  apont: {expanded:new Set()},
   ovColab: {expanded:new Set()},
   ab: {trendMode:'dia'},
 };
@@ -942,6 +938,34 @@ function buildDateMultiSelect(){
   actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="last">Só a mais recente</button>`;
   panel.appendChild(actions);
 
+  const weekMap = new Map();
+  DATA.datas_apontamento.forEach(d=>{
+    const {week, year} = isoWeekOf(d);
+    const key = year+'-W'+String(week).padStart(2,'0');
+    if(!weekMap.has(key)) weekMap.set(key, {week, year, dates:[]});
+    weekMap.get(key).dates.push(d);
+  });
+  if(weekMap.size>1){
+    const weekLabel = document.createElement('div'); weekLabel.className='msel-group-label'; weekLabel.textContent='Semana do ano';
+    panel.appendChild(weekLabel);
+    const weekRow = document.createElement('div'); weekRow.className='msel-week-row';
+    Array.from(weekMap.values()).sort((a,b)=> a.year-b.year || a.week-b.week).forEach(w=>{
+      const wbtn = document.createElement('button');
+      wbtn.type = 'button'; wbtn.className = 'msel-week-btn'; wbtn.textContent = 'S'+w.week;
+      wbtn.title = w.dates.length+' data(s) na semana '+w.week;
+      wbtn.addEventListener('click', ()=>{
+        state.dates.clear();
+        w.dates.forEach(d=>state.dates.add(d));
+        panel.querySelectorAll('input[type=checkbox]').forEach((cb,i)=>{ cb.checked = w.dates.includes(DATA.datas_apontamento[i]); });
+        updateBtnLabel(); renderAll();
+      });
+      weekRow.appendChild(wbtn);
+    });
+    panel.appendChild(weekRow);
+    const datesLabelEl = document.createElement('div'); datesLabelEl.className='msel-group-label'; datesLabelEl.textContent='Datas';
+    panel.appendChild(datesLabelEl);
+  }
+
   DATA.datas_apontamento.forEach(d=>{
     const row = document.createElement('label'); row.className='msel-item';
     const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.dates.has(d);
@@ -990,15 +1014,25 @@ function renderGlobalFilters(){
     cbox.appendChild(btn);
   });
 
+  const dateActive = state.dates.size>0;
+  const passDateFacet = d => !dateActive || state.dates.has(d);
+
+  /* Faceted options: OS list only shows OS with rows matching the other active filters
+     (data + contrato + supervisor); supervisor list only shows supervisors with rows
+     matching data + contrato + OS. Keeps the filters mutually consistent. */
+  const rowsForOsFacet = DATA.efetivo.filter(r => passDateFacet(r.data) && r.os!==null && passContrato(r.contrato) && passSupervisorGlobal(r.supervisor));
+  const osPresent = new Set(rowsForOsFacet.map(r=>String(r.os)));
   const osOptionsAll = Object.keys(DATA.os_meta)
     .filter(k=>passContrato(DATA.os_meta[k].contrato))
+    .filter(k=>osPresent.has(String(k)))
     .sort((a,b)=>osSortVal(a)-osSortVal(b))
     .map(k=>({value:k, label:osLabel(k)+(DATA.os_meta[k].titulo? ' — '+DATA.os_meta[k].titulo.slice(0,34):''), contrato:DATA.os_meta[k].contrato}));
   const validOsSet = new Set(osOptionsAll.map(o=>o.value));
   Array.from(state.osGlobal).forEach(v=>{ if(!validOsSet.has(v)) state.osGlobal.delete(v); });
   buildOsMultiSelect('os-msel-global', osOptionsAll, state.osGlobal, ()=>renderAll(), 'Todas as OS');
 
-  const supervisores = Array.from(new Set(DATA.efetivo.map(r=>r.supervisor).filter(Boolean))).sort();
+  const rowsForSupFacet = DATA.efetivo.filter(r => passDateFacet(r.data) && r.os!==null && passContrato(r.contrato) && passOsGlobal(r.os));
+  const supervisores = Array.from(new Set(rowsForSupFacet.map(r=>r.supervisor).filter(Boolean))).sort();
   const validSupSet = new Set(supervisores);
   Array.from(state.supervisorGlobal).forEach(v=>{ if(!validSupSet.has(v)) state.supervisorGlobal.delete(v); });
   buildSupervisorMultiSelect('supervisor-msel-global', supervisores, state.supervisorGlobal, ()=>renderAll(), 'Todos os supervisores');
@@ -2000,135 +2034,63 @@ function renderAbsenceTrend(){
   });
 }
 
-/* ---------- Apoio Distribuído ---------- */
-const APOIO_DISC_LABELS = ['Solda','Pintura','Topografia','Movimentação de Carga','Andaime'];
-function normDisc(s){ return (s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
-const APOIO_DISC_KEYS = new Set(APOIO_DISC_LABELS.map(normDisc));
-function isApoioDisc(disc){ return APOIO_DISC_KEYS.has(normDisc(disc)); }
+/* ---------- Apontamento Detalhado ---------- */
+function renderApont(){
+  const ef = efetivoForDates().filter(r=>r.presente);
+  const tbody = document.getElementById('apont-tbody');
+  const emptyEl = document.getElementById('apont-empty');
 
-function renderApoio(){
-  const ef = efetivoForDates().filter(r=>isApoioDisc(r.disciplina));
-  const total = ef.length;
-  const present = ef.filter(r=>r.presente);
-  const presentes = present.length;
-  // Férias não conta como ausência — é licença planejada, não falta.
-  const feriasCount = ef.filter(r=>!r.presente && r.status==='Férias').length;
-  const ausentes = total - presentes - feriasCount;
-  const pct = total? presentes/total : 0;
-  const osCount = new Set(ef.map(r=>String(r.os))).size;
-
-  const APOIO_DISC_COLORS = ['var(--chart-moa)','var(--warning)','var(--info)','var(--pci-chart)','var(--table-accent)'];
-  const discCounts = APOIO_DISC_LABELS.map((label,i)=>({
-    label, count: present.filter(r=>normDisc(r.disciplina)===normDisc(label)).length,
-    color: APOIO_DISC_COLORS[i % APOIO_DISC_COLORS.length],
-  }));
-
-  /* --- Detalhado por OS: tabela gerencial, sem barras por função --- */
-  const osBox = document.getElementById('apoio-os-list');
-  if(present.length===0){
-    osBox.innerHTML = '<div class="empty-state">Sem apontamento de disciplinas de apoio para os filtros atuais.</div>';
-  } else {
-    const byOs = new Map();
-    present.forEach(r=>{
-      const os = String(r.os);
-      if(!byOs.has(os)) byOs.set(os, {total:0, cargos:new Map()});
-      const rec = byOs.get(os);
-      rec.total++;
-      rec.cargos.set(r.cargo, (rec.cargos.get(r.cargo)||0)+1);
-    });
-    const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
-    const grand = entries.reduce((a,[,rec])=>a+rec.total,0);
-    const validOs = new Set(entries.map(([os])=>os));
-    Array.from(state.apoio.expanded).forEach(k=>{ if(!validOs.has(k)) state.apoio.expanded.delete(k); });
-
-    osBox.innerHTML = `<p class="card-note" style="margin-bottom:10px;">Passe o mouse ou dê dois cliques numa OS para ver as funções e quantidades.</p>
-      <div class="table-scroll" style="max-height:480px; overflow-y:auto;">
-        <table>
-          <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do apoio</th></tr></thead>
-          <tbody id="apoio-os-tbody"></tbody>
-        </table>
-      </div>`;
-    const tbody = document.getElementById('apoio-os-tbody');
-    entries.forEach(([os,rec],i)=>{
-      const contrato = contratoOfOs(os);
-      const cargoEntries = Array.from(rec.cargos.entries()).sort((a,b)=>b[1]-a[1]);
-      const funcoesTitle = cargoEntries.map(([cargo,v])=>`${cargo}: ${v}`).join(' · ');
-      const pctOfTotal = grand? rec.total/grand : 0;
-      const expanded = state.apoio.expanded.has(os);
-      const tr = document.createElement('tr');
-      tr.title = funcoesTitle;
-      tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
-      tr.innerHTML = `
-        <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
-        <td class="ov-table-name">OS ${escHtml(osLabel(os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
-        <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
-        <td class="num-col num">${rec.total}</td>
-        <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pctOfTotal)}</td>`;
-      tr.addEventListener('dblclick', ()=>{
-        if(state.apoio.expanded.has(os)) state.apoio.expanded.delete(os); else state.apoio.expanded.add(os);
-        renderApoio();
-      });
-      tbody.appendChild(tr);
-
-      if(expanded){
-        cargoEntries.forEach(([cargo,v])=>{
-          const dtr = document.createElement('tr');
-          dtr.className = 'cf-detail-row';
-          dtr.innerHTML = `
-            <td class="cf-cargo-name" colspan="3">${escHtml(cargo)}</td>
-            <td class="num-col num">${v}</td>
-            <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(rec.total? v/rec.total : 0)}</td>`;
-          tbody.appendChild(dtr);
-        });
-      }
-    });
+  if(ef.length===0){
+    tbody.innerHTML = '';
+    emptyEl.style.display = '';
+    return;
   }
+  emptyEl.style.display = 'none';
 
-  /* --- Distribuição por Disciplina: donut elaborado + métricas agregadas --- */
-  const discBox = document.getElementById('apoio-disc-overview');
-  const r=44, cx=58, cy=58, sw=17;
-  const C = 2*Math.PI*r;
-  const gap = presentes>0 ? 3 : 0;
-  let segmentsSvg = '';
-  if(presentes===0){
-    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--border-soft);" stroke-width="${sw}"/>`;
-  } else {
-    let offset = 0;
-    discCounts.forEach(d=>{
-      if(d.count<=0) return;
-      const share = d.count/presentes;
-      const len = Math.max(share*C - gap, 0);
-      segmentsSvg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:${d.color};" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
-      offset += share*C;
+  const groups = new Map();
+  ef.forEach(r=>{
+    const sup = r.supervisor || '—';
+    const enc = r.encarregado || '—';
+    const cargo = r.cargo || '—';
+    const os = String(r.os);
+    const key = sup+'||'+enc+'||'+cargo+'||'+os;
+    if(!groups.has(key)) groups.set(key, {sup, enc, cargo, os, pessoas:[]});
+    groups.get(key).pessoas.push(r);
+  });
+  const entries = Array.from(groups.values()).sort((a,b)=>b.pessoas.length-a.pessoas.length);
+  const validKeys = new Set(entries.map(e=>e.sup+'||'+e.enc+'||'+e.cargo+'||'+e.os));
+  Array.from(state.apont.expanded).forEach(k=>{ if(!validKeys.has(k)) state.apont.expanded.delete(k); });
+
+  tbody.innerHTML = '';
+  entries.forEach(e=>{
+    const key = e.sup+'||'+e.enc+'||'+e.cargo+'||'+e.os;
+    const expanded = state.apont.expanded.has(key);
+    const contrato = contratoOfOs(e.os);
+    const tr = document.createElement('tr');
+    tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
+    tr.innerHTML = `
+      <td class="ov-table-name">${escHtml(e.sup)}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
+      <td>${escHtml(e.enc)}</td>
+      <td>${escHtml(e.cargo)}</td>
+      <td class="num-col num">${e.pessoas.length}</td>
+      <td><span class="badge-contrato ${contrato}">OS ${escHtml(osLabel(e.os))}</span></td>`;
+    tr.addEventListener('dblclick', ()=>{
+      if(state.apont.expanded.has(key)) state.apont.expanded.delete(key); else state.apont.expanded.add(key);
+      renderApont();
     });
-  }
-  const donutSvg = `<svg width="132" height="132" viewBox="0 0 116 116" role="img" aria-label="Distribuição de presentes por disciplina de apoio">
-      ${segmentsSvg}
-      <text x="58" y="55" text-anchor="middle" class="donut-center-label" style="font-size:21px; fill:var(--text-primary);">${fmtInt(presentes)}</text>
-      <text x="58" y="71" text-anchor="middle" style="font-size:9px; fill:var(--text-muted); font-family:var(--font-body);">presentes</text>
-    </svg>`;
-  const maxDiscCount = Math.max(1, ...discCounts.map(d=>d.count));
-  const legendHtml = discCounts.map(d=>{
-    const share = presentes? d.count/presentes : 0;
-    return `<div class="apoio-legend-row">
-      <span class="sw" style="background:${d.color}"></span>
-      <div class="apoio-legend-body">
-        <div class="apoio-legend-top"><span class="n">${escHtml(d.label)}</span><span class="d">${fmtInt(d.count)} &middot; ${fmtPct(share)}</span></div>
-        <span class="bar-track" style="height:7px;"><span class="bar-fill" style="width:${100*d.count/maxDiscCount}%; background:${d.color};"></span></span>
-      </div>
-    </div>`;
-  }).join('');
+    tbody.appendChild(tr);
 
-  discBox.innerHTML = `
-    <div class="stat-strip">
-      <div class="s"><span class="v num">${fmtInt(total)}</span><span class="k">Apontados (apoio)</span></div>
-      <div class="s"><span class="v num" style="color:var(--good)">${fmtInt(presentes)}</span><span class="k">Presentes</span></div>
-      <div class="s"><span class="v num" style="color:${ausentes>0?'var(--critical)':'var(--good)'}">${fmtInt(ausentes)}</span><span class="k">Ausentes</span></div>
-      <div class="s"><span class="v num">${fmtInt(feriasCount)}</span><span class="k">Férias</span></div>
-      <div class="s"><span class="v num">${fmtPct(pct)}</span><span class="k">% Presença</span></div>
-      <div class="s"><span class="v num">${osCount}</span><span class="k">OS com apoio</span></div>
-    </div>
-    <div class="donut-wrap" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border-soft);">${donutSvg}<div class="donut-legend">${presentes===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legendHtml}</div></div>`;
+    if(expanded){
+      const dtr = document.createElement('tr');
+      dtr.className = 'cf-detail-row';
+      const chips = e.pessoas.map(p=>{
+        const matr = p.matr_usm || p.matr_tct || p.sap;
+        return `<span class="person-chip"><span class="n">${escHtml(p.nome||'—')}</span><span class="m">${escHtml(matr!=null?String(matr):'—')} &middot; ${escHtml(p.status||'—')}</span></span>`;
+      }).join('');
+      dtr.innerHTML = `<td colspan="5" class="cf-cargo-name"><div style="display:flex; flex-wrap:wrap;">${chips}</div></td>`;
+      tbody.appendChild(dtr);
+    }
+  });
 }
 
 /* ---------- Qualidade ---------- */
@@ -2187,7 +2149,7 @@ function renderAll(){
   renderEquipes();
   renderPlanejamento();
   renderAusencias();
-  renderApoio();
+  renderApont();
 }
 
 document.getElementById('tabbar').addEventListener('click', e=>{
