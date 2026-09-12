@@ -1124,7 +1124,7 @@ function renderVisaoTiposChart(){
   populateOvTiposSupSelect();
   if(filter==='REALPREV'){
     renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
-    renderSupDetailTable(baseRows);
+    renderSupDetailTable(baseRows.filter(r => SLA_INTERFERENCIAS.has(r.it)));
     return;
   }
   const rows = filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
@@ -1218,15 +1218,24 @@ function renderSupDetailTable(rows){
   const tbody = '<tbody>' + entries.map(g=>{
     const cells = types.map(t=>{
       const v = g.byType.get(t) || {plan:0, real:0};
-      const bucket = heatBucket(v.real/colMax.get(t));
-      const style = v.real ? `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '') : '';
+      const exceeded = showPrev && v.plan>0 && v.real>v.plan;
+      let style = '';
+      if(v.real){
+        if(exceeded){
+          style = 'background:var(--critical-soft); color:var(--critical); font-weight:700;';
+        } else {
+          const bucket = heatBucket(v.real/colMax.get(t));
+          style = `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '');
+        }
+      }
       if(showPrev){
         return `<td class="num-col num">${v.plan ? fmtH(v.plan) : '—'}</td><td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
       }
       return `<td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
     }).join('');
+    const totalExceeded = showPrev && g.totalPlan>0 && g.totalReal>g.totalPlan;
     const totalCells = showPrev
-      ? `<td class="num-col num" style="font-weight:700;">${fmtH(g.totalPlan)}</td><td class="num-col num" style="font-weight:700;">${fmtH(g.totalReal)}</td>`
+      ? `<td class="num-col num" style="font-weight:700;">${fmtH(g.totalPlan)}</td><td class="num-col num" style="font-weight:700;${totalExceeded?' color:var(--critical);':''}">${fmtH(g.totalReal)}</td>`
       : `<td class="num-col num" style="font-weight:700;">${fmtH(g.totalReal)}</td>`;
     return `<tr>
       ${byEnc ? `<td class="sd-freeze sd-freeze-1">${escHtml(toTitleCase(g.enc))}</td>` : ''}
