@@ -250,7 +250,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .sup-detail-scroll td.num, .sup-detail-scroll th.num-col{font-family:var(--font-mono);}
 .sup-detail-scroll td.num-col, .sup-detail-scroll th.num-col{text-align:center;}
 .sup-detail-scroll tbody tr:first-child td{border-top:none;}
-.sup-detail-scroll td.sd-freeze, .sup-detail-scroll th.sd-freeze{position:sticky; z-index:2; width:172px; min-width:172px; max-width:172px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:var(--paper); box-shadow:2px 0 4px -2px rgba(0,0,0,.15);}
+.sup-detail-scroll td.sd-freeze, .sup-detail-scroll th.sd-freeze{position:sticky; z-index:2; width:172px; min-width:172px; max-width:172px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:2px 0 4px -2px rgba(0,0,0,.15);}
+.sup-detail-scroll td.sd-freeze{background:var(--border-soft);}
+.sup-detail-scroll th.sd-freeze{background:var(--paper);}
 .sup-detail-scroll thead th.sd-freeze{background:var(--table-accent); z-index:5;}
 .sup-detail-scroll .sd-freeze-1{left:0;}
 .sup-detail-scroll .sd-freeze-2{left:172px;}
@@ -1223,14 +1225,12 @@ function renderSupDetailTable(rows){
     const cells = types.map(t=>{
       const v = g.byType.get(t) || {plan:0, real:0};
       const exceeded = showPrev && v.plan>0 && v.real>v.plan;
-      let style = '';
-      if(v.real){
-        if(exceeded){
-          style = 'background:var(--critical-soft); color:var(--critical); font-weight:700;';
-        } else {
-          const bucket = heatBucket(v.real/colMax.get(t));
-          style = `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '');
-        }
+      let style;
+      if(exceeded){
+        style = 'background:var(--critical-soft); color:var(--critical); font-weight:700;';
+      } else {
+        const bucket = heatBucket(v.real/colMax.get(t));
+        style = `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '');
       }
       if(showPrev){
         return `<td class="num-col num">${v.plan ? fmtH(v.plan) : '—'}</td><td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
@@ -1656,7 +1656,7 @@ function renderTiposColumnChart(box, entries, opts){
   });
 }
 
-/* ---------- Interferências Registradas: Previsto x Real (combo colunas + linha) ---------- */
+/* ---------- Interferências Registradas: Previsto x Real (colunas lado a lado) ---------- */
 function renderTiposComboChart(box, entries){
   if(entries.length===0){ box.innerHTML = '<div class="empty-state">Sem dados para os filtros atuais.</div>'; return; }
   const n = entries.length;
@@ -1664,20 +1664,23 @@ function renderTiposComboChart(box, entries){
   const innerW = W-padL-padR, innerH = H-padT-padB;
   const maxVal = Math.max(1, ...entries.map(e=>e.real), ...entries.map(e=>e.plan));
   const slot = innerW/n;
-  const barW = Math.min(50, slot*0.36);
+  const groupW = Math.min(96, slot*0.62);
+  const barW = groupW/2 - 3;
   const maxChars = Math.max(9, Math.floor(slot/5.8));
   const yOf = v => padT + innerH - (innerH*v/maxVal);
   const ttId = box.id+'-tt', ovClass = box.id+'-hit';
-  const realColor = 'var(--resp-techint)', planColor = 'var(--steel-strong)';
+  const realColor = 'var(--resp-techint)', planColor = 'var(--navy)';
 
   let bars='', valLabels='', axisSvg='', gridSvg='', hitboxes='';
-  const LABEL_GAP = 8;
-  // Rótulos de real e previsto são desenhados lado a lado (deslocados
-  // horizontalmente a partir do centro), nunca um sobre o outro — os dois
-  // HH da mesma categoria precisam estar sempre visíveis ao mesmo tempo.
-  const drawLabel = (x, y, val, color, anchor) => {
-    const text = fmtH(val)+'h';
-    return `<text class="col-val-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" style="fill:${color};">${text}</text>`;
+  // Um único rótulo combinado (em vez de dois textos separados sobre cada
+  // barra) evita que os dois números se sobreponham quando as barras do par
+  // ficam próximas — cada valor mantém sua própria cor via <tspan>.
+  const drawPairLabel = (cx, y, planVal, planColor, realVal, realColor) => {
+    return `<text class="col-val-label" x="${cx.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">` +
+      `<tspan style="fill:${planColor};">${fmtH(planVal)}h</tspan>` +
+      `<tspan style="fill:var(--text-muted);" dx="4"> · </tspan>` +
+      `<tspan style="fill:${realColor};" dx="4">${fmtH(realVal)}h</tspan>` +
+      `</text>`;
   };
   [.25,.5,.75,1].forEach(f=>{
     const gy = padT+innerH-(innerH*f);
@@ -1685,21 +1688,22 @@ function renderTiposComboChart(box, entries){
   });
   gridSvg += `<line class="chart-baseline" x1="${padL}" y1="${(padT+innerH).toFixed(1)}" x2="${W-padR}" y2="${(padT+innerH).toFixed(1)}"/>`;
 
-  const linePts = [];
   entries.forEach((e,i)=>{
     const cx = padL + slot*i + slot/2;
-    const x = cx - barW/2;
-    const yReal = yOf(e.real);
-    const hReal = padT+innerH-yReal;
-    bars += `<rect x="${x.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
+    const xPlan = cx - groupW/2;
+    const xReal = cx + groupW/2 - barW;
 
     const yPlan = yOf(e.plan);
-    linePts.push([cx, yPlan]);
+    const hPlan = padT+innerH-yPlan;
+    bars += `<rect x="${xPlan.toFixed(1)}" y="${yPlan.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hPlan).toFixed(1)}" rx="3" style="fill:${planColor};"/>`;
+
+    const yReal = yOf(e.real);
+    const hReal = padT+innerH-yReal;
+    bars += `<rect x="${xReal.toFixed(1)}" y="${yReal.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,hReal).toFixed(1)}" rx="3" style="fill:${realColor};"/>`;
 
     const labelY = Math.min(yReal, yPlan) - 9;
     const realLabelColor = e.real > e.plan ? 'var(--critical)' : realColor;
-    valLabels += drawLabel(cx-LABEL_GAP/2, labelY, e.plan, planColor, 'end');
-    valLabels += drawLabel(cx+LABEL_GAP/2, labelY, e.real, realLabelColor, 'start');
+    valLabels += drawPairLabel(cx, labelY, e.plan, planColor, e.real, realLabelColor);
 
     const lines = wrapChartLabel(e.label, maxChars);
     const baseY = H-padB+15;
@@ -1709,13 +1713,8 @@ function renderTiposComboChart(box, entries){
     hitboxes += `<rect class="cmp-hit ${ovClass}" data-idx="${i}" x="${(padL+slot*i).toFixed(1)}" y="0" width="${slot.toFixed(1)}" height="${H}" fill="transparent"/>`;
   });
 
-  const pathD = linePts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
-  const dots = linePts.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" style="fill:var(--paper); stroke:${planColor}; stroke-width:2;"/>`).join('');
-
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Interferências: previsto (linha) x real (colunas), por tipo">
-      ${gridSvg}${bars}
-      <path style="fill:none; stroke:${planColor}; stroke-width:2.5; stroke-dasharray:5 4;" d="${pathD}"/>
-      ${dots}${valLabels}${axisSvg}${hitboxes}
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Interferências: previsto x real, por tipo, em colunas lado a lado">
+      ${gridSvg}${bars}${valLabels}${axisSvg}${hitboxes}
     </svg>
     <div class="scurve-tooltip" id="${ttId}"></div>
     <div class="scurve-legend" style="margin-top:6px;">
