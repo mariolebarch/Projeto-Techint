@@ -301,8 +301,9 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .two-col > .card{display:flex; flex-direction:column; min-width:0;}
 @media (max-width:900px){.two-col{grid-template-columns:minmax(0,1fr);}}
 .ab-table-scroll{height:520px; overflow-y:auto;}
-.eq-list{max-height:520px; overflow-y:auto; padding-right:4px; margin-top:32px;}
+.eq-list{max-height:520px; overflow-y:auto; padding-right:4px; margin-top:10px;}
 .eq-list .bar-row .label{width:200px;}
+.eq-list .bar-row.eq-row{height:var(--bar-row-h, auto); box-sizing:border-box;}
 .eq-list .eq-row{cursor:pointer;}
 .eq-list .eq-row .expand-hint{font-size:9.5px; color:var(--text-muted); margin-left:5px;}
 .eq-list .eq-detail-row{padding:4px 0;}
@@ -318,7 +319,7 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-left-card{display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
-.bar-row{display:flex; align-items:center; gap:10px; padding:7.1px 0;}
+.bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border); min-width:36px;}
 .ab-pct-col{min-width:140px;}
@@ -1220,6 +1221,27 @@ function renderOsColabTable(ef){
       renderOsColabTable(ef);
     });
   });
+  alignOvTables();
+}
+
+// Alinha as linhas de "Pessoas presentes por OS" (tabela) com as de
+// "Colaboradores por Supervisor / Encarregado x OS" (barras) medindo a altura e
+// a posição reais renderizadas — evita depender de valores fixos em px, que
+// variam de fonte/navegador para navegador.
+function alignOvTables(){
+  const eqList = document.getElementById('eq-list');
+  const tableRow = document.querySelector('#ov-colab-table table tbody tr');
+  const barRow = document.querySelector('#eq-list .bar-row.eq-row');
+  if(!eqList) return;
+  eqList.style.removeProperty('--bar-row-h');
+  eqList.style.marginTop = '';
+  if(!tableRow || !barRow || window.innerWidth <= 1000) return; // sem par para alinhar, ou colunas empilhadas
+  eqList.style.setProperty('--bar-row-h', tableRow.getBoundingClientRect().height + 'px');
+  const diff = tableRow.getBoundingClientRect().top - barRow.getBoundingClientRect().top;
+  if(diff > 0){
+    const baseMargin = parseFloat(getComputedStyle(eqList).marginTop) || 0;
+    eqList.style.marginTop = (baseMargin + diff) + 'px';
+  }
 }
 
 /* ---------- Confronto table ---------- */
@@ -1503,7 +1525,7 @@ function renderEquipes(){
   const box = document.getElementById('eq-list');
   document.getElementById('eq-empty').style.display = names.length? 'none':'block';
   box.innerHTML = '';
-  if(names.length===0) return;
+  if(names.length===0){ alignOvTables(); return; }
 
   const max = Math.max(1, ...names.map(n=>Object.values(byName.get(n)).reduce((a,b)=>a+b,0)));
   names.forEach(n=>{
@@ -1537,6 +1559,7 @@ function renderEquipes(){
       });
     }
   });
+  alignOvTables();
 }
 
 /* ---------- Planejamento por OS (accordion) ---------- */
