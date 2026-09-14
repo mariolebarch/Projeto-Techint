@@ -33,6 +33,7 @@ def parse_os_key(val):
 PCI_OS = {35732, 37131, 37132, 37581}
 def contrato_of(os_key):
     if os_key == 'Apoio': return 'MOA'
+    if os_key == 'PCI': return 'PCI'
     try:
         return 'PCI' if int(os_key) in PCI_OS else 'MOA'
     except (ValueError, TypeError):
@@ -151,10 +152,10 @@ for os_val, s, e in blocks:
     titulo = clean(ws_es.cell(row=header_row, column=3).value)
     status_os = clean(ws_es.cell(row=header_row, column=4).value)
     disciplina = clean(ws_es.cell(row=header_row, column=5).value)
-    # Bloco "PCI" na Emp Semanal representa o empilhamento comum às OS do
-    # contrato PCI (que não têm número individual na planilha de plano) —
-    # aplica-se o mesmo empilhamento às 4 OS desse contrato.
-    os_keys = sorted(PCI_OS) if is_pci_label(os_val) else [parse_os_key(os_val)]
+    # Bloco "PCI" na Emp Semanal representa um empilhamento único e conjunto
+    # para as 4 OS do contrato PCI (não é discriminado por OS individual) —
+    # fica sob a chave especial "PCI", como já ocorre com "Apoio".
+    os_keys = ['PCI'] if is_pci_label(os_val) else [parse_os_key(os_val)]
     for os_key in os_keys:
         os_meta[str(os_key)] = {"titulo": titulo, "status": status_os, "disciplina": disciplina, "contrato": contrato_of(os_key)}
 
@@ -198,7 +199,19 @@ for key, counter in ef_os_disc.items():
     if key not in os_meta:
         top_disc = counter.most_common(1)[0][0] if counter else None
         os_key_parsed = parse_os_key(key)
-        os_meta[key] = {"titulo": None, "status": None, "disciplina": top_disc, "somente_efetivo": True, "contrato": contrato_of(os_key_parsed)}
+        # OS do contrato PCI têm apontamento real individual, mas o plano da
+        # Emp Semanal é único e conjunto (chave "PCI") — não é uma anomalia
+        # essas OS não terem seu próprio bloco de plano.
+        try:
+            is_pci_member = int(os_key_parsed) in PCI_OS
+        except (ValueError, TypeError):
+            is_pci_member = False
+        os_meta[key] = {
+            "titulo": os_meta.get('PCI', {}).get('titulo') if is_pci_member else None,
+            "status": None, "disciplina": top_disc,
+            "somente_efetivo": not is_pci_member,
+            "contrato": contrato_of(os_key_parsed),
+        }
 
 week_info = [{"semana": wk, "inicio": week_day_to_date(wk,'Seg').isoformat(), "fim": week_day_to_date(wk,'Dom').isoformat()} for wk,_ in week_blocks]
 datas_apontamento = sorted(set(r['data'] for r in efetivo_rows if r['data']))

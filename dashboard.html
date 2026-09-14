@@ -760,7 +760,7 @@ const fmtPct1 = n => (n*100).toFixed(1) + '%';
 
 function osLabel(osKey){ return osKey === 'Apoio' ? 'Apoio' : osKey; }
 function osTitulo(osKey){ const m = DATA.os_meta[osKey]; if(!m) return ''; return m.titulo || (m.somente_efetivo ? 'Sem plano cadastrado' : ''); }
-function osSortVal(osKey){ if(osKey === 'Apoio') return -1; const n = parseInt(osKey,10); return isNaN(n) ? 999999 : n; }
+function osSortVal(osKey){ if(osKey === 'Apoio') return -1; if(osKey === 'PCI') return -0.5; const n = parseInt(osKey,10); return isNaN(n) ? 999999 : n; }
 function contratoOfOs(osKey){ const m = DATA.os_meta[String(osKey)]; return m ? m.contrato : 'MOA'; }
 function escHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function relLuminance(hex){
@@ -872,18 +872,26 @@ function planForDates(){ return DATA.emp_semanal.filter(r => state.dates.has(r.d
 function planAll(){ return DATA.emp_semanal.filter(r => passContrato(contratoOfOs(r.os)) && passOsGlobal(r.os)); }
 
 /* ---------- confronto build ---------- */
+// O plano da Emp Semanal para o contrato PCI é único e conjunto para as 4 OS
+// (chave "PCI"), enquanto o apontamento real fica registrado na OS específica
+// de cada pessoa — agrupa os dois lados sob a mesma chave "PCI" para comparar
+// o total do contrato, em vez de gerar linhas soltas por OS sem plano.
+function confrontoOsKey(osKey){
+  const n = parseInt(osKey,10);
+  return (!isNaN(n) && PCI_OS_SET.has(n)) ? 'PCI' : String(osKey);
+}
 function buildConfrontoFrom(ef, plan){
   const map = new Map();
 
   ef.forEach(r=>{
-    const os = String(r.os);
+    const os = confrontoOsKey(r.os);
     const key = os+'|'+r.cargo;
     if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
     const row = map.get(key);
     if(r.presente) row.apontado++; else row.ausente++;
   });
   plan.forEach(r=>{
-    const os = String(r.os);
+    const os = confrontoOsKey(r.os);
     const key = os+'|'+r.cargo;
     if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
     map.get(key).planejado += r.qtd_planejada;
@@ -2111,7 +2119,7 @@ function renderQualidade(){
   miniTable('Contrato PCI (' + pciEntries.length + ' OS)', pciEntries);
 
   const notes = [
-    'Classificação de contrato: OS <b>35732, 37131, 37132 e 37581</b> = <b>PCI</b>; todas as demais OS = <b>MOA</b>. Na Emp Semanal, o empilhamento do contrato PCI vem de um único bloco "PCI" e é aplicado às 4 OS desse contrato.',
+    'Classificação de contrato: OS <b>35732, 37131, 37132 e 37581</b> = <b>PCI</b>; todas as demais OS = <b>MOA</b>. Na Emp Semanal, o empilhamento do contrato PCI é um total único e conjunto para as 4 OS (não discriminado por OS individual), sob a chave especial "PCI" — como já ocorre com "Apoio".',
     'As datas da Emp Semanal foram calculadas pelo calendário ISO de 2026 (ex.: Semana 34 &middot; Qui = 20/08/2026).',
     'Na Emp Semanal, a primeira linha de cada bloco de OS é o total da disciplina e foi excluída da contagem por função para não duplicar valores — validado batendo a soma das funções com esse total em todas as OS e semanas.',
     `Todas as ${DATA.depara.length} funções distintas usadas na Emp Semanal foram resolvidas com sucesso — nenhuma pendência de nomenclatura.`,
@@ -2271,6 +2279,7 @@ function isPciLabel(val){
 }
 function contratoOfImport(osKey){
   if(osKey==='Apoio') return 'MOA';
+  if(osKey==='PCI') return 'PCI';
   const n = parseInt(osKey,10);
   if(isNaN(n)) return 'MOA';
   return PCI_OS_SET.has(n) ? 'PCI' : 'MOA';
@@ -2397,10 +2406,10 @@ function parseWorkbookToBundle(wb){
     const titulo = cleanStr(cellVal(wsEs,headerRow,3));
     const statusOs = cleanStr(cellVal(wsEs,headerRow,4));
     const disciplina = cleanStr(cellVal(wsEs,headerRow,5));
-    // Bloco "PCI" na Emp Semanal representa o empilhamento comum às OS do
-    // contrato PCI (que não têm número individual na planilha de plano) —
-    // aplica-se o mesmo empilhamento às 4 OS desse contrato.
-    const osKeys = isPciLabel(osVal) ? Array.from(PCI_OS_SET) : [parseOsKey(osVal)];
+    // Bloco "PCI" na Emp Semanal representa um empilhamento único e conjunto
+    // para as 4 OS do contrato PCI (não é discriminado por OS individual) —
+    // fica sob a chave especial "PCI", como já ocorre com "Apoio".
+    const osKeys = isPciLabel(osVal) ? ['PCI'] : [parseOsKey(osVal)];
     osKeys.forEach(osKey=>{
       os_meta[String(osKey)] = {titulo, status: statusOs, disciplina, contrato: contratoOfImport(osKey)};
     });
@@ -2444,7 +2453,17 @@ function parseWorkbookToBundle(wb){
       let topDisc=null, topCount=-1;
       Object.keys(counter).forEach(d=>{ if(counter[d]>topCount){topCount=counter[d]; topDisc=d;} });
       const osKeyParsed = parseOsKey(key);
-      os_meta[key] = {titulo:null, status:null, disciplina: topDisc, somente_efetivo:true, contrato: contratoOfImport(osKeyParsed)};
+      // OS do contrato PCI têm apontamento real individual, mas o plano da
+      // Emp Semanal é único e conjunto (chave "PCI") — não é uma anomalia
+      // essas OS não terem seu próprio bloco de plano.
+      const nParsed = parseInt(osKeyParsed,10);
+      const isPciMember = !isNaN(nParsed) && PCI_OS_SET.has(nParsed);
+      os_meta[key] = {
+        titulo: isPciMember && os_meta['PCI'] ? os_meta['PCI'].titulo : null,
+        status: null, disciplina: topDisc,
+        somente_efetivo: !isPciMember,
+        contrato: contratoOfImport(osKeyParsed),
+      };
     }
   });
 
