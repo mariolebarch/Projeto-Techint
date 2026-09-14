@@ -132,7 +132,8 @@ for r in range(28, max_row+1):
     raw = ws_es.cell(row=r, column=2).value
     # Célula da coluna "Nº OS" em branco = continuação do bloco anterior
     # (comum quando a planilha só preenche o rótulo na primeira linha do bloco).
-    b = cur_os if (raw is None or raw == '') else raw
+    is_blank = raw is None or raw == '' or (isinstance(raw, str) and raw.strip() == '')
+    b = cur_os if is_blank else raw
     if b != cur_os:
         if cur_os is not None:
             blocks.append((cur_os, cur_start, r-1))

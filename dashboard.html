@@ -2379,7 +2379,8 @@ function parseWorkbookToBundle(wb){
       const raw = cellVal(wsEs,r,2);
       // Célula da coluna "Nº OS" em branco = continuação do bloco anterior
       // (comum quando a planilha só preenche o rótulo na primeira linha do bloco).
-      const b = (raw===undefined || raw===null || raw==='') ? curOs : raw;
+      const isBlank = raw===undefined || raw===null || raw==='' || (typeof raw==='string' && raw.trim()==='');
+      const b = isBlank ? curOs : raw;
       if(b!==curOs){
         if(curOs!==null){ blocks.push([curOs,curStart,r-1]); }
         curOs=b; curStart=r;
