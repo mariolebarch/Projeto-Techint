@@ -301,7 +301,7 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .two-col > .card{display:flex; flex-direction:column; min-width:0;}
 @media (max-width:900px){.two-col{grid-template-columns:minmax(0,1fr);}}
 .ab-table-scroll{height:520px; overflow-y:auto;}
-.eq-list{max-height:520px; overflow-y:auto; padding-right:4px;}
+.eq-list{max-height:520px; overflow-y:auto; padding-right:4px; margin-top:32px;}
 .eq-list .bar-row .label{width:200px;}
 .eq-list .eq-row{cursor:pointer;}
 .eq-list .eq-row .expand-hint{font-size:9.5px; color:var(--text-muted); margin-left:5px;}
@@ -318,7 +318,7 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-left-card{display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
-.bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
+.bar-row{display:flex; align-items:center; gap:10px; padding:7.1px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border); min-width:36px;}
 .ab-pct-col{min-width:140px;}
@@ -654,7 +654,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       <div id="plan-empilhamento-body">
         <p class="card-note" style="margin-bottom:12px;">Cada bloco corresponde a uma OS, igual à aba Emp Semanal — facilita conferir linha a linha. A coluna com contorno vermelho é a data selecionada no filtro global.</p>
         <div id="plan-accordions"></div>
-        <div class="empty-state" id="plan-empty" style="display:none;">Contrato PCI não possui empilhamento cadastrado na Emp Semanal.</div>
+        <div class="empty-state" id="plan-empty" style="display:none;">Nenhum empilhamento encontrado para os filtros atuais.</div>
         <div class="heat-legend">
           <span>Efetivo empilhado:</span>
           <span class="sw" style="background:var(--heat-0)"></span><span>0</span>
@@ -727,7 +727,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       </div>
       <div class="card">
         <div class="card-head"><h3>OS por contrato</h3></div>
-        <p class="card-note" style="margin-bottom:10px;">Classificação aplicada: OS 35732, 37131, 37132 e 37581 = contrato <b>PCI</b> (sem empilhamento); demais OS = contrato <b>MOA</b>.</p>
+        <p class="card-note" style="margin-bottom:10px;">Classificação aplicada: OS 35732, 37131, 37132 e 37581 = contrato <b>PCI</b>; demais OS = contrato <b>MOA</b>.</p>
         <div id="qual-mismatch"></div>
       </div>
     </div>
@@ -1078,22 +1078,15 @@ function renderCallouts(rows, ef){
   const box = document.getElementById('alerts-list');
   box.innerHTML = '';
 
-  const anomalousMoa = Object.entries(DATA.os_meta).filter(([k,m])=> m.somente_efetivo && m.contrato==='MOA');
-  if(anomalousMoa.length>0 && state.contrato!=='PCI'){
-    const headcount = ef.filter(r => anomalousMoa.some(([k])=>k===String(r.os))).length;
+  const anomalous = Object.entries(DATA.os_meta).filter(([k,m])=> m.somente_efetivo);
+  if(anomalous.length>0){
+    const headcount = ef.filter(r => anomalous.some(([k])=>k===String(r.os))).length;
     if(headcount>0){
       const el = document.createElement('div');
       el.className = 'callout critical';
-      el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(headcount)} pessoas em OS do contrato MOA sem plano na Emp Semanal</h4><p>OS ${anomalousMoa.map(([k])=>k).join(', ')} têm apontamento no Efetivo mas não constam na Emp Semanal — provável atraso de cadastro do plano.</p></div>`;
+      el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(headcount)} pessoas em OS sem plano na Emp Semanal</h4><p>OS ${anomalous.map(([k])=>k).join(', ')} têm apontamento no Efetivo mas não constam na Emp Semanal — provável atraso de cadastro do plano.</p></div>`;
       box.appendChild(el);
     }
-  }
-  const pciHeadcount = ef.filter(r=>r.contrato==='PCI').length;
-  if(pciHeadcount>0){
-    const el = document.createElement('div');
-    el.className = 'callout info';
-    el.innerHTML = `<span class="glyph">i</span><div><h4>${fmtInt(pciHeadcount)} pessoas no contrato PCI (sem empilhamento por natureza)</h4><p>PCI não possui plano na Emp Semanal — isso é esperado, não é uma divergência. Use o filtro de Contrato para isolar MOA e ver só o que tem plano.</p></div>`;
-    box.appendChild(el);
   }
   const naoApontados = rows.filter(r=>r.planejado>0 && r.apontado===0);
   if(naoApontados.length>0){
@@ -1550,11 +1543,11 @@ function renderPlanejamento(){
   const box = document.getElementById('plan-accordions');
   const plan = planAll();
   const empty = document.getElementById('plan-empty');
-  if(state.contrato==='PCI'){ box.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
 
   let osKeys = Array.from(new Set(plan.map(r=>String(r.os)))).sort((a,b)=>osSortVal(a)-osSortVal(b));
   if(state.hm.os.size) osKeys = osKeys.filter(k=>state.hm.os.has(k));
+  if(osKeys.length===0){ box.innerHTML=''; empty.style.display='block'; renderScurve(); return; }
+  empty.style.display='none';
 
   const search = state.hm.search.trim().toLowerCase();
   const dias = DATA.dias_grid;
@@ -2107,7 +2100,7 @@ function renderQualidade(){
     if(entries.length===0) tb.innerHTML = `<tr><td style="color:var(--text-muted);">Nenhuma</td></tr>`;
     entries.forEach(([k,m])=>{
       const tr = document.createElement('tr');
-      const flag = m.somente_efetivo && m.contrato==='MOA' ? ' <span class="chip critical" style="margin-left:6px;">sem plano</span>' : '';
+      const flag = m.somente_efetivo ? ' <span class="chip critical" style="margin-left:6px;">sem plano</span>' : '';
       tr.innerHTML = `<td><span class="mono-tag">${escHtml(osLabel(k))}</span>${flag}</td><td>${escHtml(m.titulo || m.disciplina || '—')}</td>`;
       tb.appendChild(tr);
     });
@@ -2115,10 +2108,10 @@ function renderQualidade(){
     box.appendChild(wrap);
   }
   miniTable('Contrato MOA (' + moaEntries.length + ' OS)', moaEntries);
-  miniTable('Contrato PCI (' + pciEntries.length + ' OS &middot; sem empilhamento)', pciEntries);
+  miniTable('Contrato PCI (' + pciEntries.length + ' OS)', pciEntries);
 
   const notes = [
-    'Classificação de contrato: OS <b>35732, 37131, 37132 e 37581</b> = <b>PCI</b>; todas as demais OS = <b>MOA</b>. A Emp Semanal só cobre o contrato MOA.',
+    'Classificação de contrato: OS <b>35732, 37131, 37132 e 37581</b> = <b>PCI</b>; todas as demais OS = <b>MOA</b>. Na Emp Semanal, o empilhamento do contrato PCI vem de um único bloco "PCI" e é aplicado às 4 OS desse contrato.',
     'As datas da Emp Semanal foram calculadas pelo calendário ISO de 2026 (ex.: Semana 34 &middot; Qui = 20/08/2026).',
     'Na Emp Semanal, a primeira linha de cada bloco de OS é o total da disciplina e foi excluída da contagem por função para não duplicar valores — validado batendo a soma das funções com esse total em todas as OS e semanas.',
     `Todas as ${DATA.depara.length} funções distintas usadas na Emp Semanal foram resolvidas com sucesso — nenhuma pendência de nomenclatura.`,
@@ -2272,6 +2265,10 @@ function parseOsKey(val){
   const m = String(val).match(/\d+/);
   return m ? parseInt(m[0],10) : NaN;
 }
+function isPciLabel(val){
+  if(typeof val!=='string') return false;
+  return val.trim().toUpperCase().replace(/^OS[_\-\s]*/,'')==='PCI';
+}
 function contratoOfImport(osKey){
   if(osKey==='Apoio') return 'MOA';
   const n = parseInt(osKey,10);
@@ -2397,8 +2394,13 @@ function parseWorkbookToBundle(wb){
     const titulo = cleanStr(cellVal(wsEs,headerRow,3));
     const statusOs = cleanStr(cellVal(wsEs,headerRow,4));
     const disciplina = cleanStr(cellVal(wsEs,headerRow,5));
-    const osKey = parseOsKey(osVal);
-    os_meta[String(osKey)] = {titulo, status: statusOs, disciplina, contrato: contratoOfImport(osKey)};
+    // Bloco "PCI" na Emp Semanal representa o empilhamento comum às OS do
+    // contrato PCI (que não têm número individual na planilha de plano) —
+    // aplica-se o mesmo empilhamento às 4 OS desse contrato.
+    const osKeys = isPciLabel(osVal) ? Array.from(PCI_OS_SET) : [parseOsKey(osVal)];
+    osKeys.forEach(osKey=>{
+      os_meta[String(osKey)] = {titulo, status: statusOs, disciplina, contrato: contratoOfImport(osKey)};
+    });
 
     for(let r=s+1;r<=e;r++){
       const cargoRaw = cleanStr(cellVal(wsEs,r,5));
@@ -2416,7 +2418,9 @@ function parseWorkbookToBundle(wb){
           qtd = (typeof qtd==='number') ? qtd : 0;
           if(qtd===0) return;
           const dt = weekDayToDate(wk, dname);
-          emp_semanal_plan.push({os: osKey, cargo_raw: cargoRaw, cargo: cargoCorrigido, mapped_via: via, semana: wk, dia: dname, data: isoStrImport(dt), qtd_planejada: qtd});
+          osKeys.forEach(osKey=>{
+            emp_semanal_plan.push({os: osKey, cargo_raw: cargoRaw, cargo: cargoCorrigido, mapped_via: via, semana: wk, dia: dname, data: isoStrImport(dt), qtd_planejada: qtd});
+          });
         });
       });
     }

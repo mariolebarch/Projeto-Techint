@@ -38,6 +38,12 @@ def contrato_of(os_key):
     except (ValueError, TypeError):
         return 'MOA'
 
+def is_pci_label(val):
+    """Detecta o bloco 'PCI' da Emp Semanal (empilhamento comum às 4 OS desse contrato)."""
+    if not isinstance(val, str):
+        return False
+    return re.sub(r'^OS[_\-\s]*', '', val.strip(), flags=re.IGNORECASE).upper() == 'PCI'
+
 # ---------- Depara_Função ----------
 ws_dp = wb['Depara_Função']
 depara = {}
@@ -141,8 +147,12 @@ for os_val, s, e in blocks:
     titulo = clean(ws_es.cell(row=header_row, column=3).value)
     status_os = clean(ws_es.cell(row=header_row, column=4).value)
     disciplina = clean(ws_es.cell(row=header_row, column=5).value)
-    os_key = parse_os_key(os_val)
-    os_meta[str(os_key)] = {"titulo": titulo, "status": status_os, "disciplina": disciplina, "contrato": contrato_of(os_key)}
+    # Bloco "PCI" na Emp Semanal representa o empilhamento comum às OS do
+    # contrato PCI (que não têm número individual na planilha de plano) —
+    # aplica-se o mesmo empilhamento às 4 OS desse contrato.
+    os_keys = sorted(PCI_OS) if is_pci_label(os_val) else [parse_os_key(os_val)]
+    for os_key in os_keys:
+        os_meta[str(os_key)] = {"titulo": titulo, "status": status_os, "disciplina": disciplina, "contrato": contrato_of(os_key)}
 
     for r in range(s+1, e+1):
         cargo_raw = clean(ws_es.cell(row=r, column=5).value)
@@ -164,11 +174,12 @@ for os_val, s, e in blocks:
                 if qtd == 0:
                     continue
                 dt = week_day_to_date(wk, dname)
-                emp_semanal_plan.append({
-                    "os": os_key, "cargo_raw": cargo_raw, "cargo": cargo_corrigido,
-                    "mapped_via": via, "semana": wk, "dia": dname,
-                    "data": dt.isoformat(), "qtd_planejada": qtd
-                })
+                for os_key in os_keys:
+                    emp_semanal_plan.append({
+                        "os": os_key, "cargo_raw": cargo_raw, "cargo": cargo_corrigido,
+                        "mapped_via": via, "semana": wk, "dia": dname,
+                        "data": dt.isoformat(), "qtd_planejada": qtd
+                    })
 
 print("\nEmp Semanal plan records (qtd>0):", len(emp_semanal_plan))
 print("Unmapped cargos:", unmapped_cargos)
