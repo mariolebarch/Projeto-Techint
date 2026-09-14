@@ -129,7 +129,10 @@ assert week_day_to_date(34, 'Qui') == datetime.date(2026,8,20)
 blocks = []
 cur_os = None; cur_start = None
 for r in range(28, max_row+1):
-    b = ws_es.cell(row=r, column=2).value
+    raw = ws_es.cell(row=r, column=2).value
+    # Célula da coluna "Nº OS" em branco = continuação do bloco anterior
+    # (comum quando a planilha só preenche o rótulo na primeira linha do bloco).
+    b = cur_os if (raw is None or raw == '') else raw
     if b != cur_os:
         if cur_os is not None:
             blocks.append((cur_os, cur_start, r-1))
