@@ -618,7 +618,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       <div class="card-head">
         <h3>Confronto OS &times; Função</h3>
         <div class="filters">
-          <div class="field"><label>OS</label><div class="msel" id="cf-os-msel"></div></div>
           <div class="field"><label>Disciplina</label><select id="cf-disc"></select></div>
           <div class="field"><label>Situação</label><select id="cf-status">
             <option value="all">Todas</option>
@@ -628,7 +627,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <option value="info">Fora do plano</option>
             <option value="pci">Contrato PCI</option>
           </select></div>
-          <div class="field"><label>&nbsp;</label><button class="small-btn" id="cf-clear-btn" type="button">Limpar filtros</button></div>
+          <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="cf-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
         </div>
       </div>
       <p class="card-note" style="margin-bottom:10px;">Dê dois cliques em uma linha de OS para ver o detalhamento por função.</p>
@@ -796,7 +795,7 @@ const state = {
   contrato: 'all',
   osGlobal: new Set(),
   supervisorGlobal: new Set(),
-  cf: {os:new Set(), disc:'all', status:'all', expanded:new Set()},
+  cf: {disc:'all', status:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
   apont: {expanded:new Set(), search:''},
@@ -1401,10 +1400,8 @@ function renderConfrontoControls(){
   const osOptions = visibleOs.map(k=>({value:k,label:osLabel(k)+(DATA.os_meta[k].titulo? ' — '+DATA.os_meta[k].titulo.slice(0,34):''), contrato:DATA.os_meta[k].contrato}));
 
   const validSet = new Set(visibleOs);
-  Array.from(state.cf.os).forEach(v=>{ if(!validSet.has(v)) state.cf.os.delete(v); });
   Array.from(state.hm.os).forEach(v=>{ if(!validSet.has(v)) state.hm.os.delete(v); });
 
-  buildOsMultiSelect('cf-os-msel', osOptions, state.cf.os, ()=>renderConfrontoTable(), 'Todas as OS');
   buildOsMultiSelect('hm-os-msel', osOptions, state.hm.os, ()=>renderPlanejamento(), 'Todas as OS');
 
   const discs = Array.from(new Set(visibleOs.map(k=>DATA.os_meta[k].disciplina).filter(Boolean))).sort();
@@ -1440,7 +1437,6 @@ function buildCargoDiscMap(){
 function renderConfrontoTable(){
   const f = state.cf;
   let rows = buildConfrontoMulti();
-  if(f.os.size) rows = rows.filter(r=>f.os.has(r.os));
   if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
 
   const thead = document.getElementById('cf-thead');
@@ -2247,7 +2243,7 @@ document.getElementById('ov-clear-btn').addEventListener('click', ()=>{
   renderEquipes();
 });
 document.getElementById('cf-clear-btn').addEventListener('click', ()=>{
-  state.cf.os.clear(); state.cf.disc = 'all'; state.cf.status = 'all'; state.cf.expanded.clear();
+  state.cf.disc = 'all'; state.cf.status = 'all'; state.cf.expanded.clear();
   document.getElementById('cf-status').value = 'all';
   renderConfrontoControls();
   renderConfrontoTable();
@@ -2604,7 +2600,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       DATA = bundle;
       state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       state.contrato = 'all';
-      state.cf.os = new Set(); state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
+      state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
       state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
       state.eq.search='';
       state.apont.search='';
