@@ -2122,16 +2122,257 @@ function collectExportSheets(selectedKeys){
   selectedKeys.forEach(k=>{ if(builders[k]) sheets.push(builders[k]()); });
   return sheets;
 }
-function downloadWorkbook(sheets, filenamePrefix){
-  const wb = XLSX.utils.book_new();
-  sheets.forEach(s=>{
-    const ws = XLSX.utils.aoa_to_sheet(s.aoa);
-    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0,31));
+/* ---------- Gerador de .xlsx no padrão visual Techint ----------
+   Escreve o arquivo Office Open XML (zip + XML) na mão — cabeçalho verde
+   Techint (#6fa834) com texto branco em negrito, linhas do corpo com faixas
+   alternadas em tom areia (#e5e0da), bordas finas, cabeçalho congelado e
+   autofiltro — o mesmo padrão visual das tabelas do próprio painel. Não
+   depende do SheetJS (usado só para IMPORTAR planilhas), então a extração
+   funciona mesmo se o cdnjs.cloudflare.com estiver bloqueado na rede. */
+const XLSX_CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function xlsxCrc32(bytes){
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = XLSX_CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function xlsxU16le(n){ return [n & 0xFF, (n >> 8) & 0xFF]; }
+function xlsxU32le(n){ return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; }
+function xlsxStrBytes(s){ return Array.from(new TextEncoder().encode(s)); }
+function xlsxBuildZip(files){
+  // files: [{name, data: Uint8Array}] — método "store" (sem compressão),
+  // suficiente para um zip válido e evita depender de uma lib de deflate.
+  const localParts = [];
+  const central = [];
+  let offset = 0;
+  const time = 0, date = 0x21; // data fixa (1980-01-01) — não importa para o conteúdo
+  files.forEach(f => {
+    const nameBytes = xlsxStrBytes(f.name);
+    const data = f.data;
+    const crc = xlsxCrc32(data);
+    const size = data.length;
+    const localHeader = [
+      ...xlsxU32le(0x04034b50), ...xlsxU16le(20), ...xlsxU16le(0), ...xlsxU16le(0),
+      ...xlsxU16le(time), ...xlsxU16le(date), ...xlsxU32le(crc), ...xlsxU32le(size), ...xlsxU32le(size),
+      ...xlsxU16le(nameBytes.length), ...xlsxU16le(0),
+    ];
+    localParts.push(new Uint8Array(localHeader));
+    localParts.push(new Uint8Array(nameBytes));
+    localParts.push(data);
+
+    const centralHeader = [
+      ...xlsxU32le(0x02014b50), ...xlsxU16le(20), ...xlsxU16le(20), ...xlsxU16le(0), ...xlsxU16le(0),
+      ...xlsxU16le(time), ...xlsxU16le(date), ...xlsxU32le(crc), ...xlsxU32le(size), ...xlsxU32le(size),
+      ...xlsxU16le(nameBytes.length), ...xlsxU16le(0), ...xlsxU16le(0), ...xlsxU16le(0), ...xlsxU16le(0),
+      ...xlsxU32le(0), ...xlsxU32le(offset),
+    ];
+    central.push(new Uint8Array(centralHeader));
+    central.push(new Uint8Array(nameBytes));
+
+    offset += localHeader.length + nameBytes.length + size;
   });
+
+  const centralStart = offset;
+  let centralSize = 0;
+  central.forEach(c => { centralSize += c.length; });
+
+  const end = [
+    ...xlsxU32le(0x06054b50), ...xlsxU16le(0), ...xlsxU16le(0),
+    ...xlsxU16le(files.length), ...xlsxU16le(files.length),
+    ...xlsxU32le(centralSize), ...xlsxU32le(centralStart), ...xlsxU16le(0),
+  ];
+
+  const total = localParts.reduce((a, p) => a + p.length, 0) + centralSize + end.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  localParts.forEach(p => { out.set(p, pos); pos += p.length; });
+  central.forEach(p => { out.set(p, pos); pos += p.length; });
+  out.set(new Uint8Array(end), pos);
+  return out;
+}
+function xlsxEsc(s){
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+function xlsxColLetter(n){
+  let s = ''; n = n + 1;
+  while (n > 0) { const rem = (n - 1) % 26; s = String.fromCharCode(65 + rem) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+function xlsxCellRef(r, c){ return xlsxColLetter(c) + (r + 1); }
+const XLSX_HEADER_FILL = '6FA834';  // verde Techint (var(--table-accent)) — igual ao cabeçalho das tabelas do painel
+const XLSX_BAND_FILL = 'E5E0DA';    // tom areia (var(--sand)) — faixa zebrada
+const XLSX_BORDER_COLOR = 'C6C2BE'; // var(--border)
+function xlsxColFmt(headerText){
+  return /\(h\)/.test(String(headerText || '')) ? 'dec' : 'int';
+}
+function xlsxBuildStylesXml(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="2">
+    <numFmt numFmtId="164" formatCode="0.0"/>
+    <numFmt numFmtId="165" formatCode="0"/>
+  </numFmts>
+  <fonts count="3">
+    <font><sz val="10.5"/><name val="Calibri"/></font>
+    <font><b/><sz val="10.5"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="10.5"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF${XLSX_HEADER_FILL}"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF${XLSX_BAND_FILL}"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></left><right style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></right><top style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></top><bottom style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></bottom><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="8">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
+    <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+    <xf numFmtId="165" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+// Índices de estilo: 0 padrão, 1 cabeçalho, 2 texto, 3 texto-faixa,
+// 4 decimal, 5 decimal-faixa, 6 inteiro, 7 inteiro-faixa
+function xlsxStyleIdFor(rowIdx, colFmt, isText){
+  const band = rowIdx % 2 === 0;
+  if (isText) return band ? 3 : 2;
+  if (colFmt === 'dec') return band ? 5 : 4;
+  return band ? 7 : 6;
+}
+function xlsxBuildSheetXml(aoa){
+  const nRows = aoa.length;
+  const nCols = nRows ? Math.max(...aoa.map(r => r.length)) : 0;
+  const header = aoa[0] || [];
+  const colFmts = header.map(h => xlsxColFmt(h));
+
+  const widths = [];
+  for (let c = 0; c < nCols; c++) {
+    let maxLen = 6;
+    for (let r = 0; r < nRows; r++) {
+      const v = aoa[r][c];
+      const len = v == null ? 0 : String(v).length;
+      if (len > maxLen) maxLen = len;
+    }
+    widths.push(Math.min(48, maxLen + 2));
+  }
+
+  let rowsXml = '';
+  for (let r = 0; r < nRows; r++) {
+    const row = aoa[r];
+    let cellsXml = '';
+    for (let c = 0; c < nCols; c++) {
+      const v = row[c];
+      if (v == null || v === '') continue;
+      const ref = xlsxCellRef(r, c);
+      let sIdx;
+      if (r === 0) sIdx = 1;
+      else sIdx = xlsxStyleIdFor(r - 1, colFmts[c], typeof v !== 'number');
+      if (typeof v === 'number' && isFinite(v)) {
+        cellsXml += `<c r="${ref}" s="${sIdx}"><v>${v}</v></c>`;
+      } else {
+        cellsXml += `<c r="${ref}" s="${sIdx}" t="inlineStr"><is><t xml:space="preserve">${xlsxEsc(v)}</t></is></c>`;
+      }
+    }
+    rowsXml += `<row r="${r + 1}">${cellsXml}</row>`;
+  }
+
+  const dim = nRows ? `A1:${xlsxCellRef(nRows - 1, Math.max(0, nCols - 1))}` : 'A1';
+  const colsXml = '<cols>' + widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>';
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="${dim}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      ${nRows > 1 ? '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' : ''}
+    </sheetView>
+  </sheetViews>
+  ${colsXml}
+  <sheetData>${rowsXml}</sheetData>
+  ${nRows ? `<autoFilter ref="${dim}"/>` : ''}
+</worksheet>`;
+}
+function xlsxBuildWorkbookXml(sheetNames){
+  const sheetsXml = sheetNames.map((n, i) => `<sheet name="${xlsxEsc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>${sheetsXml}</sheets>
+</workbook>`;
+}
+function xlsxBuildWorkbookRelsXml(sheetCount){
+  let rels = '';
+  for (let i = 0; i < sheetCount; i++) {
+    rels += `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`;
+  }
+  rels += `<Relationship Id="rId${sheetCount + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`;
+}
+function xlsxBuildContentTypesXml(sheetCount){
+  let overrides = '';
+  for (let i = 0; i < sheetCount; i++) {
+    overrides += `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  ${overrides}
+</Types>`;
+}
+function xlsxBuildRootRelsXml(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+}
+function buildTechintXlsxBytes(sheets){
+  // sheets: [{name, aoa}]
+  const enc = new TextEncoder();
+  const files = [];
+  files.push({ name: '[Content_Types].xml', data: enc.encode(xlsxBuildContentTypesXml(sheets.length)) });
+  files.push({ name: '_rels/.rels', data: enc.encode(xlsxBuildRootRelsXml()) });
+  files.push({ name: 'xl/workbook.xml', data: enc.encode(xlsxBuildWorkbookXml(sheets.map(s => s.name))) });
+  files.push({ name: 'xl/_rels/workbook.xml.rels', data: enc.encode(xlsxBuildWorkbookRelsXml(sheets.length)) });
+  files.push({ name: 'xl/styles.xml', data: enc.encode(xlsxBuildStylesXml()) });
+  sheets.forEach((s, i) => {
+    files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(xlsxBuildSheetXml(s.aoa)) });
+  });
+  return xlsxBuildZip(files);
+}
+function downloadXlsxBytes(bytes, filename){
+  const blob = new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+function downloadWorkbook(sheets, filenamePrefix){
+  const bytes = buildTechintXlsxBytes(sheets.map(s=>({name:s.name.slice(0,31), aoa:s.aoa})));
   const ts = new Date();
   const pad = n=>String(n).padStart(2,'0');
   const stamp = ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate())+'_'+pad(ts.getHours())+'h'+pad(ts.getMinutes());
-  XLSX.writeFile(wb, `${filenamePrefix}_${stamp}.xlsx`);
+  downloadXlsxBytes(bytes, `${filenamePrefix}_${stamp}.xlsx`);
 }
 
 document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
@@ -2151,11 +2392,6 @@ document.getElementById('export-download-btn').addEventListener('click', ()=>{
   if(checked.length===0){
     statusEl.className = 'export-status error';
     statusEl.textContent = 'Selecione ao menos uma opção.';
-    return;
-  }
-  if(typeof XLSX === 'undefined' || typeof XLSX.writeFile !== 'function'){
-    statusEl.className = 'export-status error';
-    statusEl.textContent = 'A biblioteca de planilhas (SheetJS, via cdnjs.cloudflare.com) não carregou neste navegador/rede — verifique a conexão.';
     return;
   }
   try{
