@@ -358,8 +358,11 @@ tr.cf-os-row td:first-child{position:relative;}
 tr.cf-os-row.expanded td{background:var(--steel-soft);}
 tr.cf-os-row .expand-hint, tr.ov-colab-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
 tr.cf-detail-row td{background:var(--sand); border-top:none;}
+tr.cf-detail-row.cf-detail-alt td{background:var(--border-soft);}
 tr.cf-detail-row .cf-cargo-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.cf-detail-row .cf-cargo-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
+tr.cf-disc-group-row td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.03em; padding:6px 12px; border-top:1px solid var(--border);}
+tr.cf-disc-group-row td:first-child{padding-left:34px; text-transform:uppercase; letter-spacing:.07em; font-size:10.5px;}
 td.confronto-col{min-width:170px;}
 td.confronto-col .os-mini-bar{display:block; width:100%; max-width:none;}
 td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
@@ -1418,6 +1421,22 @@ function aggregateStatus(os, planejado, apontado, diferenca){
   return 'critical';
 }
 
+function buildCargoDiscMap(){
+  const counts = new Map();
+  DATA.efetivo.forEach(r=>{
+    if(!r.cargo || !r.disciplina) return;
+    if(!counts.has(r.cargo)) counts.set(r.cargo, new Map());
+    const m = counts.get(r.cargo);
+    m.set(r.disciplina, (m.get(r.disciplina)||0)+1);
+  });
+  const out = new Map();
+  counts.forEach((m,cargo)=>{
+    let top=null, topN=-1;
+    m.forEach((n,d)=>{ if(n>topN){ topN=n; top=d; } });
+    out.set(cargo, top);
+  });
+  return out;
+}
 function renderConfrontoTable(){
   const f = state.cf;
   let rows = buildConfrontoMulti();
@@ -1457,6 +1476,7 @@ function renderConfrontoTable(){
     </tr>`;
   tbody.innerHTML = '';
   document.getElementById('cf-empty').style.display = osRows.length? 'none':'block';
+  const cargoDisc = buildCargoDiscMap();
   osRows.forEach(o=>{
     const localMax = Math.max(1, o.planejado, o.apontado);
     const diffStr = (o.diferenca>0?'+':'')+o.diferenca;
@@ -1480,20 +1500,36 @@ function renderConfrontoTable(){
     tbody.appendChild(tr);
 
     if(expanded){
-      const cargos = o.cargos.slice().sort((a,b)=>a.cargo.localeCompare(b.cargo));
-      cargos.forEach(c=>{
-        const cLocalMax = Math.max(1, c.planejado, c.apontado);
-        const cDiffStr = (c.diferenca>0?'+':'')+c.diferenca;
-        const dtr = document.createElement('tr');
-        dtr.className = 'cf-detail-row';
-        dtr.innerHTML = `
-          <td class="cf-cargo-name" colspan="3">${escHtml(c.cargo)}</td>
-          <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*c.planejado/cLocalMax}%"></span><span class="fill-real" style="width:${100*c.apontado/cLocalMax}%"></span></span><span class="os-mini-nums">emp ${c.planejado} &middot; real ${c.apontado}</span></td>
-          <td class="num-col num">${c.planejado}</td>
-          <td class="num-col num">${c.apontado}</td>
-          <td class="num-col num">${cDiffStr}</td>
-          <td><span class="chip ${c.status}">${STATUS_LABEL[c.status]}</span></td>`;
-        tbody.appendChild(dtr);
+      // Agrupa os cargos por disciplina (com uma faixa divisória entre
+      // grupos) em vez de uma lista plana ordenada só por nome — facilita
+      // achar cargos relacionados (ex.: Elétrica, Andaime) dentro da OS.
+      const groups = new Map();
+      o.cargos.forEach(c=>{
+        const disc = cargoDisc.get(c.cargo) || 'Sem disciplina';
+        if(!groups.has(disc)) groups.set(disc, []);
+        groups.get(disc).push(c);
+      });
+      const discNames = Array.from(groups.keys()).sort((a,b)=>a.localeCompare(b));
+      discNames.forEach((disc, gi)=>{
+        const groupCargos = groups.get(disc).sort((a,b)=>a.cargo.localeCompare(b.cargo));
+        const gtr = document.createElement('tr');
+        gtr.className = 'cf-disc-group-row';
+        gtr.innerHTML = `<td colspan="8">${escHtml(disc)}</td>`;
+        tbody.appendChild(gtr);
+        groupCargos.forEach(c=>{
+          const cLocalMax = Math.max(1, c.planejado, c.apontado);
+          const cDiffStr = (c.diferenca>0?'+':'')+c.diferenca;
+          const dtr = document.createElement('tr');
+          dtr.className = 'cf-detail-row' + (gi%2 ? ' cf-detail-alt' : '');
+          dtr.innerHTML = `
+            <td class="cf-cargo-name" colspan="3">${escHtml(c.cargo)}</td>
+            <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*c.planejado/cLocalMax}%"></span><span class="fill-real" style="width:${100*c.apontado/cLocalMax}%"></span></span><span class="os-mini-nums">emp ${c.planejado} &middot; real ${c.apontado}</span></td>
+            <td class="num-col num">${c.planejado}</td>
+            <td class="num-col num">${c.apontado}</td>
+            <td class="num-col num">${cDiffStr}</td>
+            <td><span class="chip ${c.status}">${STATUS_LABEL[c.status]}</span></td>`;
+          tbody.appendChild(dtr);
+        });
       });
     }
   });
@@ -2502,6 +2538,29 @@ function parseWorkbookToBundle(wb){
       dias_grid.push({semana: wk, dia: dname, data: isoStrImport(weekDayToDate(wk,dname))});
     });
   });
+
+  // Normaliza duplicidade de nomenclatura de cargo por diferença só de
+  // maiúsculas/minúsculas (ex.: "Ajudante de obras" x "Ajudante De Obras")
+  // — mantém a grafia mais frequente como forma canônica, sem alterar
+  // siglas/acrônimos que já estejam corretos (ex.: "Soldador TIG").
+  const cargoTally = new Map();
+  const tallyCargo = cargo => {
+    if(!cargo) return;
+    const key = normStr(cargo);
+    if(!cargoTally.has(key)) cargoTally.set(key, new Map());
+    const m = cargoTally.get(key);
+    m.set(cargo, (m.get(cargo)||0)+1);
+  };
+  efetivoRows.forEach(r=>tallyCargo(r.cargo));
+  emp_semanal_plan.forEach(r=>tallyCargo(r.cargo));
+  const cargoCanon = new Map();
+  cargoTally.forEach((variants, key)=>{
+    let top=null, topN=-1;
+    variants.forEach((n,raw)=>{ if(n>topN){ topN=n; top=raw; } });
+    cargoCanon.set(key, top);
+  });
+  efetivoRows.forEach(r=>{ if(r.cargo) r.cargo = cargoCanon.get(normStr(r.cargo)); });
+  emp_semanal_plan.forEach(r=>{ if(r.cargo) r.cargo = cargoCanon.get(normStr(r.cargo)); });
 
   const cargoSet = new Set();
   emp_semanal_plan.forEach(r=>cargoSet.add(r.cargo));

@@ -260,6 +260,7 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .sup-detail-scroll thead tr.sd-subhead th.sd-freeze{top:35px; z-index:6; background:var(--table-accent); filter:none;}
 .sup-detail-scroll th.sd-total{background:var(--slate);}
 .sup-detail-scroll td.sd-total{background:var(--border-soft);}
+.sup-detail-scroll .sd-gap{border-left:6px solid var(--paper);}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
@@ -1207,18 +1208,18 @@ function renderSupDetailTable(rows){
   const thead = showPrev ? `<thead><tr>
       ${byEnc ? '<th class="sd-freeze sd-freeze-1">Encarregado</th>' : ''}
       <th class="${supFreezeClass}">Supervisor</th>
-      ${types.map(t=>`<th class="num-col" colspan="2">${escHtml(t)}</th>`).join('')}
-      <th class="num-col sd-total" colspan="2">HH Total</th>
+      ${types.map(t=>`<th class="num-col sd-gap" colspan="2">${escHtml(t)}</th>`).join('')}
+      <th class="num-col sd-total sd-gap" colspan="2">HH Total</th>
     </tr><tr class="sd-subhead">
       ${byEnc ? '<th class="sd-freeze sd-freeze-1"></th>' : ''}
       <th class="${supFreezeClass}"></th>
-      ${types.map(()=>'<th class="num-col sub">Prev.</th><th class="num-col sub">Real</th>').join('')}
-      <th class="num-col sub sd-total">Prev.</th><th class="num-col sub sd-total">Real</th>
+      ${types.map(()=>'<th class="num-col sub sd-gap">Prev.</th><th class="num-col sub">Real</th>').join('')}
+      <th class="num-col sub sd-total sd-gap">Prev.</th><th class="num-col sub sd-total">Real</th>
     </tr></thead>` : `<thead><tr>
       ${byEnc ? '<th class="sd-freeze sd-freeze-1">Encarregado</th>' : ''}
       <th class="${supFreezeClass}">Supervisor</th>
-      ${types.map(t=>`<th class="num-col">${escHtml(t)}</th>`).join('')}
-      <th class="num-col sd-total">HH Total</th>
+      ${types.map(t=>`<th class="num-col sd-gap">${escHtml(t)}</th>`).join('')}
+      <th class="num-col sd-total sd-gap">HH Total</th>
     </tr></thead>`;
 
   const tbody = '<tbody>' + entries.map(g=>{
@@ -1233,14 +1234,14 @@ function renderSupDetailTable(rows){
         style = `background:var(--heat-${bucket});` + (bucket>=4 ? 'color:var(--text-on-accent);' : '');
       }
       if(showPrev){
-        return `<td class="num-col num">${v.plan ? fmtH(v.plan) : '—'}</td><td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
+        return `<td class="num-col num sd-gap">${v.plan ? fmtH(v.plan) : '—'}</td><td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
       }
-      return `<td class="num-col num" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
+      return `<td class="num-col num sd-gap" style="${style}">${v.real ? fmtH(v.real) : '—'}</td>`;
     }).join('');
     const totalExceeded = showPrev && g.totalPlan>0 && g.totalReal>g.totalPlan;
     const totalCells = showPrev
-      ? `<td class="num-col num sd-total" style="font-weight:700;">${fmtH(g.totalPlan)}</td><td class="num-col num sd-total" style="font-weight:700;${totalExceeded?' color:var(--critical);':''}">${fmtH(g.totalReal)}</td>`
-      : `<td class="num-col num sd-total" style="font-weight:700;">${fmtH(g.totalReal)}</td>`;
+      ? `<td class="num-col num sd-total sd-gap" style="font-weight:700;">${fmtH(g.totalPlan)}</td><td class="num-col num sd-total" style="font-weight:700;${totalExceeded?' color:var(--critical);':''}">${fmtH(g.totalReal)}</td>`
+      : `<td class="num-col num sd-total sd-gap" style="font-weight:700;">${fmtH(g.totalReal)}</td>`;
     return `<tr>
       ${byEnc ? `<td class="sd-freeze sd-freeze-1">${escHtml(toTitleCase(g.enc))}</td>` : ''}
       <td class="ov-table-name sd-freeze ${byEnc ? 'sd-freeze-2' : 'sd-freeze-1'}">${escHtml(g.sup)}</td>

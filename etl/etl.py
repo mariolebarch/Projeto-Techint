@@ -221,6 +221,25 @@ for wk, days in week_blocks:
         dt = week_day_to_date(wk, dname)
         dias_grid.append({"semana": wk, "dia": dname, "data": dt.isoformat()})
 
+# Normaliza duplicidade de nomenclatura de cargo por diferença só de
+# maiúsculas/minúsculas (ex.: "Ajudante de obras" x "Ajudante De Obras") —
+# mantém a grafia mais frequente como forma canônica, sem alterar
+# siglas/acrônimos que já estejam corretos (ex.: "Soldador TIG").
+cargo_tally = defaultdict(Counter)
+for row in efetivo_rows:
+    if row["cargo"]:
+        cargo_tally[norm(row["cargo"])][row["cargo"]] += 1
+for row in emp_semanal_plan:
+    if row["cargo"]:
+        cargo_tally[norm(row["cargo"])][row["cargo"]] += 1
+cargo_canon = {key: variants.most_common(1)[0][0] for key, variants in cargo_tally.items()}
+for row in efetivo_rows:
+    if row["cargo"]:
+        row["cargo"] = cargo_canon[norm(row["cargo"])]
+for row in emp_semanal_plan:
+    if row["cargo"]:
+        row["cargo"] = cargo_canon[norm(row["cargo"])]
+
 cargo_corrigido_all = sorted(set(r["cargo"] for r in emp_semanal_plan) | set(r["cargo"] for r in efetivo_rows if r["cargo"]))
 
 bundle = {
