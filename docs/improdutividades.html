@@ -260,7 +260,7 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .sup-detail-scroll thead tr.sd-subhead th.sd-freeze{top:35px; z-index:6; background:var(--table-accent); filter:none;}
 .sup-detail-scroll th.sd-total{background:var(--slate);}
 .sup-detail-scroll td.sd-total{background:var(--border-soft);}
-.sup-detail-scroll .sd-gap{border-left:6px solid var(--paper);}
+.sup-detail-scroll .sd-gap{border-left:2px solid var(--paper);}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
@@ -538,7 +538,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   <!-- ================= VISÃO GERAL ================= -->
   <section class="view active" id="view-visao">
     <div class="card">
-      <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Horas reais, previstas, SLA e responsabilidade das interferências</span></div>
+      <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Horas reais, previstas, SLA e responsabilidade &middot; considera os filtros de Supervisor/Responsabilidade de "Interferências Registradas" abaixo</span></div>
       <div class="ov-panorama">
         <div class="kpi-grid" id="kpi-grid"></div>
         <div id="ov-resp-chart" class="ov-panorama-donut"></div>
@@ -976,7 +976,8 @@ function renderGlobalFilters(){
 
 /* ---------- KPIs & Visão Geral ---------- */
 function renderKPIs(){
-  const rows = filteredInterf();
+  populateOvTiposSupSelect();
+  const rows = ovTiposDisplayRows();
   const n = rows.reduce((a,r)=>a+r.n,0);
   const real = rows.reduce((a,r)=>a+r.real,0);
   const plan = rows.reduce((a,r)=>a+r.plan,0);
@@ -1121,18 +1122,27 @@ function populateOvTiposSupSelect(){
   sel.value = state.ovTipos.sup || '';
 }
 
-function renderVisaoTiposChart(){
-  const box = document.getElementById('ov-tipos-bars');
+/* Linhas exatamente como exibidas em "Interferências Registradas" para o
+   filtro de Supervisor/Responsabilidade atual — usado também pelo "Panorama
+   Geral" para que os dois quadros mostrem sempre o mesmo recorte. */
+function ovTiposDisplayRows(){
   const filter = state.ovTipos.filter;
   const supFilter = state.ovTipos.sup;
   const baseRows = supFilter ? filteredInterf().filter(r=>r.sup===supFilter) : filteredInterf();
+  if(filter==='REALPREV') return baseRows.filter(r => SLA_INTERFERENCIAS.has(r.it));
+  return filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
+}
+
+function renderVisaoTiposChart(){
+  const box = document.getElementById('ov-tipos-bars');
+  const filter = state.ovTipos.filter;
   populateOvTiposSupSelect();
+  const rows = ovTiposDisplayRows();
   if(filter==='REALPREV'){
-    renderTiposComboChart(box, buildTiposRealPrevData(baseRows));
-    renderSupDetailTable(baseRows.filter(r => SLA_INTERFERENCIAS.has(r.it)));
+    renderTiposComboChart(box, buildTiposRealPrevData(rows));
+    renderSupDetailTable(rows);
     return;
   }
-  const rows = filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
   const byTipo = new Map();
   rows.forEach(r=>{
     if(!r.it) return;
@@ -1878,7 +1888,7 @@ const porosOsRespBox = document.getElementById('poros-os-resp');
 
 document.getElementById('ov-tipos-sup-filter').addEventListener('change', e=>{
   state.ovTipos.sup = e.target.value || null;
-  renderVisaoTiposChart();
+  renderKPIs();
 });
 
 const ovTiposSelect = document.getElementById('ov-tipos-resp');
@@ -1890,7 +1900,7 @@ const ovTiposSelect = document.getElementById('ov-tipos-resp');
 });
 ovTiposSelect.addEventListener('change', e=>{
   state.ovTipos.filter = e.target.value;
-  renderVisaoTiposChart();
+  renderKPIs();
 });
 
 const supDetailEncToggle = document.getElementById('sup-detail-enc-toggle');
