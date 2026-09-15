@@ -138,6 +138,14 @@ button.settings-item:hover{background:var(--sand);}
 .si-sub{font-size:11px; color:var(--text-muted);}
 .settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
 .settings-theme-row{cursor:default;}
+.export-options{display:flex; flex-direction:column; gap:2px; padding:2px 10px 10px;}
+.export-options-head{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600; padding:4px 0 2px;}
+.export-check-row{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:12.5px; color:var(--text-primary); cursor:pointer;}
+.export-check-row input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
+.export-download-btn{margin-top:6px; border:1px solid var(--steel); background:var(--steel); color:var(--text-on-accent); border-radius:7px; padding:8px 10px; font-size:12.5px; font-weight:600; cursor:pointer;}
+.export-download-btn:hover{filter:brightness(1.08);}
+.export-status{margin-top:6px; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sand); color:var(--text-secondary);}
+.export-status.error{background:var(--critical-soft); color:var(--critical);}
 .switch{position:relative; display:inline-block; width:40px; height:22px; flex:none;}
 .switch input{opacity:0; width:0; height:0;}
 .switch-slider{position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:background .2s;}
@@ -501,6 +509,20 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
             <span class="si-text"><span class="si-title">Atualizar dados</span><span class="si-sub">Importar nova planilha .xlsx (padrão Base_Painel_de_improdutividades)</span></span>
           </button>
           <input type="file" id="settings-file-input" accept=".xlsx" hidden>
+          <div class="settings-divider"></div>
+          <button class="settings-item" id="settings-export-btn" type="button" aria-expanded="false">
+            <span class="si-icon">⭳</span>
+            <span class="si-text"><span class="si-title">Extrair dados</span><span class="si-sub">Baixar Excel com os filtros atuais</span></span>
+          </button>
+          <div id="export-options" class="export-options" hidden>
+            <div class="export-options-head">Escolha o que extrair</div>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="interf" checked><span>Interferências (detalhado)</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="detalhamento" checked><span>Detalhamento (Supervisor &times; Tipo)</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="poros" checked><span>Impacto por OS</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="rdc" checked><span>Situação RDC</span></label>
+            <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
+            <div class="export-status" id="export-status" hidden></div>
+          </div>
           <div class="settings-divider"></div>
           <div class="settings-item settings-theme-row">
             <span class="si-icon" id="theme-icon">◐</span>
@@ -1976,8 +1998,176 @@ document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape') closeAllPopovers();
 });
 
+/* ---------- Extração de dados (Excel) ---------- */
+function exportFiltersSummarySheet(){
+  const dates = Array.from(state.dates).sort();
+  const osArr = Array.from(state.os).sort();
+  const filtroLabel = {ALL:'Todas', TECHINT:'Techint', USIMINAS:'Usiminas', REALPREV:'Previsto × Real'}[state.ovTipos.filter] || state.ovTipos.filter;
+  return {name:'Filtros aplicados', aoa: [
+    ['Filtro', 'Valor'],
+    ['Painel', 'Painel de Improdutividades'],
+    ['Extraído em', new Date().toLocaleString('pt-BR')],
+    ['Datas selecionadas', dates.length ? dates.join(', ') : 'Todas'],
+    ['OS (filtro global)', osArr.length ? osArr.join(', ') : 'Todas'],
+    ['Supervisor (filtro global)', state.sup==='all' ? 'Todos' : state.sup],
+    ['Filtro (Interferências Registradas)', filtroLabel],
+    ['Supervisor (Interferências Registradas)', state.ovTipos.sup || 'Todos'],
+    ['Responsabilidade (Impacto por OS)', state.poros.osRespFilter==='all' ? 'Todas' : state.poros.osRespFilter],
+  ]};
+}
+function exportInterfSheet(){
+  let rows = ovTiposDisplayRows();
+  rows = rows.slice().sort((a,b)=> a.d.localeCompare(b.d) || String(a.os).localeCompare(String(b.os)));
+  const aoa = [['Data','OS','Grupo Interferência','Tipo','Responsabilidade','Encarregado','Supervisor','Ocorrências','Previsto (h)','Real (h)']];
+  rows.forEach(r=>{
+    aoa.push([r.d, r.os, r.gi||'', r.it||'', r.resp||'', r.enc||'', r.sup||'', r.n, r.plan, r.real]);
+  });
+  return {name:'Interferências', aoa};
+}
+function exportDetalhamentoSheet(){
+  const rows = ovTiposDisplayRows();
+  const byEnc = state.ovTipos.byEncarregado;
+  const showPrev = state.ovTipos.filter === 'REALPREV';
+  const typeTotals = new Map();
+  rows.forEach(r=>{
+    if(!r.it) return;
+    const key = normalizeTipoLabel(r.it);
+    if(!typeTotals.has(key)) typeTotals.set(key, {plan:0, real:0});
+    const t = typeTotals.get(key);
+    t.plan += r.plan; t.real += r.real;
+  });
+  const types = Array.from(typeTotals.entries()).filter(([,t])=>t.real>0 || t.plan>0).sort((a,b)=>b[1].real-a[1].real).map(([k])=>k);
+  const groups = new Map();
+  rows.forEach(r=>{
+    const sup = r.sup || '—';
+    const enc = r.enc || '—';
+    const key = byEnc ? enc+'||'+sup : sup;
+    if(!groups.has(key)) groups.set(key, {sup, enc, byType:new Map(), totalPlan:0, totalReal:0});
+    const g = groups.get(key);
+    if(r.it){
+      const tk = normalizeTipoLabel(r.it);
+      if(!g.byType.has(tk)) g.byType.set(tk, {plan:0, real:0});
+      const t = g.byType.get(tk);
+      t.plan += r.plan; t.real += r.real;
+    }
+    g.totalPlan += r.plan; g.totalReal += r.real;
+  });
+  const entries = Array.from(groups.values()).sort((a,b)=>b.totalReal-a.totalReal);
+  const header = [];
+  if(byEnc) header.push('Encarregado');
+  header.push('Supervisor');
+  types.forEach(t=>{ showPrev ? header.push(t+' - Prev (h)', t+' - Real (h)') : header.push(t+' (h)'); });
+  showPrev ? header.push('HH Total - Prev', 'HH Total - Real') : header.push('HH Total');
+  const aoa = [header];
+  entries.forEach(g=>{
+    const row = [];
+    if(byEnc) row.push(g.enc);
+    row.push(g.sup);
+    types.forEach(t=>{
+      const v = g.byType.get(t) || {plan:0, real:0};
+      if(showPrev) row.push(v.plan||0, v.real||0); else row.push(v.real||0);
+    });
+    if(showPrev) row.push(g.totalPlan, g.totalReal); else row.push(g.totalReal);
+    aoa.push(row);
+  });
+  return {name:'Detalhamento', aoa};
+}
+function exportPorOsSheet(){
+  const allRows = filteredInterf();
+  const osRespFilter = state.poros.osRespFilter;
+  const rows = osRespFilter==='all' ? allRows : allRows.filter(r=>r.resp===osRespFilter);
+  function sevStatus(plan, real, exced){
+    if(plan<=0) return real>0 ? 'sem_previsao' : 'sem_registro';
+    if(exced<=0) return 'dentro';
+    return (exced/plan)<=0.15 ? 'leve' : 'alto';
+  }
+  const byKey = new Map();
+  rows.filter(r => r.gi || r.it).forEach(r=>{
+    const resp = r.resp==='USIMINAS' ? 'USIMINAS' : 'TECHINT';
+    const key = r.os+'||'+r.gi+' — '+r.it+'||'+resp;
+    if(!byKey.has(key)) byKey.set(key, {os:r.os, label:(r.gi||'')+' — '+(r.it||''), it:r.it, resp, plan:0, real:0});
+    const g = byKey.get(key);
+    g.plan += r.plan; g.real += r.real;
+  });
+  let entries = Array.from(byKey.values()).map(g=>{
+    const eligible = SLA_INTERFERENCIAS.has(g.it);
+    const exced = eligible && g.plan>0 ? Math.max(0, g.real-g.plan) : 0;
+    return Object.assign(g, {exced, status: sevStatus(g.plan, g.real, exced)});
+  });
+  if(state.poros.statusFilter.size>0) entries = entries.filter(e=>state.poros.statusFilter.has(e.status));
+  entries.sort((a,b)=> String(a.os).localeCompare(String(b.os)) || b.real-a.real);
+  const aoa = [['OS','Grupo — Tipo','Responsabilidade','Previsto (h)','Real (h)','Excedente SLA (h)','Status']];
+  entries.forEach(e=>{
+    aoa.push([e.os, e.label, e.resp, e.plan, e.real, e.exced, STATUS_LABELS[e.status]||'']);
+  });
+  return {name:'Impacto por OS', aoa};
+}
+function exportRdcSheet(){
+  let rows = filteredRdcs();
+  rows = rows.slice().sort((a,b)=> a.d.localeCompare(b.d) || String(a.os).localeCompare(String(b.os)));
+  const aoa = [['RDC','Tipo','Data','OS','Encarregado','Supervisor','Situação']];
+  rows.forEach(r=>{
+    aoa.push([r.rdc, r.tipo||'', r.d, r.os, r.enc||'', r.sup||'', r.sit||'']);
+  });
+  return {name:'Situação RDC', aoa};
+}
+function collectExportSheets(selectedKeys){
+  const builders = {
+    interf: exportInterfSheet,
+    detalhamento: exportDetalhamentoSheet,
+    poros: exportPorOsSheet,
+    rdc: exportRdcSheet,
+  };
+  const sheets = [exportFiltersSummarySheet()];
+  selectedKeys.forEach(k=>{ if(builders[k]) sheets.push(builders[k]()); });
+  return sheets;
+}
+function downloadWorkbook(sheets, filenamePrefix){
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s=>{
+    const ws = XLSX.utils.aoa_to_sheet(s.aoa);
+    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0,31));
+  });
+  const ts = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  const stamp = ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate())+'_'+pad(ts.getHours())+'h'+pad(ts.getMinutes());
+  XLSX.writeFile(wb, `${filenamePrefix}_${stamp}.xlsx`);
+}
+
 document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
   document.getElementById('settings-file-input').click();
+});
+document.getElementById('settings-export-btn').addEventListener('click', ()=>{
+  const panel = document.getElementById('export-options');
+  const btn = document.getElementById('settings-export-btn');
+  const willOpen = panel.hidden;
+  panel.hidden = !willOpen;
+  btn.setAttribute('aria-expanded', String(willOpen));
+});
+document.getElementById('export-download-btn').addEventListener('click', ()=>{
+  const statusEl = document.getElementById('export-status');
+  const checked = Array.from(document.querySelectorAll('.export-check:checked')).map(c=>c.value);
+  statusEl.hidden = false;
+  if(checked.length===0){
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'Selecione ao menos uma opção.';
+    return;
+  }
+  if(typeof XLSX === 'undefined' || typeof XLSX.writeFile !== 'function'){
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'A biblioteca de planilhas (SheetJS, via cdnjs.cloudflare.com) não carregou neste navegador/rede — verifique a conexão.';
+    return;
+  }
+  try{
+    const sheets = collectExportSheets(checked);
+    downloadWorkbook(sheets, 'Improdutividades');
+    statusEl.className = 'export-status';
+    statusEl.textContent = 'Excel gerado com sucesso.';
+  }catch(err){
+    console.error(err);
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'Erro ao gerar o Excel: ' + err.message;
+  }
 });
 
 /* ---------- Importação de dados (.xlsx) no navegador ---------- */

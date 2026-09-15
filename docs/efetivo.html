@@ -133,6 +133,14 @@ button.settings-item:hover{background:var(--sand);}
 .si-sub{font-size:11px; color:var(--text-muted);}
 .settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
 .settings-theme-row{cursor:default;}
+.export-options{display:flex; flex-direction:column; gap:2px; padding:2px 10px 10px;}
+.export-options-head{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600; padding:4px 0 2px;}
+.export-check-row{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:12.5px; color:var(--text-primary); cursor:pointer;}
+.export-check-row input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
+.export-download-btn{margin-top:6px; border:1px solid var(--steel); background:var(--steel); color:var(--text-on-accent); border-radius:7px; padding:8px 10px; font-size:12.5px; font-weight:600; cursor:pointer;}
+.export-download-btn:hover{filter:brightness(1.08);}
+.export-status{margin-top:6px; font-size:11px; padding:6px 8px; border-radius:6px; background:var(--sand); color:var(--text-secondary);}
+.export-status.error{background:var(--critical-soft); color:var(--critical);}
 .switch{position:relative; display:inline-block; width:40px; height:22px; flex:none;}
 .switch input{opacity:0; width:0; height:0;}
 .switch-slider{position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:background .2s;}
@@ -527,6 +535,20 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <span class="si-text"><span class="si-title">Atualizar dados</span><span class="si-sub">Importar nova planilha .xlsx</span></span>
           </button>
           <input type="file" id="settings-file-input" accept=".xlsx" hidden>
+          <div class="settings-divider"></div>
+          <button class="settings-item" id="settings-export-btn" type="button" aria-expanded="false">
+            <span class="si-icon">⭳</span>
+            <span class="si-text"><span class="si-title">Extrair dados</span><span class="si-sub">Baixar Excel com os filtros atuais</span></span>
+          </button>
+          <div id="export-options" class="export-options" hidden>
+            <div class="export-options-head">Escolha o que extrair</div>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="apont" checked><span>Apontamento Detalhado</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="confronto" checked><span>Confronto OS &times; Função</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="planejamento" checked><span>Planejamento Semanal</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="ausencias" checked><span>Ausências &amp; Absenteísmo</span></label>
+            <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
+            <div class="export-status" id="export-status" hidden></div>
+          </div>
           <div class="settings-divider"></div>
           <div class="settings-item settings-theme-row">
             <span class="si-icon" id="theme-icon">◐</span>
@@ -1434,6 +1456,100 @@ function buildCargoDiscMap(){
   });
   return out;
 }
+
+/* ---------- Extração de dados (Excel) ---------- */
+function exportFiltersSummarySheet(){
+  const dates = Array.from(state.dates).sort();
+  const osArr = Array.from(state.osGlobal).sort((a,b)=>osSortVal(a)-osSortVal(b)).map(osLabel);
+  const supArr = Array.from(state.supervisorGlobal).sort();
+  return {name:'Filtros aplicados', aoa: [
+    ['Filtro', 'Valor'],
+    ['Painel', 'Efetivo × Empilhamento Semanal'],
+    ['Extraído em', new Date().toLocaleString('pt-BR')],
+    ['Datas selecionadas', dates.length ? dates.join(', ') : 'Todas'],
+    ['Contrato', state.contrato==='all' ? 'Todos' : state.contrato],
+    ['OS (filtro global)', osArr.length ? osArr.join(', ') : 'Todas'],
+    ['Supervisor (filtro global)', supArr.length ? supArr.join(', ') : 'Todos'],
+  ]};
+}
+function exportApontSheet(){
+  let ef = efetivoForDates().filter(r=>r.presente);
+  const search = (state.apont.search||'').toLowerCase();
+  if(search) ef = ef.filter(r=>(r.encarregado||'').toLowerCase().includes(search));
+  ef = ef.slice().sort((a,b)=> a.data.localeCompare(b.data) || osSortVal(a.os)-osSortVal(b.os) || (a.nome||'').localeCompare(b.nome||''));
+  const aoa = [['Data','OS','Contrato','Supervisor','Encarregado','Cargo','Nome','Matrícula']];
+  ef.forEach(r=>{
+    const matr = r.matr_usm || r.matr_tct || r.sap;
+    aoa.push([r.data, osLabel(r.os), r.contrato||'', r.supervisor||'', r.encarregado||'', r.cargo||'', r.nome||'', matr!=null?String(matr):'']);
+  });
+  return {name:'Apontamento Detalhado', aoa};
+}
+function exportConfrontoSheet(){
+  const f = state.cf;
+  let rows = buildConfrontoMulti();
+  if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {planejado:0, apontado:0});
+    const o = byOs.get(r.os);
+    o.planejado += r.planejado; o.apontado += r.apontado;
+  });
+  const statusByOs = new Map();
+  byOs.forEach((o,os)=>statusByOs.set(os, aggregateStatus(os, o.planejado, o.apontado, o.apontado-o.planejado)));
+  if(f.status!=='all') rows = rows.filter(r=>statusByOs.get(r.os)===f.status);
+  rows = rows.slice().sort((a,b)=>osSortVal(a.os)-osSortVal(b.os) || a.cargo.localeCompare(b.cargo));
+  const aoa = [['OS','Contrato','Título','Disciplina','Cargo','Planejado','Apontado','Diferença','Situação (cargo)','Situação (OS)']];
+  rows.forEach(r=>{
+    aoa.push([osLabel(r.os), r.contrato||'', r.titulo||'', r.disciplina||'', r.cargo, r.planejado, r.apontado, r.diferenca, STATUS_LABEL[r.status]||'', STATUS_LABEL[statusByOs.get(r.os)]||'']);
+  });
+  return {name:'Confronto OS x Funcao', aoa};
+}
+function exportPlanejamentoSheet(){
+  let rows = planAll();
+  if(state.hm.os.size) rows = rows.filter(r=>state.hm.os.has(String(r.os)));
+  const search = (state.hm.search||'').trim().toLowerCase();
+  if(search) rows = rows.filter(r=>r.cargo.toLowerCase().includes(search));
+  rows = rows.slice().sort((a,b)=>osSortVal(a.os)-osSortVal(b.os) || a.data.localeCompare(b.data) || a.cargo.localeCompare(b.cargo));
+  const aoa = [['OS','Contrato','Título','Semana','Dia','Data','Função','Qtd Planejada']];
+  rows.forEach(r=>{
+    const meta = DATA.os_meta[String(r.os)] || {};
+    aoa.push([osLabel(r.os), meta.contrato||contratoOfOs(r.os), meta.titulo||'', r.semana, r.dia, r.data, r.cargo, r.qtd_planejada]);
+  });
+  return {name:'Planejamento Semanal', aoa};
+}
+function exportAusenciasSheet(){
+  let ef = efetivoForDates().filter(r=>!isWeekendOrHoliday(r.data) && !r.presente);
+  ef = ef.slice().sort((a,b)=> a.data.localeCompare(b.data) || osSortVal(a.os)-osSortVal(b.os) || (a.nome||'').localeCompare(b.nome||''));
+  const aoa = [['Data','OS','Contrato','Supervisor','Encarregado','Cargo','Disciplina','Nome','Matrícula','Status']];
+  ef.forEach(r=>{
+    const matr = r.matr_usm || r.matr_tct || r.sap;
+    aoa.push([r.data, osLabel(r.os), r.contrato||'', r.supervisor||'', r.encarregado||'', r.cargo||'', r.disciplina||'', r.nome||'', matr!=null?String(matr):'', r.status==='Férias'?'Férias':'Falta']);
+  });
+  return {name:'Ausências', aoa};
+}
+function collectExportSheets(selectedKeys){
+  const builders = {
+    apont: exportApontSheet,
+    confronto: exportConfrontoSheet,
+    planejamento: exportPlanejamentoSheet,
+    ausencias: exportAusenciasSheet,
+  };
+  const sheets = [exportFiltersSummarySheet()];
+  selectedKeys.forEach(k=>{ if(builders[k]) sheets.push(builders[k]()); });
+  return sheets;
+}
+function downloadWorkbook(sheets, filenamePrefix){
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s=>{
+    const ws = XLSX.utils.aoa_to_sheet(s.aoa);
+    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0,31));
+  });
+  const ts = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  const stamp = ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate())+'_'+pad(ts.getHours())+'h'+pad(ts.getMinutes());
+  XLSX.writeFile(wb, `${filenamePrefix}_${stamp}.xlsx`);
+}
+
 function renderConfrontoTable(){
   const f = state.cf;
   let rows = buildConfrontoMulti();
@@ -2576,6 +2692,38 @@ function parseWorkbookToBundle(wb){
 
 document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
   document.getElementById('settings-file-input').click();
+});
+document.getElementById('settings-export-btn').addEventListener('click', ()=>{
+  const panel = document.getElementById('export-options');
+  const btn = document.getElementById('settings-export-btn');
+  const willOpen = panel.hidden;
+  panel.hidden = !willOpen;
+  btn.setAttribute('aria-expanded', String(willOpen));
+});
+document.getElementById('export-download-btn').addEventListener('click', ()=>{
+  const statusEl = document.getElementById('export-status');
+  const checked = Array.from(document.querySelectorAll('.export-check:checked')).map(c=>c.value);
+  statusEl.hidden = false;
+  if(checked.length===0){
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'Selecione ao menos uma opção.';
+    return;
+  }
+  if(typeof XLSX === 'undefined' || typeof XLSX.writeFile !== 'function'){
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'A biblioteca de planilhas (SheetJS, via cdnjs.cloudflare.com) não carregou neste navegador/rede — verifique a conexão.';
+    return;
+  }
+  try{
+    const sheets = collectExportSheets(checked);
+    downloadWorkbook(sheets, 'Efetivo_x_Empilhamento');
+    statusEl.className = 'export-status';
+    statusEl.textContent = 'Excel gerado com sucesso.';
+  }catch(err){
+    console.error(err);
+    statusEl.className = 'export-status error';
+    statusEl.textContent = 'Erro ao gerar o Excel: ' + err.message;
+  }
 });
 document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   const file = e.target.files && e.target.files[0];
