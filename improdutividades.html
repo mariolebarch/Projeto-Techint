@@ -2478,6 +2478,10 @@ document.getElementById('export-download-btn').addEventListener('click', ()=>{
 
 /* ---------- Importação de dados (.xlsx) no navegador ---------- */
 function cleanStrImport(v){ if(v===undefined||v===null||v==='') return null; return String(v).replace(/\s+/g,' ').trim(); }
+// Algumas linhas ainda em reclassificação trazem "-" como marcador de
+// placeholder em vez de deixar a célula vazia — trata como se fosse vazio,
+// para não virar uma categoria "-" própria em gráficos/tabelas/filtros.
+function cleanStrImportOrDash(v){ const s = cleanStrImport(v); return (s!==null && /^-+$/.test(s)) ? null : s; }
 function normKeyImport(v){ const c=cleanStrImport(v); return c===null?null:c.toUpperCase(); }
 function normOsImport(v){
   if(v===undefined||v===null||v==='') return null;
@@ -2537,8 +2541,8 @@ function parseWorkbookToBundleImprod(wb){
   const groups = {};
   for(let r=2; r<=maxRow(ws); r++){
     const osVal = normOsImport(cellVal(ws,r,4));
-    const grupo = cleanStrImport(cellVal(ws,r,6));
-    const interf = cleanStrImport(cellVal(ws,r,22)); // coluna V (Reclassificação)
+    const grupo = cleanStrImportOrDash(cellVal(ws,r,6));
+    const interf = cleanStrImportOrDash(cellVal(ws,r,22)); // coluna V (Reclassificação)
     const encarregado = cleanStrImport(cellVal(ws,r,9));
     const dataIni = cellVal(ws,r,12);
     const plan = toHoursImport(cellVal(ws,r,17));

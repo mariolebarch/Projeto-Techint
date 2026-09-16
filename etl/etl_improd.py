@@ -15,6 +15,13 @@ def clean(s):
     if s is None: return None
     return re.sub(r'\s+', ' ', str(s).strip())
 
+# Algumas linhas ainda em reclassificação trazem "-" como marcador de
+# placeholder em vez de deixar a célula vazia — trata como se fosse vazio,
+# para não virar uma categoria "-" própria em gráficos/tabelas/filtros.
+def clean_or_dash(s):
+    v = clean(s)
+    return None if v is not None and re.fullmatch(r'-+', v) else v
+
 def norm_key(s):
     if s is None: return None
     return re.sub(r'\s+', ' ', str(s).strip()).upper()
@@ -95,8 +102,8 @@ unmapped_sup = set()
 for r in range(2, max_row+1):
     rdc = clean(ws.cell(row=r, column=3).value)
     os_val = norm_os(ws.cell(row=r, column=4).value)
-    grupo = clean(ws.cell(row=r, column=6).value)
-    interf = clean(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)
+    grupo = clean_or_dash(ws.cell(row=r, column=6).value)
+    interf = clean_or_dash(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)
     encarregado = clean(ws.cell(row=r, column=9).value)
     data_ini = ws.cell(row=r, column=12).value
     dur = to_hours(ws.cell(row=r, column=16).value)
