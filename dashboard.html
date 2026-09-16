@@ -132,7 +132,10 @@ button.settings-item:hover{background:var(--sand);}
 .settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
 .settings-theme-row{cursor:default;}
 .export-options{display:flex; flex-direction:column; gap:2px; padding:2px 10px 10px;}
-.export-options-head{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600; padding:4px 0 2px;}
+.export-options-head{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600; padding:6px 2px; display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:none; cursor:pointer; text-align:left; font-family:inherit;}
+.export-options-head:hover{color:var(--text-primary);}
+.export-options-chevron{font-size:10px; transition:transform .15s ease;}
+.export-options-head[aria-expanded="true"] .export-options-chevron{transform:rotate(180deg);}
 .export-check-row{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:12.5px; color:var(--text-primary); cursor:pointer;}
 .export-check-row input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
 .export-download-btn{margin-top:6px; border:1px solid var(--steel); background:var(--steel); color:var(--text-on-accent); border-radius:7px; padding:8px 10px; font-size:12.5px; font-weight:600; cursor:pointer;}
@@ -552,11 +555,13 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <span class="si-text"><span class="si-title">Extrair dados</span><span class="si-sub">Baixar Excel com os filtros atuais</span></span>
           </button>
           <div id="export-options" class="export-options" hidden>
-            <div class="export-options-head">Escolha o que extrair</div>
-            <label class="export-check-row"><input type="checkbox" class="export-check" value="apont" checked><span>Apontamento Detalhado</span></label>
-            <label class="export-check-row"><input type="checkbox" class="export-check" value="confronto" checked><span>Confronto OS &times; Função</span></label>
-            <label class="export-check-row"><input type="checkbox" class="export-check" value="planejamento" checked><span>Planejamento Semanal</span></label>
-            <label class="export-check-row"><input type="checkbox" class="export-check" value="ausencias" checked><span>Ausências &amp; Absenteísmo</span></label>
+            <button class="export-options-head" id="export-options-toggle" type="button" aria-expanded="false"><span>Escolha o que extrair</span><span class="export-options-chevron">&#9662;</span></button>
+            <div id="export-check-list" hidden>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="apont" checked><span>Apontamento Detalhado</span></label>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="confronto" checked><span>Confronto OS &times; Função</span></label>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="planejamento" checked><span>Planejamento Semanal</span></label>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="ausencias" checked><span>Ausências &amp; Absenteísmo</span></label>
+            </div>
             <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
             <div class="export-status" id="export-status" hidden></div>
           </div>
@@ -3013,6 +3018,13 @@ document.getElementById('settings-export-btn').addEventListener('click', ()=>{
   const willOpen = panel.hidden;
   panel.hidden = !willOpen;
   btn.setAttribute('aria-expanded', String(willOpen));
+});
+document.getElementById('export-options-toggle').addEventListener('click', ()=>{
+  const list = document.getElementById('export-check-list');
+  const toggle = document.getElementById('export-options-toggle');
+  const willOpen = list.hidden;
+  list.hidden = !willOpen;
+  toggle.setAttribute('aria-expanded', String(willOpen));
 });
 document.getElementById('export-download-btn').addEventListener('click', ()=>{
   const statusEl = document.getElementById('export-status');
