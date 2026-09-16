@@ -240,6 +240,18 @@ for row in emp_semanal_plan:
     if row["cargo"]:
         row["cargo"] = cargo_canon[norm(row["cargo"])]
 
+# Mesmo problema acima, mas para encarregado/supervisor — duplicava a mesma
+# pessoa em duas linhas no quadro "Colaboradores por Supervisor / Encarregado x OS".
+for field in ("encarregado", "supervisor"):
+    tally = defaultdict(Counter)
+    for row in efetivo_rows:
+        if row.get(field):
+            tally[norm(row[field])][row[field]] += 1
+    canon = {key: variants.most_common(1)[0][0] for key, variants in tally.items()}
+    for row in efetivo_rows:
+        if row.get(field):
+            row[field] = canon[norm(row[field])]
+
 cargo_corrigido_all = sorted(set(r["cargo"] for r in emp_semanal_plan) | set(r["cargo"] for r in efetivo_rows if r["cargo"]))
 
 bundle = {
