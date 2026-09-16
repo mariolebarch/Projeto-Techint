@@ -2098,6 +2098,12 @@ function renderPlanejamento(){
     box.appendChild(details);
   });
   if(!anyBlock){ box.innerHTML = '<div class="empty-state">Nenhuma função encontrada para essa busca.</div>'; }
+  requestAnimationFrame(()=>{
+    box.querySelectorAll('.heat-wrap').forEach(wrap=>{
+      const cell = wrap.querySelector('.heat-cell.today');
+      if(cell) cell.scrollIntoView({block:'nearest', inline:'center'});
+    });
+  });
   renderScurve();
 }
 
