@@ -678,7 +678,24 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 <script>
 (function(){
 "use strict";
-let DATA = JSON.parse(document.getElementById('bundle-data').textContent);
+// Linhas ainda em reclassificação manual na planilha às vezes trazem "-" em
+// vez de célula vazia. Normaliza isso aqui, na entrada dos dados (seja o
+// bundle embutido, um upload novo ou um snapshot já salvo no Supabase antes
+// dessa correção), para não virar uma categoria "-" própria em nenhum
+// gráfico/tabela/filtro do painel.
+function isDashPlaceholder(v){
+  return typeof v === 'string' && /^-+$/.test(v.trim());
+}
+function normalizeInterferenciaDashes(bundle){
+  if(bundle && Array.isArray(bundle.interferencias)){
+    bundle.interferencias.forEach(r=>{
+      if(isDashPlaceholder(r.gi)) r.gi = null;
+      if(isDashPlaceholder(r.it)){ r.it = null; r.resp = null; }
+    });
+  }
+  return bundle;
+}
+let DATA = normalizeInterferenciaDashes(JSON.parse(document.getElementById('bundle-data').textContent));
 
 /* ---------- Supabase (fonte de dados centralizada, opcional) ---------- */
 const SUPABASE_URL = 'https://dqomnopaigdikkesbbvj.supabase.co';
@@ -2599,7 +2616,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       if(typeof XLSX === 'undefined') throw new Error('Biblioteca de planilhas não disponível (bloqueio de rede?).');
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
       bundle = parseWorkbookToBundleImprod(wb);
-      DATA = bundle;
+      DATA = normalizeInterferenciaDashes(bundle);
       state.dates = new Set(DATA.datas || []);
       state.os = new Set(); state.grupo='all'; state.sup='all'; state.poros.expanded = new Set();
       renderAll();
@@ -2722,7 +2739,7 @@ async function sbInit(){
     const { data, error } = await sb.from('improdutividade_snapshots').select('bundle,created_at,source_filename').order('created_at', {ascending:false}).limit(1).maybeSingle();
     if(error) throw error;
     if(data && data.bundle){
-      DATA = data.bundle;
+      DATA = normalizeInterferenciaDashes(data.bundle);
       state.dates = new Set(DATA.datas || []);
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
