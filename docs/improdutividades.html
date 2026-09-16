@@ -531,6 +531,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
             <label class="export-check-row"><input type="checkbox" class="export-check" value="detalhamento" checked><span>Detalhamento (Supervisor &times; Tipo)</span></label>
             <label class="export-check-row"><input type="checkbox" class="export-check" value="poros" checked><span>Impacto por OS</span></label>
             <label class="export-check-row"><input type="checkbox" class="export-check" value="rdc" checked><span>Situação RDC</span></label>
+            <label class="export-check-row"><input type="checkbox" class="export-check" value="completa" checked><span>Base completa (todas as colunas mescladas)</span></label>
             <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
             <div class="export-status" id="export-status" hidden></div>
           </div>
@@ -2157,12 +2158,23 @@ function exportRdcSheet(){
   });
   return {name:'Situação RDC', aoa};
 }
+function exportBaseCompletaSheet(){
+  const rows = DATA.interferencias.filter(passCommon)
+    .slice()
+    .sort((a,b)=> a.d.localeCompare(b.d) || String(a.os).localeCompare(String(b.os)));
+  const aoa = [['Data','OS','Grupo Interferência','Tipo (Interferência)','Responsabilidade','Encarregado','Supervisor','Ocorrências','Duração (h)','Previsto (h)','Real (h)','Horas Atividade (h)']];
+  rows.forEach(r=>{
+    aoa.push([r.d, r.os, r.gi||'', r.it||'', r.resp||'', r.enc||'', r.sup||'', r.n, r.dur, r.plan, r.real, r.hAtiv]);
+  });
+  return {name:'Base completa', aoa};
+}
 function collectExportSheets(selectedKeys){
   const builders = {
     interf: exportInterfSheet,
     detalhamento: exportDetalhamentoSheet,
     poros: exportPorOsSheet,
     rdc: exportRdcSheet,
+    completa: exportBaseCompletaSheet,
   };
   const sheets = [exportFiltersSummarySheet()];
   selectedKeys.forEach(k=>{ if(builders[k]) sheets.push(builders[k]()); });
