@@ -96,7 +96,7 @@ for r in range(2, max_row+1):
     rdc = clean(ws.cell(row=r, column=3).value)
     os_val = norm_os(ws.cell(row=r, column=4).value)
     grupo = clean(ws.cell(row=r, column=6).value)
-    interf = clean(ws.cell(row=r, column=7).value)
+    interf = clean(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)
     encarregado = clean(ws.cell(row=r, column=9).value)
     data_ini = ws.cell(row=r, column=12).value
     dur = to_hours(ws.cell(row=r, column=16).value)
