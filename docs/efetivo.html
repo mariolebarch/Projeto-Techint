@@ -1303,6 +1303,11 @@ function alignOvTables(){
   const tableRow = document.querySelector('#ov-colab-table table tbody tr');
   const barRow = document.querySelector('#eq-list .bar-row.eq-row');
   if(!eqList) return;
+  // Se a aba Visão Geral estiver escondida (display:none, por estar em outra
+  // aba), getBoundingClientRect() de tudo dentro dela retorna 0 — medir nesse
+  // momento corromperia --bar-row-h para 0px, colapsando as linhas quando o
+  // usuário voltar para a aba. Só recalcula quando a aba está realmente visível.
+  if(eqList.offsetParent === null) return;
   eqList.style.removeProperty('--bar-row-h');
   eqList.style.marginTop = '';
   if(!tableRow || !barRow || window.innerWidth <= 1000) return; // sem par para alinhar, ou colunas empilhadas
@@ -2606,6 +2611,7 @@ document.getElementById('tabbar').addEventListener('click', e=>{
   document.querySelectorAll('.tabbtn').forEach(b=>b.setAttribute('aria-selected', b===btn));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+  if(btn.dataset.tab==='visao') alignOvTables();
 });
 
 document.getElementById('cf-disc').addEventListener('change', e=>{state.cf.disc=e.target.value; renderConfrontoTable();});
