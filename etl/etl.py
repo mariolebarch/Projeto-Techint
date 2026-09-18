@@ -71,13 +71,12 @@ for r in range(2, ws_ef.max_row+1):
     status = clean(ws_ef.cell(row=r, column=6).value)
     disciplina = clean(ws_ef.cell(row=r, column=7).value)
     encarregado = clean(ws_ef.cell(row=r, column=8).value)
-    superv_efetivo = clean(ws_ef.cell(row=r, column=9).value)
-    supervisor = clean(ws_ef.cell(row=r, column=10).value)
-    custo = clean(ws_ef.cell(row=r, column=11).value)
-    facil = ws_ef.cell(row=r, column=12).value
-    sge = ws_ef.cell(row=r, column=13).value
-    os_val = ws_ef.cell(row=r, column=14).value
-    data_val = ws_ef.cell(row=r, column=15).value
+    supervisor = clean(ws_ef.cell(row=r, column=9).value)
+    custo = clean(ws_ef.cell(row=r, column=10).value)
+    facil = ws_ef.cell(row=r, column=11).value
+    sge = ws_ef.cell(row=r, column=12).value
+    os_val = ws_ef.cell(row=r, column=13).value
+    data_val = ws_ef.cell(row=r, column=14).value
 
     facil_n = facil if isinstance(facil, (int, float)) else 0
     sge_n = sge if isinstance(sge, (int, float)) else 0
@@ -92,7 +91,7 @@ for r in range(2, ws_ef.max_row+1):
     efetivo_rows.append({
         "sap": sap, "matr_usm": matr_usm, "matr_tct": matr_tct, "nome": nome,
         "cargo": cargo, "status": status, "disciplina": disciplina,
-        "encarregado": encarregado, "superv_efetivo": superv_efetivo, "supervisor": supervisor,
+        "encarregado": encarregado, "supervisor": supervisor,
         "custo": custo, "facil": facil_n, "sge": sge_n, "presente": presente,
         "os": os_key, "data": data_iso,
         "contrato": contrato_of(os_key) if os_key is not None else None,

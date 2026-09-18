@@ -2807,13 +2807,12 @@ function parseWorkbookToBundle(wb){
     const status = cleanStr(cellVal(wsEf,r,6));
     const disciplina = cleanStr(cellVal(wsEf,r,7));
     const encarregado = cleanStr(cellVal(wsEf,r,8));
-    const supervEfetivo = cleanStr(cellVal(wsEf,r,9));
-    const supervisor = cleanStr(cellVal(wsEf,r,10));
-    const custo = cleanStr(cellVal(wsEf,r,11));
-    const facil = cellVal(wsEf,r,12);
-    const sge = cellVal(wsEf,r,13);
-    const osVal = cellVal(wsEf,r,14);
-    const dataVal = cellVal(wsEf,r,15);
+    const supervisor = cleanStr(cellVal(wsEf,r,9));
+    const custo = cleanStr(cellVal(wsEf,r,10));
+    const facil = cellVal(wsEf,r,11);
+    const sge = cellVal(wsEf,r,12);
+    const osVal = cellVal(wsEf,r,13);
+    const dataVal = cellVal(wsEf,r,14);
 
     const facilN = (typeof facil==='number') ? facil : 0;
     const sgeN = (typeof sge==='number') ? sge : 0;
@@ -2828,7 +2827,7 @@ function parseWorkbookToBundle(wb){
 
     efetivoRows.push({
       sap, matr_usm: matrUsm===undefined?null:matrUsm, matr_tct: matrTct===undefined?null:matrTct, nome,
-      cargo, status, disciplina, encarregado, superv_efetivo: supervEfetivo, supervisor,
+      cargo, status, disciplina, encarregado, supervisor,
       custo, facil: facilN, sge: sgeN, presente,
       os: osKey===undefined?null:osKey, data: dataIso,
       contrato: osKey!=null ? contratoOfImport(osKey) : null,
