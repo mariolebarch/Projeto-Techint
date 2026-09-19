@@ -540,6 +540,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
             <div id="export-check-list" hidden>
               <label class="export-check-row"><input type="checkbox" class="export-check" value="resumo" checked><span>Resumo por OS (detalhado)</span></label>
               <label class="export-check-row"><input type="checkbox" class="export-check" value="pendfad" checked><span>Pendências, Apropriação &amp; FAD's</span></label>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="funcao" checked><span>Saldo por Função (por OS)</span></label>
               <label class="export-check-row"><input type="checkbox" class="export-check" value="completa" checked><span>Base completa (todas as colunas)</span></label>
             </div>
             <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
@@ -577,6 +578,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
     <button class="tabbtn" data-tab="pendfad" aria-selected="false">Pendências, Apropriação &amp; FAD's</button>
     <button class="tabbtn" data-tab="detalhe" aria-selected="false">Detalhamento por OS</button>
+    <button class="tabbtn" data-tab="funcao" aria-selected="false">Saldo por Função</button>
   </nav>
 
 
@@ -642,6 +644,32 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     </div>
   </section>
 
+  <!-- ================= SALDO POR FUNÇÃO ================= -->
+  <section class="view" id="view-funcao">
+    <div class="card">
+      <div class="card-head"><h3>Funções com maior Saldo Disponível</h3><span class="card-note">Top 15 &middot; soma do Saldo (HH) da função nas OS's filtradas &middot; onde há mais capacidade contratada ociosa</span></div>
+      <div id="funcao-bars"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Ranking de Funções</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar</label><input class="search-input" id="funcao-search" placeholder="ex: Soldador&hellip;"></div>
+          <div class="field"><label>Ordenar por</label><select id="funcao-sort"></select></div>
+        </div>
+      </div>
+      <p class="card-note">Realizado e Saldo por função batem com os totais de HH Realizado/Saldo da OS &middot; considera os filtros de OS/Contrato/Situação/Líder acima.</p>
+      <div class="table-scroll" style="max-height:560px; overflow-y:auto;">
+        <table id="funcao-table">
+          <thead><tr><th>Função</th><th class="num-col">Qtd. OS's</th><th class="num-col">Realizado (HH)</th><th class="num-col">Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
+          <tbody id="funcao-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="funcao-empty" style="display:none;">Nenhuma função para os filtros atuais.</div>
+    </div>
+  </section>
+
   <div class="foot-note">
     Painel gerado a partir de <span class="mono-tag">Relatório_Saldo_PCI_MOA.xlsb</span> (aba RESUMO GERAL). Empresa: <span id="foot-empresa"></span>.
   </div>
@@ -677,7 +705,17 @@ function normalizeBundle(bundle){
   (bundle.os_list || []).forEach(r=>{
     numKeys.forEach(k=>{ if(typeof r[k] !== 'number' || isNaN(r[k])) r[k] = 0; });
   });
+  if(!bundle.funcoes_por_os) bundle.funcoes_por_os = {};
+  if(!bundle.contrato_labels) bundle.contrato_labels = {};
   return bundle;
+}
+function contratoLabel(pep){
+  if(!pep) return pep;
+  return (DATA.contrato_labels && DATA.contrato_labels[pep]) || pep;
+}
+function funcoesForOs(os){
+  if(os==null) return [];
+  return (DATA.funcoes_por_os && DATA.funcoes_por_os[String(os)]) || [];
 }
 
 function fmtDateLabelFull(iso){
@@ -692,7 +730,7 @@ const state = {
   contrato: 'all',
   sit: new Set(),
   lider: 'all',
-  detalhe: {search:'', sort:'saldo_asc'},
+  detalhe: {search:'', sort:'saldo_asc', expanded:new Set()},
 };
 
 function passCommon(r){
@@ -708,11 +746,11 @@ function passCommon(r){
 }
 function filteredOS(){ return DATA.os_list.filter(passCommon); }
 
-function populateSelect(sel, options, allLabel, current){
+function populateSelect(sel, options, allLabel, current, labelFn){
   sel.innerHTML = '';
   const optAll = document.createElement('option'); optAll.value='all'; optAll.textContent=allLabel;
   sel.appendChild(optAll);
-  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt); });
+  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o; opt.textContent=labelFn?labelFn(o):o; sel.appendChild(opt); });
   sel.value = current || 'all';
 }
 
@@ -780,7 +818,7 @@ function renderGlobalFilters(){
   buildSitMultiSelect();
   const contratoOptions = DATA.contratos || [];
   if(state.contrato!=='all' && !contratoOptions.includes(state.contrato)) state.contrato = 'all';
-  populateSelect(document.getElementById('contrato-select-global'), contratoOptions, 'Todos os contratos', state.contrato);
+  populateSelect(document.getElementById('contrato-select-global'), contratoOptions, 'Todos os contratos', state.contrato, contratoLabel);
   const liderOptions = DATA.lideres || [];
   if(state.lider!=='all' && !liderOptions.includes(state.lider)) state.lider = 'all';
   populateSelect(document.getElementById('lider-select-global'), liderOptions, 'Todos os líderes', state.lider);
@@ -959,24 +997,53 @@ function renderDetalheTable(){
   const empty = document.getElementById('detalhe-empty');
   if(rows.length===0){ tbody.innerHTML=''; empty.style.display=''; return; }
   empty.style.display = 'none';
-  tbody.innerHTML = rows.map(r=>`<tr>
-    <td class="mono-tag">${escHtml(r.os_label)}</td>
-    <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
-    <td>${escHtml(r.lider||'')}</td>
-    <td>${escHtml(r.fiscal||'')}</td>
-    <td>${escHtml(r.sit||'')}</td>
-    <td class="num-col">${fmtH(r.hh_previsto)}</td>
-    <td class="num-col">${fmtH(r.hh_realizado)}</td>
-    <td class="num-col">${fmtH(r.hh_saldo)}</td>
-    <td class="num-col">${fmtPct(r.pct_consumido)}</td>
-    <td class="num-col">${fmtH(r.apropriacao_hh)}</td>
-    <td class="num-col">${fmtH(r.pendencias_hh)}</td>
-    <td class="num-col">${fmtH(r.fad_total_hh)}</td>
-    <td class="num-col">${fmtH(r.mobile_hh)}</td>
-    <td class="num-col">${fmtH(r.saldo_geral_hh)}</td>
-    <td class="num-col">${fmtRs(r.saldo_geral_rs)}</td>
-  </tr>`).join('');
+  tbody.innerHTML = rows.map(r=>{
+    const funcoes = funcoesForOs(r.os);
+    const expanded = r.os!=null && state.detalhe.expanded.has(r.os);
+    const mainRow = `<tr class="os-row${expanded?' expanded':''}" data-os="${r.os==null?'':r.os}">
+      <td class="mono-tag">${escHtml(r.os_label)}${funcoes.length ? `<span class="expand-hint">${expanded?'▾':'▸'} ${funcoes.length} função(ões)</span>` : ''}</td>
+      <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
+      <td>${escHtml(r.lider||'')}</td>
+      <td>${escHtml(r.fiscal||'')}</td>
+      <td>${escHtml(r.sit||'')}</td>
+      <td class="num-col">${fmtH(r.hh_previsto)}</td>
+      <td class="num-col">${fmtH(r.hh_realizado)}</td>
+      <td class="num-col">${fmtH(r.hh_saldo)}</td>
+      <td class="num-col">${fmtPct(r.pct_consumido)}</td>
+      <td class="num-col">${fmtH(r.apropriacao_hh)}</td>
+      <td class="num-col">${fmtH(r.pendencias_hh)}</td>
+      <td class="num-col">${fmtH(r.fad_total_hh)}</td>
+      <td class="num-col">${fmtH(r.mobile_hh)}</td>
+      <td class="num-col">${fmtH(r.saldo_geral_hh)}</td>
+      <td class="num-col">${fmtRs(r.saldo_geral_rs)}</td>
+    </tr>`;
+    if(!expanded || funcoes.length===0) return mainRow;
+    return mainRow + `<tr class="detail-row"><td colspan="15" style="padding:4px 12px 8px 34px;">
+        <table style="width:auto; min-width:520px;"><thead><tr>
+          <th style="background:none; color:var(--text-muted); font-weight:600; padding:4px 12px 4px 0;">Função</th>
+          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Realizado (HH)</th>
+          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (HH)</th>
+          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (R$)</th>
+        </tr></thead><tbody>${funcoes.map(f=>`<tr>
+          <td style="border-top:1px solid var(--border-soft); padding:4px 12px 4px 0;">${escHtml(f.funcao)}</td>
+          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.realizado)}</td>
+          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.saldo)}</td>
+          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtRs(f.vl_saldo)}</td>
+        </tr>`).join('')}</tbody></table>
+        <div class="card-note" style="margin-top:4px;">Realizado e Saldo por função batem com o total da OS acima &middot; Consolidado (orçado) não é mostrado aqui pois pode não estar totalmente detalhado por função na planilha de origem.</div>
+      </td></tr>`;
+  }).join('');
 }
+document.getElementById('detalhe-tbody').addEventListener('click', e=>{
+  const row = e.target.closest('tr.os-row');
+  if(!row) return;
+  const osAttr = row.getAttribute('data-os');
+  if(osAttr==='') return;
+  const os = Number(osAttr);
+  if(state.detalhe.expanded.has(os)) state.detalhe.expanded.delete(os);
+  else state.detalhe.expanded.add(os);
+  renderDetalheTable();
+});
 
 document.getElementById('os-search-global').addEventListener('input', e=>{ state.osSearch = e.target.value; renderAll(); });
 document.getElementById('contrato-select-global').addEventListener('change', e=>{ state.contrato = e.target.value; renderAll(); });
@@ -988,6 +1055,67 @@ document.getElementById('global-clear-btn').addEventListener('click', ()=>{
 });
 document.getElementById('detalhe-search').addEventListener('input', e=>{ state.detalhe.search=e.target.value; renderDetalheTable(); });
 document.getElementById('detalhe-sort').addEventListener('change', e=>{ state.detalhe.sort=e.target.value; renderDetalheTable(); });
+
+/* ---------- Saldo por Função ---------- */
+function aggregateFuncoes(rows){
+  const byFuncao = new Map();
+  rows.forEach(r=>{
+    if(r.os==null) return;
+    funcoesForOs(r.os).forEach(f=>{
+      if(!byFuncao.has(f.funcao)) byFuncao.set(f.funcao, {funcao:f.funcao, realizado:0, saldo:0, vl_saldo:0, osSet:new Set()});
+      const g = byFuncao.get(f.funcao);
+      g.realizado += f.realizado; g.saldo += f.saldo; g.vl_saldo += f.vl_saldo;
+      g.osSet.add(r.os);
+    });
+  });
+  return Array.from(byFuncao.values()).map(g=>({...g, nOs:g.osSet.size}));
+}
+function renderFuncaoBars(){
+  const rows = filteredOS();
+  const agg = aggregateFuncoes(rows);
+  const entries = agg.slice().sort((a,b)=>b.saldo-a.saldo).slice(0,15).map(g=>({label:g.funcao, v:g.saldo}));
+  const box = document.getElementById('funcao-bars');
+  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma função para os filtros atuais.</div>'; return; }
+  renderBarList(box, entries, {color:'var(--good)'});
+}
+const FUNCAO_SORTS = {
+  saldo_desc: {label:'Saldo (maior → menor)', fn:(a,b)=>b.saldo-a.saldo},
+  realizado_desc: {label:'Realizado (maior → menor)', fn:(a,b)=>b.realizado-a.realizado},
+  nos_desc: {label:'Qtd. OS\'s (maior → menor)', fn:(a,b)=>b.nOs-a.nOs},
+  funcao_asc: {label:'Função (A → Z)', fn:(a,b)=>a.funcao.localeCompare(b.funcao)},
+};
+const stateFuncao = {search:'', sort:'saldo_desc'};
+function renderFuncaoControls(){
+  const sel = document.getElementById('funcao-sort');
+  if(sel.options.length===0){
+    Object.entries(FUNCAO_SORTS).forEach(([k,v])=>{
+      const opt = document.createElement('option'); opt.value=k; opt.textContent=v.label; sel.appendChild(opt);
+    });
+    sel.value = stateFuncao.sort;
+  }
+}
+function renderFuncaoTable(){
+  const rows = filteredOS();
+  let agg = aggregateFuncoes(rows);
+  if(stateFuncao.search){
+    const q = stateFuncao.search.toLowerCase();
+    agg = agg.filter(g=>g.funcao.toLowerCase().includes(q));
+  }
+  agg.sort(FUNCAO_SORTS[stateFuncao.sort].fn);
+  const tbody = document.getElementById('funcao-tbody');
+  const empty = document.getElementById('funcao-empty');
+  if(agg.length===0){ tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = agg.map(g=>`<tr>
+    <td>${escHtml(g.funcao)}</td>
+    <td class="num-col">${fmtInt(g.nOs)}</td>
+    <td class="num-col">${fmtH(g.realizado)}</td>
+    <td class="num-col">${fmtH(g.saldo)}</td>
+    <td class="num-col">${fmtRs(g.vl_saldo)}</td>
+  </tr>`).join('');
+}
+document.getElementById('funcao-search').addEventListener('input', e=>{ stateFuncao.search=e.target.value; renderFuncaoTable(); });
+document.getElementById('funcao-sort').addEventListener('change', e=>{ stateFuncao.sort=e.target.value; renderFuncaoTable(); });
 
 /* ---------- Abas ---------- */
 document.querySelectorAll('.tabbtn').forEach(btn=>{
@@ -1007,6 +1135,9 @@ function renderAll(){
   renderExposicaoTable();
   renderDetalheControls();
   renderDetalheTable();
+  renderFuncaoBars();
+  renderFuncaoControls();
+  renderFuncaoTable();
   renderAlerts();
 }
 
@@ -1068,10 +1199,22 @@ function exportBaseCompletaSheet(){
   });
   return {name:'Base completa', aoa};
 }
+function exportFuncaoSheet(){
+  const rows = filteredOS();
+  const aoa = [['OS','Situação','Função','Consolidado (HH)','Realizado (HH)','Saldo (HH)','Valor Realizado (R$)','Valor Saldo (R$)']];
+  rows.forEach(r=>{
+    if(r.os==null) return;
+    funcoesForOs(r.os).forEach(f=>{
+      aoa.push([r.os_label, r.sit||'', f.funcao, f.consolidado, f.realizado, f.saldo, f.vl_realizado, f.vl_saldo]);
+    });
+  });
+  return {name:'Saldo por Função', aoa};
+}
 function collectExportSheets(selectedKeys){
   const builders = {
     resumo: exportResumoSheet,
     pendfad: exportPendFadSheet,
+    funcao: exportFuncaoSheet,
     completa: exportBaseCompletaSheet,
   };
   const sheets = [exportFiltersSummarySheet()];
@@ -1449,9 +1592,53 @@ function parseWorkbookToBundleSaudeOs(wb){
   const fiscais = Array.from(new Set(osList.map(r=>r.fiscal).filter(Boolean))).sort();
   const situacoes = Array.from(new Set(osList.map(r=>r.sit).filter(Boolean))).sort();
 
+  // ---------- Legenda Contrato (PEP -> PCI/MOA/UNIGAL), aba " 8 - SALDO_FUNÇÃO X OS" ----------
+  const contratoLabels = {};
+  try{
+    const wsLeg = sheet(' 8 - SALDO_FUNÇÃO X OS');
+    for(let r=1; r<=3; r++){
+      const pep = cleanStrImport(cellVal(wsLeg,r,14));
+      const label = cleanStrImport(cellVal(wsLeg,r,15));
+      if(pep && label) contratoLabels[pep] = label;
+    }
+  }catch(e){ /* aba pode não existir em planilhas mais antigas — segue sem legenda */ }
+
+  // ---------- Saldo por Função dentro de cada OS, aba "1 - PLAN SALDO_OSs DET." ----------
+  // Realizado e Saldo (HH/R$) batem exatamente com o total da OS em RESUMO GERAL;
+  // Consolidado é informativo (pode não somar ao HH Previsto da OS).
+  const funcoesPorOs = {};
+  const wsDet = sheet('1 - PLAN SALDO_OSs DET.');
+  const maxRDet = maxRow(wsDet);
+  const funcPrefixRe = /^\d+\s*-\s*/;
+  for(let r=4; r<=maxRDet; r++){
+    const osVal = cellVal(wsDet,r,13);
+    if(typeof osVal !== 'number' || isNaN(osVal) || osVal===0) continue;
+    const subItem = cleanStrImport(cellVal(wsDet,r,4));
+    if(!subItem) continue;
+    const funcao = subItem.replace(funcPrefixRe, '');
+    const key = String(Math.trunc(osVal));
+    if(!funcoesPorOs[key]) funcoesPorOs[key] = {};
+    const bucket = funcoesPorOs[key];
+    if(!bucket[funcao]) bucket[funcao] = {consolidado:0, realizado:0, saldo:0, vl_realizado:0, vl_saldo:0};
+    const f = bucket[funcao];
+    f.consolidado += numImport(cellVal(wsDet,r,8)) || numImport(cellVal(wsDet,r,7));
+    f.realizado += numImport(cellVal(wsDet,r,9));
+    f.saldo += numImport(cellVal(wsDet,r,10));
+    f.vl_realizado += numImport(cellVal(wsDet,r,11));
+    f.vl_saldo += numImport(cellVal(wsDet,r,12));
+  }
+  Object.keys(funcoesPorOs).forEach(key=>{
+    const bucket = funcoesPorOs[key];
+    funcoesPorOs[key] = Object.entries(bucket)
+      .map(([funcao,vals])=>({funcao, ...vals}))
+      .filter(x=>x.consolidado||x.realizado||x.saldo)
+      .sort((a,b)=>b.saldo-a.saldo);
+  });
+
   return {
     meta: {empresa: 'TECHINT ENGENHARIA E CONSTRUCAO SA'},
-    periodos, os_list: osList, totais, contratos, lideres, fiscais, situacoes,
+    periodos, os_list: osList, totais, contratos, contrato_labels: contratoLabels,
+    lideres, fiscais, situacoes, funcoes_por_os: funcoesPorOs,
   };
 }
 

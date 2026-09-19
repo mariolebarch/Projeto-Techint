@@ -111,15 +111,68 @@ lideres = sorted(set(r["lider"] for r in os_list if r["lider"]))
 fiscais = sorted(set(r["fiscal"] for r in os_list if r["fiscal"]))
 situacoes = sorted(set(r["sit"] for r in os_list if r["sit"]))
 
+# ---------- Legenda Contrato (PEP -> rótulo PCI/MOA/UNIGAL), lida da aba
+# " 8 - SALDO_FUNÇÃO X OS" (linhas 0-2, colunas 13-14) ----------
+contrato_labels = {}
+try:
+    with wb.get_sheet(' 8 - SALDO_FUNÇÃO X OS') as sheet_areas:
+        legend_rows = [{c.c: c.v for c in r} for r in sheet_areas.rows()][:3]
+    for row in legend_rows:
+        pep = clean(row.get(13))
+        label = clean(row.get(14))
+        if pep and label:
+            contrato_labels[pep] = label
+except Exception:
+    pass
+
+# ---------- Saldo por Função dentro de cada OS, lido da aba
+# "1 - PLAN SALDO_OSs DET." — cada linha é uma combinação OS x Função. O
+# "Saldo" e "Realizado" (HH e R$) batem exatamente com o total da OS em
+# RESUMO GERAL; o "Consolidado" por função pode não somar ao "HH Previsto"
+# da OS (parte do orçamento pode estar alocada sem detalhamento por função),
+# então tratamos Consolidado como informativo, não como um "previsto" oficial.
+funcoes_por_os = {}
+with wb.get_sheet('1 - PLAN SALDO_OSs DET.') as sheet_det:
+    det_rows = [{c.c: c.v for c in r} for r in sheet_det.rows()]
+
+FUNC_PREFIX_RE = re.compile(r'^\d+\s*-\s*')
+for d in det_rows[3:]:
+    if not d:
+        continue
+    os_val = d.get(12)
+    if not isinstance(os_val, (int, float)) or os_val == 0:
+        continue
+    sub_item = clean(d.get(3))
+    if not sub_item:
+        continue
+    funcao = FUNC_PREFIX_RE.sub('', sub_item)
+    key = str(int(os_val))
+    bucket = funcoes_por_os.setdefault(key, {})
+    f = bucket.setdefault(funcao, {"consolidado": 0.0, "realizado": 0.0, "saldo": 0.0, "vl_realizado": 0.0, "vl_saldo": 0.0})
+    f["consolidado"] += num(d.get(7)) or num(d.get(6))
+    f["realizado"] += num(d.get(8))
+    f["saldo"] += num(d.get(9))
+    f["vl_realizado"] += num(d.get(10))
+    f["vl_saldo"] += num(d.get(11))
+
+# achata em listas ordenadas por saldo desc, pronto para exibição
+for key, bucket in funcoes_por_os.items():
+    funcoes_por_os[key] = sorted(
+        [{"funcao": f, **vals} for f, vals in bucket.items() if vals["consolidado"] or vals["realizado"] or vals["saldo"]],
+        key=lambda x: -x["saldo"]
+    )
+
 bundle = {
     "meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"},
     "periodos": periodos,
     "os_list": os_list,
     "totais": totais,
     "contratos": contratos,
+    "contrato_labels": contrato_labels,
     "lideres": lideres,
     "fiscais": fiscais,
     "situacoes": situacoes,
+    "funcoes_por_os": funcoes_por_os,
 }
 
 with open(args.output, "w", encoding="utf-8") as f:
