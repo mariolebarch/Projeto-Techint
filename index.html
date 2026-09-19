@@ -29,12 +29,13 @@ body{
 h1,h2{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;margin:0;color:#fff;}
 a{color:inherit; text-decoration:none;}
 
-.wrap{max-width:920px; width:100%; margin:0 auto; padding:36px 24px 44px;}
+.wrap{max-width:1180px; width:100%; margin:0 auto; padding:36px 24px 44px;}
 .tk-logo{display:block; height:56px; width:auto; align-self:flex-start;}
 
 h1{font-size:clamp(34px,5.4vw,48px); line-height:1; margin-top:26px;}
 
-.grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:28px; text-align:left;}
+.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:28px; text-align:left;}
+@media (max-width:940px){.grid{grid-template-columns:1fr 1fr;}}
 @media (max-width:700px){.grid{grid-template-columns:1fr;}}
 
 .panel-card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 24px; display:flex; flex-direction:column; gap:12px; transition:transform .15s, box-shadow .15s; border-top:4px solid var(--green);}
@@ -45,6 +46,8 @@ h1{font-size:clamp(34px,5.4vw,48px); line-height:1; margin-top:26px;}
 .panel-card:hover .pc-cta{text-decoration:underline;}
 .panel-card.improd{border-top-color:var(--slate);}
 .panel-card.improd .pc-cta{color:var(--slate);}
+.panel-card.saude{border-top-color:var(--navy-700);}
+.panel-card.saude .pc-cta{color:var(--navy-700);}
 
 .foot{margin-top:40px; padding-top:16px; border-top:1px solid rgba(255,255,255,.18); font-size:12px; color:rgba(255,255,255,.55);}
 </style>
@@ -64,6 +67,11 @@ h1{font-size:clamp(34px,5.4vw,48px); line-height:1; margin-top:26px;}
         <a class="panel-card improd" href="improdutividades.html">
           <span class="pc-eyebrow">Painel &middot; Interferências</span>
           <h2>Painel de Improdutividades</h2>
+          <span class="pc-cta">Abrir painel &rarr;</span>
+        </a>
+        <a class="panel-card saude" href="saude-os.html">
+          <span class="pc-eyebrow">Painel &middot; Saldo de OS's</span>
+          <h2>Saúde das OS's</h2>
           <span class="pc-cta">Abrir painel &rarr;</span>
         </a>
       </div>

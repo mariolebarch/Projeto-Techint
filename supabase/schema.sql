@@ -79,3 +79,34 @@ create policy "improd_snapshots_insert_authenticated"
   for insert
   to authenticated
   with check (true);
+
+
+-- Painel de Saúde das OS's — mesma estratégia de snapshot, tabela própria
+-- (bundle no formato: aba RESUMO GERAL de Relatório_Saldo_PCI_MOA.xlsb).
+
+create table if not exists public.saude_os_snapshots (
+  id              bigint generated always as identity primary key,
+  created_at      timestamptz not null default now(),
+  source_filename text,
+  imported_by     text,
+  bundle          jsonb not null
+);
+
+create index if not exists saude_os_snapshots_created_at_idx
+  on public.saude_os_snapshots (created_at desc);
+
+alter table public.saude_os_snapshots enable row level security;
+
+drop policy if exists "saude_os_snapshots_select_public" on public.saude_os_snapshots;
+create policy "saude_os_snapshots_select_public"
+  on public.saude_os_snapshots
+  for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "saude_os_snapshots_insert_authenticated" on public.saude_os_snapshots;
+create policy "saude_os_snapshots_insert_authenticated"
+  on public.saude_os_snapshots
+  for insert
+  to authenticated
+  with check (true);
