@@ -378,6 +378,39 @@ tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; 
 .resp-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; flex:none;}
 tr.detail-group-header td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.03em; padding:7px 12px; border-top:1px solid var(--border);}
 tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercase; letter-spacing:.07em; font-size:10.5px;}
+
+/* Painel de detalhe da OS (expansão em "Detalhamento por OS") */
+.os-detail-panel{background:var(--paper); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 6px 20px -8px rgba(0,0,0,.35);}
+.os-detail-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1px), radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%); background-size:20px 20px, 100% 100%; padding:16px 18px 14px;}
+.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+.os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
+.os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
+.os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
+@media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
+.odk-label{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.odk-value{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff; line-height:1.15;}
+.odk-sub{font-size:9px; color:rgba(255,255,255,.45);}
+.odk.odk-dif{border-color:rgba(255,255,255,.28);}
+.odk.odk-dif.critical .odk-value{color:#ff9d97;}
+.odk.odk-dif.good .odk-value{color:#9bdd6b;}
+.os-detail-body{padding:14px 18px 16px;}
+.os-detail-func-wrap{border:1px solid var(--border-soft); border-radius:9px; overflow:hidden;}
+table.os-detail-func-table{width:100%; font-size:12.5px;}
+table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
+table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
+table.os-detail-func-table tbody tr:first-child td{border-top:none;}
+table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
+.odf-name{display:flex; flex-direction:column; gap:1px;}
+.odf-name .n{font-weight:600; color:var(--text-primary);}
+.odf-bar-cell{display:flex; align-items:center; gap:7px; min-width:120px;}
+.odf-bar-cell .track{flex:1; height:6px; background:var(--border-soft); border-radius:3px; overflow:hidden;}
+.odf-bar-cell .fill{height:100%; border-radius:3px; background:var(--steel);}
+.odf-bar-cell.neg .fill{background:var(--critical);}
+.os-detail-note{margin-top:10px; font-size:11.5px; color:var(--text-muted); line-height:1.5; display:flex; gap:7px; align-items:flex-start;}
+.os-detail-note .ni{flex:none; font-family:var(--font-mono); font-weight:700; color:var(--steel); border:1px solid var(--steel); border-radius:50%; width:15px; height:15px; font-size:9.5px; display:flex; align-items:center; justify-content:center; margin-top:1px;}
 tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
 /* Donut chart */
@@ -661,6 +694,12 @@ function normalizeBundle(bundle){
     'apropriacao_hh','apropriacao_rs','mobile_hh','mobile_rs','saldo_geral_hh','saldo_geral_pct','saldo_geral_rs'];
   (bundle.os_list || []).forEach(r=>{
     numKeys.forEach(k=>{ if(typeof r[k] !== 'number' || isNaN(r[k])) r[k] = 0; });
+    // Normaliza a identificação da OS para o formato canônico "OS_<número>",
+    // mesmo em snapshots antigos já salvos no Supabase com grafia
+    // inconsistente (OS_044128, 44128, OS_44128 etc.).
+    const osN = osNumImport(r.os);
+    r.os = osN;
+    r.os_label = osLabelForImport(osN, r.os_label);
   });
   if(!bundle.funcoes_por_os) bundle.funcoes_por_os = {};
   if(!bundle.contrato_labels) bundle.contrato_labels = {};
@@ -944,6 +983,57 @@ function renderDetalheControls(){
     th.classList.toggle('desc', active && state.detalhe.sortDir==='desc');
   });
 }
+/* Painel "tecnológico" exibido ao expandir uma OS no Detalhamento por OS:
+   resumo da OS (HH Previsto/Realizado, Realizado FAD's/Provisório, Saldo e
+   Dif. — coloridos conforme estouro) + tabela de saldo por função. */
+function renderOsDetailPanel(r, funcoes){
+  const realizadoFad = r.fad_total_hh || 0;
+  const realizadoProv = (r.apropriacao_hh || 0) + (r.mobile_hh || 0);
+  const saldoHh = r.hh_saldo || 0;
+  const dif = (realizadoFad + realizadoProv) - saldoHh;
+  const difClass = dif > 0 ? 'critical' : 'good';
+  const difSign = dif > 0 ? '+' : '';
+
+  const maxAbsSaldo = Math.max(1, ...funcoes.map(f => Math.abs(f.saldo || 0)));
+  const funcRows = funcoes.length ? funcoes.map(f => {
+    const pct = Math.min(100, Math.abs(f.saldo || 0) / maxAbsSaldo * 100);
+    const neg = (f.saldo || 0) < 0;
+    return `<tr>
+      <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
+      <td class="num-col">${fmtH(f.consolidado)}</td>
+      <td class="num-col">${fmtH(f.realizado)}</td>
+      <td><div class="odf-bar-cell${neg ? ' neg' : ''}"><span class="track"><span class="fill" style="width:${pct}%;"></span></span><span class="num" style="min-width:56px; text-align:right;">${fmtH(f.saldo)}</span></div></td>
+      <td class="num-col">${fmtRs(f.vl_saldo)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="5" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+
+  return `<div class="os-detail-panel">
+    <div class="os-detail-head">
+      <div class="os-detail-titlebar">
+        <span class="os-detail-eyebrow">Resumo da OS</span>
+        <span class="os-detail-osnum">${escHtml(r.os_label)}</span>
+        <span class="os-detail-sub">${escHtml(r.pep || '')}</span>
+      </div>
+      <div class="os-detail-kpis">
+        <div class="odk"><span class="odk-label">HH Previsto</span><span class="odk-value">${fmtH(r.hh_previsto)}</span></div>
+        <div class="odk"><span class="odk-label">HH Realizado</span><span class="odk-value">${fmtH(r.hh_realizado)}</span></div>
+        <div class="odk"><span class="odk-label">Realizado (FAD's)</span><span class="odk-value">${fmtH(realizadoFad)}</span><span class="odk-sub">já no sistema</span></div>
+        <div class="odk"><span class="odk-label">Realizado (Prov.)</span><span class="odk-value">${fmtH(realizadoProv)}</span><span class="odk-sub">apropriação + mobile</span></div>
+        <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
+        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span></div>
+      </div>
+    </div>
+    <div class="os-detail-body">
+      <div class="os-detail-func-wrap">
+        <table class="os-detail-func-table">
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th>Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
+          <tbody>${funcRows}</tbody>
+        </table>
+      </div>
+      <div class="os-detail-note"><span class="ni">i</span><span>Realizado e Saldo por função batem com os totais da OS acima &middot; Realizado (FAD's), Realizado (Prov.) e Dif. são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório) &mdash; o detalhamento desses três por função depende de dados adicionais da planilha de origem, ainda não disponíveis.</span></div>
+    </div>
+  </div>`;
+}
 function renderDetalheTable(){
   let rows = filteredOS();
   if(state.detalhe.search){
@@ -959,7 +1049,7 @@ function renderDetalheTable(){
     const funcoes = funcoesForOs(r.os);
     const expanded = r.os!=null && state.detalhe.expanded.has(r.os);
     const mainRow = `<tr class="os-row${expanded?' expanded':''}" data-os="${r.os==null?'':r.os}">
-      <td class="mono-tag">${escHtml(r.os_label)}${funcoes.length ? `<span class="expand-hint">${expanded?'▾':'▸'} ${funcoes.length} função(ões)</span>` : ''}</td>
+      <td class="mono-tag">${escHtml(r.os_label)}<span class="expand-hint">${expanded?'▾':'▸'} ${funcoes.length ? funcoes.length+' função(ões)' : 'resumo'}</span></td>
       <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
       <td>${escHtml(r.lider||'')}</td>
       <td>${escHtml(r.fiscal||'')}</td>
@@ -975,22 +1065,9 @@ function renderDetalheTable(){
       <td class="num-col">${fmtH(r.saldo_geral_hh)}</td>
       <td class="num-col">${fmtRs(r.saldo_geral_rs)}</td>
     </tr>`;
-    if(!expanded || funcoes.length===0) return mainRow;
-    return mainRow + `<tr class="detail-row"><td colspan="15" style="padding:4px 12px 8px 34px;">
-        <table style="width:auto; min-width:520px;"><thead><tr>
-          <th style="background:none; color:var(--text-muted); font-weight:600; padding:4px 12px 4px 0;">Função</th>
-          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">HH Previsto</th>
-          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Realizado (HH)</th>
-          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (HH)</th>
-          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (R$)</th>
-        </tr></thead><tbody>${funcoes.map(f=>`<tr>
-          <td style="border-top:1px solid var(--border-soft); padding:4px 12px 4px 0;">${escHtml(f.funcao)}</td>
-          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.consolidado)}</td>
-          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.realizado)}</td>
-          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.saldo)}</td>
-          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtRs(f.vl_saldo)}</td>
-        </tr>`).join('')}</tbody></table>
-        <div class="card-note" style="margin-top:4px;">Realizado e Saldo por função batem com o total da OS acima &middot; HH Previsto por função pode não somar exatamente ao HH Previsto total da OS, pois parte do orçamento pode não estar detalhada por função na planilha de origem.</div>
+    if(!expanded) return mainRow;
+    return mainRow + `<tr class="detail-row"><td colspan="15" style="padding:10px 12px 16px 34px;">
+        ${renderOsDetailPanel(r, funcoes)}
       </td></tr>`;
   }).join('');
 }
@@ -1420,7 +1497,19 @@ document.getElementById('export-download-btn').addEventListener('click', ()=>{
 function cleanStrImport(v){ if(v===undefined||v===null||v==='') return null; return String(v).replace(/\s+/g,' ').trim(); }
 function cleanPeriodoImport(v){ const c = cleanStrImport(v); return c ? c.replace(/'+$/,'') : c; }
 function numImport(v){ return (typeof v === 'number' && !isNaN(v)) ? v : 0; }
-function osNumImport(v){ return (typeof v === 'number' && !isNaN(v)) ? Math.trunc(v) : null; }
+function osNumImport(v){
+  if(typeof v === 'number' && !isNaN(v)) return Math.trunc(v);
+  if(typeof v === 'string'){ const m = v.match(/\d+/); if(m) return parseInt(m[0], 10); }
+  return null;
+}
+/* Sempre exibe a OS como "OS_<número>" quando ela tem um número — a
+   planilha traz a mesma OS grafada de formas diferentes conforme a
+   linha/aba (OS_044128, 44128, OS_44128), então o rótulo é derivado do
+   número em vez de confiar na grafia bruta da célula. Rótulos especiais
+   não numéricos (ex.: "OS_PCI"/"OS_MOA") são mantidos como estão. */
+function osLabelForImport(numVal, rawLabel){
+  return numVal!=null ? ('OS_'+numVal) : cleanStrImport(rawLabel);
+}
 
 function parseWorkbookToBundleSaudeOs(wb){
   function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
@@ -1460,9 +1549,10 @@ function parseWorkbookToBundleSaudeOs(wb){
       if(cellVal(ws,r,1)===undefined) continue;
     }
     if(cleanStrImport(osLabel) === '(vazio)') continue;
+    const osN = osNumImport(cellVal(ws,r,1));
     osList.push({
-      os: osNumImport(cellVal(ws,r,1)),
-      os_label: cleanStrImport(cellVal(ws,r,9)),
+      os: osN,
+      os_label: osLabelForImport(osN, cellVal(ws,r,9)),
       contrato: cleanStrImport(cellVal(ws,r,2)),
       pep: cleanStrImport(cellVal(ws,r,3)),
       lider: cleanStrImport(cellVal(ws,r,4)),

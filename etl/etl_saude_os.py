@@ -22,10 +22,26 @@ def num(v):
     return float(v) if isinstance(v, (int, float)) else 0.0
 
 def os_num(v):
-    """Nº OS pode vir como número (44156.0) ou rótulo especial ('OS_PCI'/'OS_MOA')."""
+    """Nº OS pode vir em formatos variados (44156.0, '44156', 'OS_044156',
+    'OS_44156') ou como rótulo especial não numérico ('OS_PCI'/'OS_MOA')."""
     if isinstance(v, (int, float)):
         return int(v)
+    if isinstance(v, str):
+        m = re.search(r'\d+', v)
+        if m:
+            return int(m.group())
     return None
+
+def os_label_for(num_val, raw_label):
+    """Sempre exibe a OS no formato canônico 'OS_<número>' quando ela tem um
+    número — a planilha traz essa mesma OS grafada de formas diferentes
+    conforme a linha/aba (OS_044128, 44128, OS_44128), então derivamos o
+    rótulo a partir do número em vez de confiar na grafia bruta da célula.
+    Rótulos especiais não numéricos (ex.: 'OS_PCI'/'OS_MOA') são mantidos
+    como estão."""
+    if num_val is not None:
+        return f"OS_{num_val}"
+    return clean(raw_label)
 
 wb = open_workbook(args.xlsb_path)
 with wb.get_sheet('RESUMO GERAL') as sheet:
@@ -57,9 +73,10 @@ for i in range(header_row_idx + 1, len(rows)):
     # origem, sem nenhum outro dado (nem HH, nem PEP) — não é uma OS real.
     if clean(d.get(8)) == '(vazio)':
         continue
+    os_n = os_num(d.get(0))
     os_list.append({
-        "os": os_num(d.get(0)),
-        "os_label": clean(d.get(8)),
+        "os": os_n,
+        "os_label": os_label_for(os_n, d.get(8)),
         "contrato": clean(d.get(1)),
         "pep": clean(d.get(2)),
         "lider": clean(d.get(3)),
