@@ -386,7 +386,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
@@ -1008,33 +1008,51 @@ function renderDetalheControls(){
    Bloco 1 (HH Previsto/Realizado/Saldo), Bloco 2 (Pendência/Aprop.+Mob.) e
    Saldo Final (coloridos conforme estouro) + tabela de saldo por função.
    Não exibe valores em R$ (removidos a pedido do usuário). */
-function saldoFinalFromFuncoes(funcoes){
+function computeSaldoFinal(r, funcoes){
   // Saldo Final = Saldo sistema (HH Previsto - HH Realizado) menos o que
   // ainda está pendente ou em projeção (Pendência + Aprop.+Mob.): positivo
   // quando ainda sobra saldo depois de contar tudo isso, negativo quando
-  // o total já estoura o previsto.
+  // o total já estoura o previsto. Pendência/Aprop.+Mob. usam o total já
+  // somado por OS (r.pend_total_hh/r.prov_total_hh) — não a soma por
+  // função — porque uma linha de pendência/apropriação sem função
+  // reconhecida na aba 1 ainda deve contar no total da OS.
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizado = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
-  const pend = funcoes.reduce((a,f)=>a+(f.pend_hh||0),0);
-  const prov = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
+  const pend = r.pend_total_hh || 0;
+  const prov = r.prov_total_hh || 0;
   return hhPrevisto - hhRealizado - pend - prov;
 }
 function saldoFinalForOs(r){
-  return saldoFinalFromFuncoes(funcoesForOs(r.os));
+  return computeSaldoFinal(r, funcoesForOs(r.os));
 }
 function renderOsDetailPanel(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
   // DET." (colunas H/I/J/L), somada por função — garante que os cartões
-  // acima batem sempre com a tabela de funções abaixo.
+  // acima batem sempre com a tabela de funções abaixo. Pendência/Aprop.+
+  // Mob. usam o total por OS (ver computeSaldoFinal).
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
-  const provTotal = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
-  const pendTotal = funcoes.reduce((a,f)=>a+(f.pend_hh||0),0);
+  const provTotal = r.prov_total_hh || 0;
+  const pendTotal = r.pend_total_hh || 0;
 
-  const saldoFinal = saldoFinalFromFuncoes(funcoes);
+  const saldoFinal = computeSaldoFinal(r, funcoes);
   const sfClass = saldoFinal >= 0 ? 'good' : 'critical';
   const sfSign = saldoFinal > 0 ? '+' : '';
+
+  // Saldo Final em R$: cada função tem seu próprio valor unitário (aba 1,
+  // coluna E), então a conversão é feita função a função (com o Saldo
+  // Final já calculado por função) e depois somada — não dá pra aplicar
+  // uma taxa única ao total da OS quando as funções têm valores/hora
+  // diferentes. Por isso usa o Saldo Final por função (não o total por OS
+  // acima): só HH já atribuído a uma função tem uma taxa conhecida para
+  // converter em R$.
+  const saldoFinalRs = funcoes.reduce((a,f) => {
+    const sfHH = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
+    return a + sfHH * (f.valor_unitario||0);
+  }, 0);
+  const sfRsClass = saldoFinalRs >= 0 ? 'good' : 'critical';
+  const sfRsSign = saldoFinalRs > 0 ? '+' : '';
 
   const funcRows = funcoes.length ? funcoes.map(f => {
     const sf = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
@@ -1092,6 +1110,7 @@ function renderOsDetailPanel(r, funcoes){
           </div>
         </div>
         <div class="odk odk-dif ${sfClass}"><span class="odk-label">Saldo Final</span><span class="odk-value">${sfSign}${fmtH(saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
+        <div class="odk odk-dif ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value">${sfRsSign}${fmtRs(saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
@@ -1118,7 +1137,7 @@ function renderDetalheTable(){
   tbody.innerHTML = rows.map(r=>{
     const funcoes = funcoesForOs(r.os);
     const open = r.os!=null && state.detalhe.modalOs === r.os;
-    const sf = saldoFinalFromFuncoes(funcoes);
+    const sf = computeSaldoFinal(r, funcoes);
     const sfCls = sf >= 0 ? 'good' : 'critical';
     const sfSgn = sf > 0 ? '+' : '';
     return `<tr class="os-row${open?' expanded':''}" data-os="${r.os==null?'':r.os}">
@@ -1711,6 +1730,11 @@ function parseWorkbookToBundleSaudeOs(wb){
     f.saldo += numImport(cellVal(wsDet,r,10));
     f.vl_realizado += numImport(cellVal(wsDet,r,11));
     f.vl_saldo += numImport(cellVal(wsDet,r,12));
+    // Valor unitário (R$/HH) da função, coluna E — usado para converter
+    // Saldo Final de HH para R$. É uma taxa, não uma quantidade, então não
+    // soma entre linhas: guarda a última leitura não-zero encontrada.
+    const valorUnit = numImport(cellVal(wsDet,r,5));
+    if(valorUnit) f.valor_unitario = valorUnit;
   }
   // ---------- HH "em validação" (ainda não decretado no sistema) por OS x
   // Função, lido das abas "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" e
@@ -1723,29 +1747,38 @@ function parseWorkbookToBundleSaudeOs(wb){
     if(!c) return '';
     return c.normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
   }
+  // Cada linha soma pro total da OS (byOs) sempre que tiver OS+HH válidos,
+  // e ADICIONALMENTE pro total por função (byFunc) quando a função também
+  // bate com uma função conhecida da aba 1. O total por OS não depende de
+  // achar a função — uma linha sem função reconhecida (ou com o nome da
+  // função grafado diferente da aba 1) ainda entra no total da OS, só não
+  // aparece quebrada por função na tabela.
   function scanFixedCols(sheetName, osCol, funcCol, hhCol){
-    const result = {};
-    if(!sheetName) return result;
+    const byFunc = {}, byOs = {};
+    if(!sheetName) return {byFunc, byOs};
     let ws2;
-    try{ ws2 = sheet(sheetName); }catch(e){ return result; }
+    try{ ws2 = sheet(sheetName); }catch(e){ return {byFunc, byOs}; }
     const maxR2 = maxRow(ws2);
     for(let r=1; r<=maxR2; r++){
       const osVal = osNumImport(cellVal(ws2,r,osCol));
       if(osVal==null) continue;
-      const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
-      if(!funcRaw) continue;
-      const funcao = funcRaw.replace(funcPrefixRe, '');
       const hhVal = numImport(cellVal(ws2,r,hhCol));
       if(!hhVal) continue;
-      const key = osVal+'|'+funcao;
-      result[key] = (result[key]||0) + hhVal;
+      byOs[osVal] = (byOs[osVal]||0) + hhVal;
+      const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
+      if(funcRaw){
+        const funcao = funcRaw.replace(funcPrefixRe, '');
+        const key = osVal+'|'+funcao;
+        byFunc[key] = (byFunc[key]||0) + hhVal;
+      }
     }
-    return result;
+    return {byFunc, byOs};
   }
   // "4 - APROPRIAÇÃO": OS=col L, HH=col T, Função=col AD
-  const provApropriacao = scanFixedCols('4 - APROPRIAÇÃO', 12, 30, 20);
+  const aproScan = scanFixedCols('4 - APROPRIAÇÃO', 12, 30, 20);
   // "5 - PLAN SGE_MOBILE": OS=col S, HH=col J, Função=col AE
-  const provMobile = scanFixedCols('5 - PLAN SGE_MOBILE', 19, 31, 10);
+  const mobScan = scanFixedCols('5 - PLAN SGE_MOBILE', 19, 31, 10);
+  const provApropriacao = aproScan.byFunc, provMobile = mobScan.byFunc;
 
   // O nome exato da aba "3 - PENDÊNCIAS" é localizado por busca tolerante
   // (acento/caixa/espaço), já que outras abas do relatório vêm com grafia
@@ -1763,7 +1796,21 @@ function parseWorkbookToBundleSaudeOs(wb){
     return matches[0];
   }
   // Função=col G, HH=col I, OS=col J
-  const pendenciasPorFunc = scanFixedCols(findSheetName('pendenc'), 10, 7, 9);
+  const pendScan = scanFixedCols(findSheetName('pendenc'), 10, 7, 9);
+  const pendenciasPorFunc = pendScan.byFunc;
+
+  // Totais por OS (não filtrados por função) — usados nos cartões do
+  // Resumo da OS e no Saldo Final, para nunca perder HH pendente/em
+  // projeção só porque o nome da função não bateu com a aba 1.
+  const provTotalPorOs = {};
+  Object.keys(aproScan.byOs).forEach(os => { provTotalPorOs[os] = (provTotalPorOs[os]||0) + aproScan.byOs[os]; });
+  Object.keys(mobScan.byOs).forEach(os => { provTotalPorOs[os] = (provTotalPorOs[os]||0) + mobScan.byOs[os]; });
+  const pendTotalPorOs = pendScan.byOs;
+  osList.forEach(r => {
+    if(r.os == null) return;
+    r.pend_total_hh = pendTotalPorOs[r.os] || 0;
+    r.prov_total_hh = provTotalPorOs[r.os] || 0;
+  });
 
   Object.keys(funcoesPorOs).forEach(key=>{
     const bucket = funcoesPorOs[key];

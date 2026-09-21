@@ -171,6 +171,12 @@ for d in det_rows[3:]:
     f["saldo"] += num(d.get(9))
     f["vl_realizado"] += num(d.get(10))
     f["vl_saldo"] += num(d.get(11))
+    # Valor unitário (R$/HH) da função, coluna E — usado para converter
+    # Saldo Final de HH para R$. É uma taxa, não uma quantidade, então não
+    # soma entre linhas: guarda a última leitura não-zero encontrada.
+    valor_unit = num(d.get(4))
+    if valor_unit:
+        f["valor_unitario"] = valor_unit
 
 # ---------- HH "em validação" (ainda não decretado no sistema) por OS x
 # Função, lido das abas "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" e
@@ -184,36 +190,42 @@ def _fold(s):
         return ''
     return unicodedata.normalize('NFD', c).encode('ascii', 'ignore').decode().strip().lower()
 
+# Cada linha soma pro total da OS (by_os) sempre que tiver OS+HH válidos, e
+# ADICIONALMENTE pro total por função (by_func) quando a função também bate
+# com uma função conhecida da aba 1. O total por OS não depende de achar a
+# função — uma linha sem função reconhecida (ou com o nome da função
+# grafado diferente da aba 1) ainda entra no total da OS, só não aparece
+# quebrada por função na tabela.
 def scan_fixed_cols(sheet_name, os_col, func_col, hh_col):
-    result = {}
+    by_func, by_os = {}, {}
     if not sheet_name:
-        return result
+        return by_func, by_os
     try:
         with wb.get_sheet(sheet_name) as sheet:
             rows = [{c.c: c.v for c in r} for r in sheet.rows()]
     except Exception:
-        return result
+        return by_func, by_os
     for d in rows:
         if not d:
             continue
         os_val = os_num(d.get(os_col))
         if os_val is None:
             continue
-        func_raw = clean(d.get(func_col))
-        if not func_raw:
-            continue
-        funcao = FUNC_PREFIX_RE.sub('', func_raw)
         hh_val = num(d.get(hh_col))
         if not hh_val:
             continue
-        key = (os_val, funcao)
-        result[key] = result.get(key, 0.0) + hh_val
-    return result
+        by_os[os_val] = by_os.get(os_val, 0.0) + hh_val
+        func_raw = clean(d.get(func_col))
+        if func_raw:
+            funcao = FUNC_PREFIX_RE.sub('', func_raw)
+            key = (os_val, funcao)
+            by_func[key] = by_func.get(key, 0.0) + hh_val
+    return by_func, by_os
 
 # "4 - APROPRIAÇÃO": OS=col L(idx11), HH=col T(idx19), Função=col AD(idx29)
-prov_apropriacao = scan_fixed_cols('4 - APROPRIAÇÃO', 11, 29, 19)
+prov_apropriacao, prov_apropriacao_por_os = scan_fixed_cols('4 - APROPRIAÇÃO', 11, 29, 19)
 # "5 - PLAN SGE_MOBILE": OS=col S(idx18), HH=col J(idx9), Função=col AE(idx30)
-prov_mobile = scan_fixed_cols('5 - PLAN SGE_MOBILE', 18, 30, 9)
+prov_mobile, prov_mobile_por_os = scan_fixed_cols('5 - PLAN SGE_MOBILE', 18, 30, 9)
 
 # O nome exato da aba "3 - PENDÊNCIAS" é localizado por busca tolerante
 # (acento/caixa/espaço), já que outras abas do relatório vêm com grafia
@@ -230,7 +242,21 @@ def find_sheet_name(substr_folded):
     return matches[0]
 
 # Função=col G(idx6), HH=col I(idx8), OS=col J(idx9)
-pendencias_por_func = scan_fixed_cols(find_sheet_name('pendenc'), 9, 6, 8)
+pendencias_por_func, pendencias_por_os = scan_fixed_cols(find_sheet_name('pendenc'), 9, 6, 8)
+
+# Totais por OS (não filtrados por função) — usados nos cartões do Resumo
+# da OS e no Saldo Final, para nunca perder HH pendente/em projeção só
+# porque o nome da função não bateu com a aba 1.
+prov_total_por_os = {}
+for os_val, hh in prov_apropriacao_por_os.items():
+    prov_total_por_os[os_val] = prov_total_por_os.get(os_val, 0.0) + hh
+for os_val, hh in prov_mobile_por_os.items():
+    prov_total_por_os[os_val] = prov_total_por_os.get(os_val, 0.0) + hh
+for r in os_list:
+    if r["os"] is None:
+        continue
+    r["pend_total_hh"] = pendencias_por_os.get(r["os"], 0.0)
+    r["prov_total_hh"] = prov_total_por_os.get(r["os"], 0.0)
 
 # achata em listas ordenadas por saldo desc, pronto para exibição
 for key, bucket in funcoes_por_os.items():
