@@ -1696,55 +1696,23 @@ function parseWorkbookToBundleSaudeOs(wb){
     f.vl_saldo += numImport(cellVal(wsDet,r,12));
   }
   // ---------- HH "em validação" (ainda não decretado no sistema) por OS x
-  // Função, lido das abas "4 - APROPRIAÇÃO" e "5 - PLAN SGE_MOBILE" e somado
-  // ao Realizado por função acima. O layout dessas abas não é conhecido de
-  // antemão, então as colunas de OS/Função/HH são localizadas pelo texto do
-  // cabeçalho (tolerante a acento/caixa) — se a aba não existir ou as
-  // colunas não forem identificadas, simplesmente não soma nada dessa aba.
+  // Função, lido das abas "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" e
+  // "3 - PENDÊNCIAS" e somado ao Realizado por função acima. As três abas
+  // têm colunas fixas conhecidas (informadas pelo usuário) — nenhuma
+  // adivinhação de cabeçalho é necessária; se a aba não existir ou algo
+  // falhar, simplesmente não soma nada dessa aba.
   function foldHeader(s){
     const c = cleanStrImport(s);
     if(!c) return '';
     return c.normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
   }
-  function scanOsFuncHh(sheetName, maxHeaderScan){
+  function scanFixedCols(sheetName, osCol, funcCol, hhCol){
     const result = {};
+    if(!sheetName) return result;
     let ws2;
     try{ ws2 = sheet(sheetName); }catch(e){ return result; }
     const maxR2 = maxRow(ws2);
-    if(!maxR2) return result;
-    const scanRows = Math.min(maxHeaderScan||25, maxR2);
-    // Os cabeçalhos de OS/Função/HH podem não estar todos na mesma linha
-    // (cabeçalho em duas linhas, células mescladas etc.), então cada um é
-    // localizado de forma independente — não é preciso que os três apareçam
-    // juntos numa única linha. A linha de dados começa após a última linha
-    // onde algum dos três foi encontrado.
-    function findCols(osRe, funcRe, hhRe){
-      let osCol=-1, funcCol=-1, hhCol=-1, lastRow=-1;
-      for(let r=1; r<=scanRows; r++){
-        let foundInRow = false;
-        for(let c=1; c<=60; c++){
-          const t = foldHeader(cellVal(ws2,r,c));
-          if(!t) continue;
-          if(osCol<0 && osRe.test(t)){ osCol=c; foundInRow=true; }
-          if(funcCol<0 && funcRe.test(t)){ funcCol=c; foundInRow=true; }
-          if(hhCol<0 && hhRe.test(t)){ hhCol=c; foundInRow=true; }
-        }
-        if(foundInRow) lastRow = r;
-        if(osCol>=0 && funcCol>=0 && hhCol>=0) break;
-      }
-      return {osCol, funcCol, hhCol, lastRow};
-    }
-    const funcRe = /funcao|sub\s*-?\s*item|cargo|atividade|especialidade|ocupa[cç][aã]o/;
-    let found = findCols(/\bos\b/, funcRe, /\bhh\b/);
-    if(found.osCol<0 || found.funcCol<0 || found.hhCol<0){
-      // segunda tentativa, mais tolerante, só para os campos que ainda faltam
-      const osRe2 = found.osCol>=0 ? /\bos\b/ : /\bos\b|ordem\s*de\s*servi[cç]o/;
-      const hhRe2 = found.hhCol>=0 ? /\bhh\b/ : /\bhh\b|hora\s*homem|homem\s*hora/;
-      found = findCols(osRe2, funcRe, hhRe2);
-    }
-    const {osCol, funcCol, hhCol, lastRow} = found;
-    if(osCol<0 || funcCol<0 || hhCol<0) return result;
-    for(let r=lastRow+1; r<=maxR2; r++){
+    for(let r=1; r<=maxR2; r++){
       const osVal = osNumImport(cellVal(ws2,r,osCol));
       if(osVal==null) continue;
       const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
@@ -1757,15 +1725,14 @@ function parseWorkbookToBundleSaudeOs(wb){
     }
     return result;
   }
-  let provApropriacao = {}, provMobile = {};
-  try{ provApropriacao = scanOsFuncHh('4 - APROPRIAÇÃO'); }catch(e){ provApropriacao = {}; }
-  try{ provMobile = scanOsFuncHh('5 - PLAN SGE_MOBILE'); }catch(e){ provMobile = {}; }
+  // "4 - APROPRIAÇÃO": OS=col L, HH=col T, Função=col AD
+  const provApropriacao = scanFixedCols('4 - APROPRIAÇÃO', 12, 30, 20);
+  // "5 - PLAN SGE_MOBILE": OS=col S, HH=col J, Função=col AE
+  const provMobile = scanFixedCols('5 - PLAN SGE_MOBILE', 19, 31, 10);
 
-  // ---------- HH de "Pendências" por OS x Função, aba "3 - PENDÊNCIAS"
-  // (colunas fixas informadas pelo relatório: Função=G, HH=I, OS=J). O nome
-  // exato da aba é localizado por busca tolerante (acento/caixa/espaço), já
-  // que outras abas do relatório vêm com grafia inconsistente — se não
-  // encontrar, simplesmente não soma nada dessa aba.
+  // O nome exato da aba "3 - PENDÊNCIAS" é localizado por busca tolerante
+  // (acento/caixa/espaço), já que outras abas do relatório vêm com grafia
+  // inconsistente (ex.: a aba 8 tem um espaço a mais no início do nome).
   function findSheetName(substrFolded){
     const names = Object.keys(wb.Sheets);
     const matches = names.filter(n => foldHeader(n).replace(/\s+/g,'').includes(substrFolded));
@@ -1778,25 +1745,8 @@ function parseWorkbookToBundleSaudeOs(wb){
     });
     return matches[0];
   }
-  let pendenciasPorFunc = {};
-  try{
-    const pendSheetName = findSheetName('pendenc');
-    if(pendSheetName){
-      const wsPend = sheet(pendSheetName);
-      const maxRPend = maxRow(wsPend);
-      for(let r=1; r<=maxRPend; r++){
-        const osVal = osNumImport(cellVal(wsPend,r,10));
-        if(osVal==null) continue;
-        const funcRaw = cleanStrImport(cellVal(wsPend,r,7));
-        if(!funcRaw) continue;
-        const funcao = funcRaw.replace(funcPrefixRe, '');
-        const hhVal = numImport(cellVal(wsPend,r,9));
-        if(!hhVal) continue;
-        const key = osVal+'|'+funcao;
-        pendenciasPorFunc[key] = (pendenciasPorFunc[key]||0) + hhVal;
-      }
-    }
-  }catch(e){ pendenciasPorFunc = {}; }
+  // Função=col G, HH=col I, OS=col J
+  const pendenciasPorFunc = scanFixedCols(findSheetName('pendenc'), 10, 7, 9);
 
   Object.keys(funcoesPorOs).forEach(key=>{
     const bucket = funcoesPorOs[key];

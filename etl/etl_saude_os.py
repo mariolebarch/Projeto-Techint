@@ -173,68 +173,27 @@ for d in det_rows[3:]:
     f["vl_saldo"] += num(d.get(11))
 
 # ---------- HH "em validação" (ainda não decretado no sistema) por OS x
-# Função, lido das abas "4 - APROPRIAÇÃO" e "5 - PLAN SGE_MOBILE" e somado ao
-# Realizado por função acima. Essas duas abas não têm layout de coluna fixo
-# conhecido, então localizamos as colunas de OS/Função/HH pelo texto do
-# cabeçalho (tolerante a acento/caixa) em vez de índice fixo — se a aba não
-# existir ou as colunas não forem identificadas, simplesmente não somamos
-# nada dessa aba (nunca interrompe a extração).
+# Função, lido das abas "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" e
+# "3 - PENDÊNCIAS", e somado ao Realizado por função acima. As três abas têm
+# colunas fixas conhecidas (informadas pelo usuário) — nenhuma adivinhação de
+# cabeçalho é necessária; se a aba não existir ou algo falhar, simplesmente
+# não somamos nada dessa aba (nunca interrompe a extração).
 def _fold(s):
     c = clean(s)
     if not c:
         return ''
     return unicodedata.normalize('NFD', c).encode('ascii', 'ignore').decode().strip().lower()
 
-FUNC_HEADER_RE = re.compile(r'funcao|sub\s*-?\s*item|cargo|atividade|especialidade|ocupa[cç][aã]o')
-
-def scan_os_func_hh(sheet_name, max_header_scan=25):
+def scan_fixed_cols(sheet_name, os_col, func_col, hh_col):
     result = {}
+    if not sheet_name:
+        return result
     try:
         with wb.get_sheet(sheet_name) as sheet:
             rows = [{c.c: c.v for c in r} for r in sheet.rows()]
     except Exception:
         return result
-
-    # Os cabeçalhos de OS/Função/HH podem não estar todos na mesma linha
-    # (cabeçalho em duas linhas, células mescladas etc.), então cada um é
-    # localizado de forma independente — não é preciso que os três apareçam
-    # juntos numa única linha. Os dados começam após a última linha onde
-    # algum dos três foi encontrado.
-    def find_cols(os_re, func_re, hh_re):
-        os_c = func_c = hh_c = last_row = None
-        for i in range(min(max_header_scan, len(rows))):
-            row = rows[i]
-            if not row:
-                continue
-            found_in_row = False
-            for col, val in row.items():
-                t = _fold(val)
-                if not t:
-                    continue
-                if os_c is None and os_re.search(t):
-                    os_c = col
-                    found_in_row = True
-                if func_c is None and func_re.search(t):
-                    func_c = col
-                    found_in_row = True
-                if hh_c is None and hh_re.search(t):
-                    hh_c = col
-                    found_in_row = True
-            if found_in_row:
-                last_row = i
-            if os_c is not None and func_c is not None and hh_c is not None:
-                break
-        return os_c, func_c, hh_c, last_row
-
-    os_col, func_col, hh_col, header_row = find_cols(re.compile(r'\bos\b'), FUNC_HEADER_RE, re.compile(r'\bhh\b'))
-    if os_col is None or func_col is None or hh_col is None:
-        # segunda tentativa, mais tolerante, só para os campos que ainda faltam
-        os_re2 = re.compile(r'\bos\b') if os_col is not None else re.compile(r'\bos\b|ordem\s*de\s*servi[cç]o')
-        hh_re2 = re.compile(r'\bhh\b') if hh_col is not None else re.compile(r'\bhh\b|hora\s*homem|homem\s*hora')
-        os_col, func_col, hh_col, header_row = find_cols(os_re2, FUNC_HEADER_RE, hh_re2)
-    if os_col is None or func_col is None or hh_col is None:
-        return result
-    for d in rows[header_row + 1:]:
+    for d in rows:
         if not d:
             continue
         os_val = os_num(d.get(os_col))
@@ -251,21 +210,14 @@ def scan_os_func_hh(sheet_name, max_header_scan=25):
         result[key] = result.get(key, 0.0) + hh_val
     return result
 
-try:
-    prov_apropriacao = scan_os_func_hh('4 - APROPRIAÇÃO')
-except Exception:
-    prov_apropriacao = {}
-try:
-    prov_mobile = scan_os_func_hh('5 - PLAN SGE_MOBILE')
-except Exception:
-    prov_mobile = {}
+# "4 - APROPRIAÇÃO": OS=col L(idx11), HH=col T(idx19), Função=col AD(idx29)
+prov_apropriacao = scan_fixed_cols('4 - APROPRIAÇÃO', 11, 29, 19)
+# "5 - PLAN SGE_MOBILE": OS=col S(idx18), HH=col J(idx9), Função=col AE(idx30)
+prov_mobile = scan_fixed_cols('5 - PLAN SGE_MOBILE', 18, 30, 9)
 
-# ---------- HH de "Pendências" por OS x Função, lido da aba "3 - PENDÊNCIAS"
-# (colunas fixas informadas pelo relatório: Função=G, HH=I, OS=J). O nome
-# exato da aba é localizado por busca tolerante (acento/caixa/espaço), já que
-# outras abas do relatório vêm com grafia inconsistente (ex.: a aba 8 tem um
-# espaço a mais no início do nome) — se não encontrar, simplesmente não soma
-# nada dessa aba, sem interromper a extração.
+# O nome exato da aba "3 - PENDÊNCIAS" é localizado por busca tolerante
+# (acento/caixa/espaço), já que outras abas do relatório vêm com grafia
+# inconsistente (ex.: a aba 8 tem um espaço a mais no início do nome).
 def find_sheet_name(substr_folded):
     try:
         names = wb.sheets
@@ -277,29 +229,8 @@ def find_sheet_name(substr_folded):
     matches.sort(key=lambda n: (not _fold(n).strip().startswith('3'), n))
     return matches[0]
 
-pendencias_por_func = {}
-pend_sheet_name = find_sheet_name('pendenc')
-if pend_sheet_name:
-    try:
-        with wb.get_sheet(pend_sheet_name) as sheet_pend:
-            pend_rows = [{c.c: c.v for c in r} for r in sheet_pend.rows()]
-        for d in pend_rows:
-            if not d:
-                continue
-            os_val = d.get(9)
-            if not isinstance(os_val, (int, float)) or os_val == 0:
-                continue
-            func_raw = clean(d.get(6))
-            if not func_raw:
-                continue
-            funcao = FUNC_PREFIX_RE.sub('', func_raw)
-            hh_val = num(d.get(8))
-            if not hh_val:
-                continue
-            key = (int(os_val), funcao)
-            pendencias_por_func[key] = pendencias_por_func.get(key, 0.0) + hh_val
-    except Exception:
-        pendencias_por_func = {}
+# Função=col G(idx6), HH=col I(idx8), OS=col J(idx9)
+pendencias_por_func = scan_fixed_cols(find_sheet_name('pendenc'), 9, 6, 8)
 
 # achata em listas ordenadas por saldo desc, pronto para exibição
 for key, bucket in funcoes_por_os.items():
