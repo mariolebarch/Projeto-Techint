@@ -676,13 +676,17 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     </div>
   </section>
 
-  <div class="os-modal-overlay" id="os-modal-overlay">
-    <div class="os-modal-frame" id="os-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da OS"></div>
-  </div>
-
   <div class="foot-note">
     Painel gerado a partir de <span class="mono-tag">Relatório_Saldo_PCI_MOA.xlsb</span> (aba RESUMO GERAL). Empresa: <span id="foot-empresa"></span>.
   </div>
+</div>
+
+<!-- Fora de .app (que tem transform para a animação de entrada) de propósito:
+     um transform num ancestral cria um novo containing block para elementos
+     position:fixed, o que prendia esse overlay dentro da largura de .app
+     (1360px centralizada) em vez de cobrir a tela inteira. -->
+<div class="os-modal-overlay" id="os-modal-overlay">
+  <div class="os-modal-frame" id="os-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da OS"></div>
 </div>
 
 <script id="bundle-data" type="application/json">__DATA_JSON__</script>
