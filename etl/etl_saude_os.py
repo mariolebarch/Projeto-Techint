@@ -1,4 +1,4 @@
-import argparse, re, json, sys, os
+import argparse, re, json, sys, os, unicodedata
 from pyxlsb import open_workbook
 
 parser = argparse.ArgumentParser(description="Extrai a aba 'RESUMO GERAL' de Relatório_Saldo_PCI_MOA.xlsb em um bundle.json para o Painel de Saúde das OS's.")
@@ -172,12 +172,86 @@ for d in det_rows[3:]:
     f["vl_realizado"] += num(d.get(10))
     f["vl_saldo"] += num(d.get(11))
 
+# ---------- HH "em validação" (ainda não decretado no sistema) por OS x
+# Função, lido das abas "4 - APROPRIAÇÃO" e "5 - PLAN SGE_MOBILE" e somado ao
+# Realizado por função acima. Essas duas abas não têm layout de coluna fixo
+# conhecido, então localizamos as colunas de OS/Função/HH pelo texto do
+# cabeçalho (tolerante a acento/caixa) em vez de índice fixo — se a aba não
+# existir ou as colunas não forem identificadas, simplesmente não somamos
+# nada dessa aba (nunca interrompe a extração).
+def _fold(s):
+    c = clean(s)
+    if not c:
+        return ''
+    return unicodedata.normalize('NFD', c).encode('ascii', 'ignore').decode().strip().lower()
+
+def scan_os_func_hh(sheet_name, max_header_scan=15):
+    result = {}
+    try:
+        with wb.get_sheet(sheet_name) as sheet:
+            rows = [{c.c: c.v for c in r} for r in sheet.rows()]
+    except Exception:
+        return result
+    header_row = os_col = func_col = hh_col = None
+    for i in range(min(max_header_scan, len(rows))):
+        row = rows[i]
+        if not row:
+            continue
+        os_c = func_c = hh_c = None
+        for col, val in row.items():
+            t = _fold(val)
+            if not t:
+                continue
+            if os_c is None and re.search(r'\bos\b', t):
+                os_c = col
+            if func_c is None and re.search(r'funcao|sub\s*-?\s*item|cargo', t):
+                func_c = col
+            if hh_c is None and t.startswith('hh'):
+                hh_c = col
+        if os_c is not None and func_c is not None and hh_c is not None:
+            header_row, os_col, func_col, hh_col = i, os_c, func_c, hh_c
+            break
+    if header_row is None:
+        return result
+    for d in rows[header_row + 1:]:
+        if not d:
+            continue
+        os_val = os_num(d.get(os_col))
+        if os_val is None:
+            continue
+        func_raw = clean(d.get(func_col))
+        if not func_raw:
+            continue
+        funcao = FUNC_PREFIX_RE.sub('', func_raw)
+        hh_val = num(d.get(hh_col))
+        if not hh_val:
+            continue
+        key = (os_val, funcao)
+        result[key] = result.get(key, 0.0) + hh_val
+    return result
+
+try:
+    prov_apropriacao = scan_os_func_hh('4 - APROPRIAÇÃO')
+except Exception:
+    prov_apropriacao = {}
+try:
+    prov_mobile = scan_os_func_hh('5 - PLAN SGE_MOBILE')
+except Exception:
+    prov_mobile = {}
+
 # achata em listas ordenadas por saldo desc, pronto para exibição
 for key, bucket in funcoes_por_os.items():
-    funcoes_por_os[key] = sorted(
-        [{"funcao": f, **vals} for f, vals in bucket.items() if vals["consolidado"] or vals["realizado"] or vals["saldo"]],
-        key=lambda x: -x["saldo"]
-    )
+    os_int = int(key)
+    items = []
+    for funcao, vals in bucket.items():
+        if not (vals["consolidado"] or vals["realizado"] or vals["saldo"]):
+            continue
+        prov = prov_apropriacao.get((os_int, funcao), 0.0) + prov_mobile.get((os_int, funcao), 0.0)
+        item = {"funcao": funcao, **vals}
+        if prov:
+            item["prov_hh"] = prov
+        items.append(item)
+    funcoes_por_os[key] = sorted(items, key=lambda x: -x["saldo"])
 
 bundle = {
     "meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"},

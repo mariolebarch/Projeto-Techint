@@ -382,10 +382,10 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 /* Painel de detalhe da OS (expansão em "Detalhamento por OS") */
 .os-detail-panel{background:var(--paper); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 6px 20px -8px rgba(0,0,0,.35);}
 .os-detail-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1px), radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%); background-size:20px 20px, 100% 100%; padding:16px 18px 14px;}
-.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; padding-right:88px;}
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
-.os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto;}
+.os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
 .os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
@@ -409,8 +409,24 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-bar-cell .track{flex:1; height:6px; background:var(--border-soft); border-radius:3px; overflow:hidden;}
 .odf-bar-cell .fill{height:100%; border-radius:3px; background:var(--steel);}
 .odf-bar-cell.neg .fill{background:var(--critical);}
+.odf-prov-tag{font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--warning); background:var(--warning-soft); border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:middle; letter-spacing:.02em;}
 .os-detail-note{margin-top:10px; font-size:11.5px; color:var(--text-muted); line-height:1.5; display:flex; gap:7px; align-items:flex-start;}
 .os-detail-note .ni{flex:none; font-family:var(--font-mono); font-weight:700; color:var(--steel); border:1px solid var(--steel); border-radius:50%; width:15px; height:15px; font-size:9.5px; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+.os-detail-close{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
+.os-detail-close:hover{background:rgba(255,255,255,.2); border-color:#fff;}
+.os-detail-close svg{width:13px; height:13px; flex:none;}
+
+/* Modal de detalhamento da OS */
+.os-modal-overlay{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
+.os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
+.os-modal-frame{width:100%; max-width:1060px; max-height:90vh; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
+.os-modal-frame .os-detail-panel{box-shadow:none;}
+body.os-modal-lock{overflow:hidden;}
+@media (max-width:680px){
+  .os-modal-overlay{padding:0;}
+  .os-modal-frame{max-width:none; max-height:100vh; height:100vh; border-radius:0;}
+}
 tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
 /* Donut chart */
@@ -660,6 +676,10 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     </div>
   </section>
 
+  <div class="os-modal-overlay" id="os-modal-overlay">
+    <div class="os-modal-frame" id="os-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da OS"></div>
+  </div>
+
   <div class="foot-note">
     Painel gerado a partir de <span class="mono-tag">Relatório_Saldo_PCI_MOA.xlsb</span> (aba RESUMO GERAL). Empresa: <span id="foot-empresa"></span>.
   </div>
@@ -725,7 +745,7 @@ const state = {
   osSearch: '',
   contrato: 'all',
   sit: new Set(),
-  detalhe: {search:'', sortKey:'hh_saldo', sortDir:'asc', expanded:new Set()},
+  detalhe: {search:'', sortKey:'hh_saldo', sortDir:'asc', modalOs:null},
 };
 
 function passCommon(r){
@@ -994,14 +1014,16 @@ function renderOsDetailPanel(r, funcoes){
   const difClass = dif > 0 ? 'critical' : 'good';
   const difSign = dif > 0 ? '+' : '';
 
+  const anyProv = funcoes.some(f => (f.prov_hh||0) !== 0);
   const maxAbsSaldo = Math.max(1, ...funcoes.map(f => Math.abs(f.saldo || 0)));
   const funcRows = funcoes.length ? funcoes.map(f => {
     const pct = Math.min(100, Math.abs(f.saldo || 0) / maxAbsSaldo * 100);
     const neg = (f.saldo || 0) < 0;
+    const realizadoTotal = (f.realizado||0) + (f.prov_hh||0);
     return `<tr>
       <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
       <td class="num-col">${fmtH(f.consolidado)}</td>
-      <td class="num-col">${fmtH(f.realizado)}</td>
+      <td class="num-col">${fmtH(realizadoTotal)}${f.prov_hh ? `<span class="odf-prov-tag" title="Inclui ${fmtH(f.prov_hh)}h de Apropriação/Mobile ainda em validação">+prov.</span>` : ''}</td>
       <td><div class="odf-bar-cell${neg ? ' neg' : ''}"><span class="track"><span class="fill" style="width:${pct}%;"></span></span><span class="num" style="min-width:56px; text-align:right;">${fmtH(f.saldo)}</span></div></td>
       <td class="num-col">${fmtRs(f.vl_saldo)}</td>
     </tr>`;
@@ -1009,6 +1031,7 @@ function renderOsDetailPanel(r, funcoes){
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
+      <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>
       <div class="os-detail-titlebar">
         <span class="os-detail-eyebrow">Resumo da OS</span>
         <span class="os-detail-osnum">${escHtml(r.os_label)}</span>
@@ -1030,7 +1053,7 @@ function renderOsDetailPanel(r, funcoes){
           <tbody>${funcRows}</tbody>
         </table>
       </div>
-      <div class="os-detail-note"><span class="ni">i</span><span>Realizado e Saldo por função batem com os totais da OS acima &middot; Realizado (FAD's), Realizado (Prov.) e Dif. são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório) &mdash; o detalhamento desses três por função depende de dados adicionais da planilha de origem, ainda não disponíveis.</span></div>
+      <div class="os-detail-note"><span class="ni">i</span><span>Saldo por função bate com o total da OS acima. Realizado (FAD's), Realizado (Prov.) e Dif. no resumo são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório).${anyProv ? ' Nas linhas marcadas "+prov." abaixo, o Realizado (HH) por função já soma o HH em validação das abas Apropriação/Mobile ao HH decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
     </div>
   </div>`;
 }
@@ -1047,9 +1070,9 @@ function renderDetalheTable(){
   empty.style.display = 'none';
   tbody.innerHTML = rows.map(r=>{
     const funcoes = funcoesForOs(r.os);
-    const expanded = r.os!=null && state.detalhe.expanded.has(r.os);
-    const mainRow = `<tr class="os-row${expanded?' expanded':''}" data-os="${r.os==null?'':r.os}">
-      <td class="mono-tag">${escHtml(r.os_label)}<span class="expand-hint">${expanded?'▾':'▸'} ${funcoes.length ? funcoes.length+' função(ões)' : 'resumo'}</span></td>
+    const open = r.os!=null && state.detalhe.modalOs === r.os;
+    return `<tr class="os-row${open?' expanded':''}" data-os="${r.os==null?'':r.os}">
+      <td class="mono-tag">${escHtml(r.os_label)}<span class="expand-hint">▸ ${funcoes.length ? funcoes.length+' função(ões)' : 'resumo'}</span></td>
       <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
       <td>${escHtml(r.lider||'')}</td>
       <td>${escHtml(r.fiscal||'')}</td>
@@ -1065,21 +1088,41 @@ function renderDetalheTable(){
       <td class="num-col">${fmtH(r.saldo_geral_hh)}</td>
       <td class="num-col">${fmtRs(r.saldo_geral_rs)}</td>
     </tr>`;
-    if(!expanded) return mainRow;
-    return mainRow + `<tr class="detail-row"><td colspan="15" style="padding:10px 12px 16px 34px;">
-        ${renderOsDetailPanel(r, funcoes)}
-      </td></tr>`;
   }).join('');
 }
+
+/* ---------- Modal de detalhamento da OS ---------- */
+function openOsModal(os){
+  const r = (DATA.os_list || []).find(row => row.os === os);
+  if(!r) return;
+  state.detalhe.modalOs = os;
+  const overlay = document.getElementById('os-modal-overlay');
+  document.getElementById('os-modal-frame').innerHTML = renderOsDetailPanel(r, funcoesForOs(os));
+  overlay.classList.add('open');
+  document.body.classList.add('os-modal-lock');
+  const row = document.querySelector(`#detalhe-tbody tr.os-row[data-os="${os}"]`);
+  document.querySelectorAll('#detalhe-tbody tr.os-row.expanded').forEach(tr=>tr.classList.remove('expanded'));
+  if(row) row.classList.add('expanded');
+  document.getElementById('os-detail-close-btn').addEventListener('click', closeOsModal);
+}
+function closeOsModal(){
+  state.detalhe.modalOs = null;
+  document.getElementById('os-modal-overlay').classList.remove('open');
+  document.body.classList.remove('os-modal-lock');
+  document.querySelectorAll('#detalhe-tbody tr.os-row.expanded').forEach(tr=>tr.classList.remove('expanded'));
+}
+document.getElementById('os-modal-overlay').addEventListener('click', e=>{
+  if(e.target.id === 'os-modal-overlay') closeOsModal();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && document.getElementById('os-modal-overlay').classList.contains('open')) closeOsModal();
+});
 document.getElementById('detalhe-tbody').addEventListener('click', e=>{
   const row = e.target.closest('tr.os-row');
   if(!row) return;
   const osAttr = row.getAttribute('data-os');
   if(osAttr==='') return;
-  const os = Number(osAttr);
-  if(state.detalhe.expanded.has(os)) state.detalhe.expanded.delete(os);
-  else state.detalhe.expanded.add(os);
-  renderDetalheTable();
+  openOsModal(Number(osAttr));
 });
 document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
   th.addEventListener('click', ()=>{
@@ -1178,11 +1221,12 @@ function exportBaseCompletaSheet(){
 }
 function exportFuncaoSheet(){
   const rows = filteredOS();
-  const aoa = [['OS','Situação','Função','Consolidado (HH)','Realizado (HH)','Saldo (HH)','Valor Realizado (R$)','Valor Saldo (R$)']];
+  const aoa = [['OS','Situação','Função','Consolidado (HH)','Realizado - Saldo_OSs DET. (HH)','Realizado - Prov. Apropriação+Mobile (HH)','Realizado Total (HH)','Saldo (HH)','Valor Realizado (R$)','Valor Saldo (R$)']];
   rows.forEach(r=>{
     if(r.os==null) return;
     funcoesForOs(r.os).forEach(f=>{
-      aoa.push([r.os_label, r.sit||'', f.funcao, f.consolidado, f.realizado, f.saldo, f.vl_realizado, f.vl_saldo]);
+      const prov = f.prov_hh||0;
+      aoa.push([r.os_label, r.sit||'', f.funcao, f.consolidado, f.realizado, prov, (f.realizado||0)+prov, f.saldo, f.vl_realizado, f.vl_saldo]);
     });
   });
   return {name:'Saldo por Função', aoa};
@@ -1617,10 +1661,64 @@ function parseWorkbookToBundleSaudeOs(wb){
     f.vl_realizado += numImport(cellVal(wsDet,r,11));
     f.vl_saldo += numImport(cellVal(wsDet,r,12));
   }
+  // ---------- HH "em validação" (ainda não decretado no sistema) por OS x
+  // Função, lido das abas "4 - APROPRIAÇÃO" e "5 - PLAN SGE_MOBILE" e somado
+  // ao Realizado por função acima. O layout dessas abas não é conhecido de
+  // antemão, então as colunas de OS/Função/HH são localizadas pelo texto do
+  // cabeçalho (tolerante a acento/caixa) — se a aba não existir ou as
+  // colunas não forem identificadas, simplesmente não soma nada dessa aba.
+  function foldHeader(s){
+    const c = cleanStrImport(s);
+    if(!c) return '';
+    return c.normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+  }
+  function scanOsFuncHh(sheetName, maxHeaderScan){
+    const result = {};
+    let ws2;
+    try{ ws2 = sheet(sheetName); }catch(e){ return result; }
+    const maxR2 = maxRow(ws2);
+    if(!maxR2) return result;
+    let headerRow=-1, osCol=-1, funcCol=-1, hhCol=-1;
+    const scanRows = Math.min(maxHeaderScan||15, maxR2);
+    for(let r=1; r<=scanRows; r++){
+      let osC=-1, funcC=-1, hhC=-1;
+      for(let c=1; c<=60; c++){
+        const t = foldHeader(cellVal(ws2,r,c));
+        if(!t) continue;
+        if(osC<0 && /\bos\b/.test(t)) osC = c;
+        if(funcC<0 && /funcao|sub\s*-?\s*item|cargo/.test(t)) funcC = c;
+        if(hhC<0 && /^hh/.test(t)) hhC = c;
+      }
+      if(osC>=0 && funcC>=0 && hhC>=0){ headerRow=r; osCol=osC; funcCol=funcC; hhCol=hhC; break; }
+    }
+    if(headerRow<0) return result;
+    for(let r=headerRow+1; r<=maxR2; r++){
+      const osVal = osNumImport(cellVal(ws2,r,osCol));
+      if(osVal==null) continue;
+      const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
+      if(!funcRaw) continue;
+      const funcao = funcRaw.replace(funcPrefixRe, '');
+      const hhVal = numImport(cellVal(ws2,r,hhCol));
+      if(!hhVal) continue;
+      const key = osVal+'|'+funcao;
+      result[key] = (result[key]||0) + hhVal;
+    }
+    return result;
+  }
+  let provApropriacao = {}, provMobile = {};
+  try{ provApropriacao = scanOsFuncHh('4 - APROPRIAÇÃO'); }catch(e){ provApropriacao = {}; }
+  try{ provMobile = scanOsFuncHh('5 - PLAN SGE_MOBILE'); }catch(e){ provMobile = {}; }
+
   Object.keys(funcoesPorOs).forEach(key=>{
     const bucket = funcoesPorOs[key];
     funcoesPorOs[key] = Object.entries(bucket)
-      .map(([funcao,vals])=>({funcao, ...vals}))
+      .map(([funcao,vals])=>{
+        const item = {funcao, ...vals};
+        const provKey = key+'|'+funcao;
+        const prov = (provApropriacao[provKey]||0) + (provMobile[provKey]||0);
+        if(prov) item.prov_hh = prov;
+        return item;
+      })
       .filter(x=>x.consolidado||x.realizado||x.saldo)
       .sort((a,b)=>b.saldo-a.saldo);
   });
