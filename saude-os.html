@@ -386,7 +386,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
@@ -1008,33 +1008,28 @@ function renderDetalheControls(){
   });
 }
 /* Painel "tecnológico" exibido ao expandir uma OS no Detalhamento por OS:
-   resumo da OS (HH Previsto/Realizado, Realizado FAD's/Provisório, Saldo e
-   Dif. — coloridos conforme estouro) + tabela de saldo por função. */
+   resumo da OS (HH Previsto/Realizado com Prov. embutido, Saldo HH/R$ e
+   Dif. — coloridos conforme estouro) + tabela de saldo por função, tudo
+   somado a partir da aba "1 - PLAN SALDO_OSs DET." por função. */
 function renderOsDetailPanel(r, funcoes){
-  const realizadoFad = r.fad_total_hh || 0;
-  const realizadoProv = (r.apropriacao_hh || 0) + (r.mobile_hh || 0);
-  const saldoHh = r.hh_saldo || 0;
-  const dif = (r.hh_realizado || 0) - saldoHh;
-  const difClass = dif > 0 ? 'critical' : 'good';
+  // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
+  // DET." (colunas H/I/J/L), somada por função — garante que os cartões
+  // acima batem sempre com a tabela de funções abaixo.
+  const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
+  const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
+  const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
+  const saldoRs = funcoes.reduce((a,f)=>a+(f.vl_saldo||0),0);
+  const provTotal = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
+  const hhRealizado = hhRealizadoBase + provTotal;
+
+  // Dif. = Saldo (HH) - (HH Realizado + Prov.): positivo/verde quando ainda
+  // sobra saldo depois de somar o HH em validação, negativo/vermelho quando
+  // o realizado (já com o provisório) estoura o saldo.
+  const dif = saldoHh - hhRealizado;
+  const difClass = dif >= 0 ? 'good' : 'critical';
   const difSign = dif > 0 ? '+' : '';
 
   const anyProv = funcoes.some(f => (f.prov_hh||0) !== 0);
-
-  // Realizado e Saldo por função (aba 1) já foram conferidos linha a linha
-  // contra o total da OS em rodadas anteriores — quando essa soma diverge
-  // muito do HH Previsto/Realizado mostrado acima para ESTA OS específica,
-  // é sinal de uma inconsistência pontual na planilha de origem (não um
-  // bug do painel), então avisamos em vez de esconder o problema.
-  const funcPrevistoSum = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
-  const funcRealizadoSum = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
-  const tolPrev = Math.max(5, Math.abs(r.hh_previsto||0)*0.05);
-  const tolReal = Math.max(5, Math.abs(r.hh_realizado||0)*0.05);
-  const prevOk = Math.abs(funcPrevistoSum - (r.hh_previsto||0)) <= tolPrev;
-  const realOk = Math.abs(funcRealizadoSum - (r.hh_realizado||0)) <= tolReal;
-  const diffParts = [];
-  if(!realOk) diffParts.push(`Realizado: ${fmtH(funcRealizadoSum)}h por função contra ${fmtH(r.hh_realizado)}h no resumo`);
-  if(!prevOk) diffParts.push(`HH Previsto: ${fmtH(funcPrevistoSum)}h por função contra ${fmtH(r.hh_previsto)}h no resumo`);
-  const reconcileWarning = (funcoes.length && diffParts.length) ? `<div class="callout" style="margin:0 0 14px;"><span class="glyph">!</span><div><h4>Os totais por função não batem com o resumo da OS</h4><p>${diffParts.join(' &middot; ')} &mdash; uma divergência que foge do padrão observado nas demais OS's. Pode ser uma inconsistência pontual na planilha de origem para esta OS específica; confira com cautela antes de usar esses números para decisão.</p></div></div>` : '';
   const maxAbsSaldo = Math.max(1, ...funcoes.map(f => Math.abs(f.saldo || 0)));
   const funcRows = funcoes.length ? funcoes.map(f => {
     const pct = Math.min(100, Math.abs(f.saldo || 0) / maxAbsSaldo * 100);
@@ -1058,23 +1053,21 @@ function renderOsDetailPanel(r, funcoes){
         <span class="os-detail-sub">${escHtml(r.pep || '')}</span>
       </div>
       <div class="os-detail-kpis">
-        <div class="odk"><span class="odk-label">HH Previsto</span><span class="odk-value">${fmtH(r.hh_previsto)}</span></div>
-        <div class="odk"><span class="odk-label">HH Realizado</span><span class="odk-value">${fmtH(r.hh_realizado)}</span></div>
-        <div class="odk"><span class="odk-label">Realizado (FAD's)</span><span class="odk-value">${fmtH(realizadoFad)}</span><span class="odk-sub">já no sistema</span></div>
-        <div class="odk"><span class="odk-label">Realizado (Prov.)</span><span class="odk-value">${fmtH(realizadoProv)}</span><span class="odk-sub">apropriação + mobile</span></div>
+        <div class="odk"><span class="odk-label">HH Previsto</span><span class="odk-value">${fmtH(hhPrevisto)}</span></div>
+        <div class="odk"><span class="odk-label">HH Realizado</span><span class="odk-value">${fmtH(hhRealizado)}</span>${provTotal ? `<span class="odk-sub">+${fmtH(provTotal)}h em Prov.</span>` : ''}</div>
         <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
-        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">realizado &minus; saldo</span></div>
+        <div class="odk"><span class="odk-label">Saldo (R$)</span><span class="odk-value">${fmtRs(saldoRs)}</span></div>
+        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">saldo &minus; (realizado + prov.)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
-      ${reconcileWarning}
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
           <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th>Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
-      <div class="os-detail-note"><span class="ni">i</span><span>Saldo por função bate com o total da OS acima. Realizado (FAD's) e Realizado (Prov.) no resumo são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório); Dif. = HH Realizado &minus; Saldo (HH).${anyProv ? ' Nas linhas marcadas "+prov." abaixo, o Realizado (HH) por função já soma o HH em validação das abas Apropriação/Mobile ao HH decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
+      <div class="os-detail-note"><span class="ni">i</span><span>HH Previsto, HH Realizado, Saldo (HH) e Saldo (R$) são a soma das funções abaixo (aba "1 - PLAN SALDO_OSs DET.", colunas H/I/J/L). Dif. = Saldo (HH) &minus; (HH Realizado + Prov.): positivo em verde quando ainda sobra saldo, negativo em vermelho quando o realizado estoura o saldo.${anyProv ? ' O HH Realizado acima já inclui o HH em validação das abas Apropriação/Mobile (nota "+prov."); nas linhas marcadas "+prov." na tabela, o Realizado (HH) por função também já soma esse HH ao decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
     </div>
   </div>`;
 }
