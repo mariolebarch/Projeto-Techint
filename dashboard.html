@@ -2510,7 +2510,28 @@ function renderApont(){
   // linhas nem sempre bate exatamente com a grafia na própria linha desse
   // encarregado como "Nome" — isso zerava o cargo de alguns encarregados.
   const cargoByName = new Map();
-  DATA.efetivo.forEach(r=>{ if(r.nome && r.cargo){ const key = foldName(r.nome); if(!cargoByName.has(key)) cargoByName.set(key, r.cargo); } });
+  const cargoByTokens = [];
+  DATA.efetivo.forEach(r=>{
+    if(!r.nome || !r.cargo) return;
+    const key = foldName(r.nome);
+    if(cargoByName.has(key)) return;
+    cargoByName.set(key, r.cargo);
+    cargoByTokens.push({toks: key.split(' ').filter(Boolean), cargo: r.cargo});
+  });
+  // Se não bate nem "dobrado", tenta casar só pelo primeiro e último nome —
+  // cobre nomes do meio adicionados/removidos/abreviados entre as colunas
+  // "Encarregado" e "Nome" (ex.: "Fernando de Oliveira" x "Fernando Xavier
+  // de Oliveira Santos" não bateria aqui pelo sobrenome final diferente,
+  // mas variações mais comuns de nome do meio sim).
+  function cargoForEncarregado(enc){
+    const key = foldName(enc);
+    if(cargoByName.has(key)) return cargoByName.get(key);
+    const toks = key.split(' ').filter(Boolean);
+    if(toks.length<2) return null;
+    const first = toks[0], last = toks[toks.length-1];
+    const hit = cargoByTokens.find(e => e.toks.length>=2 && e.toks[0]===first && e.toks[e.toks.length-1]===last);
+    return hit ? hit.cargo : null;
+  }
 
   const groups = new Map();
   ef.forEach(r=>{
@@ -2518,7 +2539,7 @@ function renderApont(){
     const enc = r.encarregado || '—';
     const os = String(r.os);
     const key = sup+'||'+enc+'||'+os;
-    if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoByName.get(foldName(enc)) || '—', pessoas:[]});
+    if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoForEncarregado(enc) || '—', pessoas:[]});
     groups.get(key).pessoas.push(r);
   });
   const search = state.apont.search.toLowerCase();
