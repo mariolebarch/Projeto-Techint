@@ -397,7 +397,8 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .odk.odk-dif.critical .odk-value{color:#ff9d97;}
 .odk.odk-dif.good .odk-value{color:#9bdd6b;}
 .odk.odk-split{grid-column:span 3;}
-@media (max-width:520px){.odk.odk-split{grid-column:1/-1;}}
+.odk.odk-split-2{grid-column:span 2;}
+@media (max-width:520px){.odk.odk-split, .odk.odk-split-2{grid-column:1/-1;}}
 .odk-split-row{display:flex; align-items:stretch; gap:10px; margin-top:1px;}
 .odk-split-col{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
 .odk-split-sep{width:1px; background:rgba(255,255,255,.2); flex:none;}
@@ -663,9 +664,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <table id="detalhe-table">
           <thead><tr>
             <th data-sort="os_label">OS</th><th data-sort="pep">PEP / Descrição</th><th data-sort="lider">Líder</th><th data-sort="fiscal">Fiscal</th><th data-sort="sit">Situação</th>
-            <th class="num-col" data-sort="hh_previsto">HH Previsto</th><th class="num-col" data-sort="hh_realizado">HH Realizado</th><th class="num-col" data-sort="hh_saldo">HH Saldo</th><th class="num-col" data-sort="pct_consumido">% Consumido</th>
-            <th class="num-col" data-sort="apropriacao_hh">Apropriação (HH)</th><th class="num-col" data-sort="pendencias_hh">Pendências (HH)</th><th class="num-col" data-sort="fad_total_hh">FAD's (HH)</th><th class="num-col" data-sort="mobile_hh">Mobile (HH)</th>
-            <th class="num-col" data-sort="saldo_geral_hh">Saldo Geral (HH)</th><th class="num-col" data-sort="saldo_geral_rs">Saldo Geral (R$)</th>
+            <th class="num-col" data-sort="saldo_final">Saldo Final</th>
           </tr></thead>
           <tbody id="detalhe-tbody"></tbody>
         </table>
@@ -747,7 +746,7 @@ const state = {
   osSearch: '',
   contrato: 'all',
   sit: new Set(),
-  detalhe: {search:'', sortKey:'hh_saldo', sortDir:'asc', modalOs:null},
+  detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
 };
 
 function passCommon(r){
@@ -984,13 +983,13 @@ function renderRiscoBars(){
 
 /* ---------- Detalhamento por OS ---------- */
 const DETALHE_COL_TYPE = {
-  os_label:'str', pep:'str', lider:'str', fiscal:'str', sit:'str',
-  hh_previsto:'num', hh_realizado:'num', hh_saldo:'num', pct_consumido:'num',
-  apropriacao_hh:'num', pendencias_hh:'num', fad_total_hh:'num', mobile_hh:'num',
-  saldo_geral_hh:'num', saldo_geral_rs:'num',
+  os_label:'str', pep:'str', lider:'str', fiscal:'str', sit:'str', saldo_final:'num',
 };
 function detalheSortFn(){
   const key = state.detalhe.sortKey, dir = state.detalhe.sortDir==='desc' ? -1 : 1;
+  if(key === 'saldo_final'){
+    return (a,b) => (saldoFinalForOs(a) - saldoFinalForOs(b)) * dir;
+  }
   const isNum = DETALHE_COL_TYPE[key]==='num';
   return (a,b)=>{
     if(isNum) return ((a[key]||0)-(b[key]||0)) * dir;
@@ -1006,9 +1005,23 @@ function renderDetalheControls(){
   });
 }
 /* Painel "tecnológico" exibido ao expandir uma OS no Detalhamento por OS:
-   resumo da OS (HH Previsto/Realizado com Prov. separado, Saldo (HH) e
-   Dif. — coloridos conforme estouro) + tabela de saldo por função. Não
-   exibe valores em R$ (removidos a pedido do usuário). */
+   Bloco 1 (HH Previsto/Realizado/Saldo), Bloco 2 (Pendência/Aprop.+Mob.) e
+   Saldo Final (coloridos conforme estouro) + tabela de saldo por função.
+   Não exibe valores em R$ (removidos a pedido do usuário). */
+function saldoFinalFromFuncoes(funcoes){
+  // Saldo Final = Saldo sistema (HH Previsto - HH Realizado) menos o que
+  // ainda está pendente ou em projeção (Pendência + Aprop.+Mob.): positivo
+  // quando ainda sobra saldo depois de contar tudo isso, negativo quando
+  // o total já estoura o previsto.
+  const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
+  const hhRealizado = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
+  const pend = funcoes.reduce((a,f)=>a+(f.pend_hh||0),0);
+  const prov = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
+  return hhPrevisto - hhRealizado - pend - prov;
+}
+function saldoFinalForOs(r){
+  return saldoFinalFromFuncoes(funcoesForOs(r.os));
+}
 function renderOsDetailPanel(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
   // DET." (colunas H/I/J/L), somada por função — garante que os cartões
@@ -1017,17 +1030,16 @@ function renderOsDetailPanel(r, funcoes){
   const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
   const provTotal = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
-  const hhRealizado = hhRealizadoBase + provTotal;
-
-  // Dif. = Saldo (HH) - (HH Realizado + Prov.): positivo/verde quando ainda
-  // sobra saldo depois de somar o HH em validação, negativo/vermelho quando
-  // o realizado (já com o provisório) estoura o saldo.
-  const dif = saldoHh - hhRealizado;
-  const difClass = dif >= 0 ? 'good' : 'critical';
-  const difSign = dif > 0 ? '+' : '';
-
   const pendTotal = funcoes.reduce((a,f)=>a+(f.pend_hh||0),0);
+
+  const saldoFinal = saldoFinalFromFuncoes(funcoes);
+  const sfClass = saldoFinal >= 0 ? 'good' : 'critical';
+  const sfSign = saldoFinal > 0 ? '+' : '';
+
   const funcRows = funcoes.length ? funcoes.map(f => {
+    const sf = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
+    const sfCls = sf >= 0 ? 'good' : 'critical';
+    const sfSgn = sf > 0 ? '+' : '';
     return `<tr>
       <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
       <td class="num-col">${fmtH(f.consolidado)}</td>
@@ -1035,8 +1047,9 @@ function renderOsDetailPanel(r, funcoes){
       <td class="num-col">${fmtH(f.pend_hh)}</td>
       <td class="num-col">${fmtH(f.prov_hh)}</td>
       <td class="num-col">${fmtH(f.saldo)}</td>
+      <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(sf)}</span></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
@@ -1047,34 +1060,44 @@ function renderOsDetailPanel(r, funcoes){
         <span class="os-detail-sub">${escHtml(r.pep || '')}</span>
       </div>
       <div class="os-detail-kpis">
-        <div class="odk"><span class="odk-label">HH Previsto</span><span class="odk-value">${fmtH(hhPrevisto)}</span></div>
         <div class="odk odk-split">
-          <span class="odk-label">HH Realizado</span>
           <div class="odk-split-row">
             <div class="odk-split-col">
-              <span class="odk-value">${fmtH(hhRealizadoBase)}</span>
-              <span class="odk-sub">Já no Sistema</span>
+              <span class="odk-label">HH Previsto</span>
+              <span class="odk-value">${fmtH(hhPrevisto)}</span>
             </div>
             <div class="odk-split-sep"></div>
             <div class="odk-split-col">
-              <span class="odk-value">${fmtH(provTotal)}</span>
-              <span class="odk-sub">Apropriação + Mobile</span>
+              <span class="odk-label">HH Realizado</span>
+              <span class="odk-value">${fmtH(hhRealizadoBase)}</span>
             </div>
             <div class="odk-split-sep"></div>
+            <div class="odk-split-col">
+              <span class="odk-label">Saldo (HH)</span>
+              <span class="odk-value">${fmtH(saldoHh)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="odk odk-split-2">
+          <div class="odk-split-row">
             <div class="odk-split-col">
               <span class="odk-label">HH Pendência</span>
               <span class="odk-value">${fmtH(pendTotal)}</span>
             </div>
+            <div class="odk-split-sep"></div>
+            <div class="odk-split-col">
+              <span class="odk-label">Aprop. + Mob.</span>
+              <span class="odk-value">${fmtH(provTotal)}</span>
+            </div>
           </div>
         </div>
-        <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
-        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">saldo &minus; (realizado + prov.)</span></div>
+        <div class="odk odk-dif ${sfClass}"><span class="odk-label">Saldo Final</span><span class="odk-value">${sfSign}${fmtH(saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
-          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Prov. (HH)</th><th class="num-col">Saldo (HH)</th></tr></thead>
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Aprop. + Mob. (HH)</th><th class="num-col">Saldo (HH)</th><th class="num-col">Saldo Final (HH)</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
@@ -1095,22 +1118,16 @@ function renderDetalheTable(){
   tbody.innerHTML = rows.map(r=>{
     const funcoes = funcoesForOs(r.os);
     const open = r.os!=null && state.detalhe.modalOs === r.os;
+    const sf = saldoFinalFromFuncoes(funcoes);
+    const sfCls = sf >= 0 ? 'good' : 'critical';
+    const sfSgn = sf > 0 ? '+' : '';
     return `<tr class="os-row${open?' expanded':''}" data-os="${r.os==null?'':r.os}">
       <td class="mono-tag">${escHtml(r.os_label)}<span class="expand-hint">▸ ${funcoes.length ? funcoes.length+' função(ões)' : 'resumo'}</span></td>
       <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
       <td>${escHtml(r.lider||'')}</td>
       <td>${escHtml(r.fiscal||'')}</td>
       <td>${escHtml(r.sit||'')}</td>
-      <td class="num-col">${fmtH(r.hh_previsto)}</td>
-      <td class="num-col">${fmtH(r.hh_realizado)}</td>
-      <td class="num-col">${fmtH(r.hh_saldo)}</td>
-      <td class="num-col">${fmtPct(r.pct_consumido)}</td>
-      <td class="num-col">${fmtH(r.apropriacao_hh)}</td>
-      <td class="num-col">${fmtH(r.pendencias_hh)}</td>
-      <td class="num-col">${fmtH(r.fad_total_hh)}</td>
-      <td class="num-col">${fmtH(r.mobile_hh)}</td>
-      <td class="num-col">${fmtH(r.saldo_geral_hh)}</td>
-      <td class="num-col">${fmtRs(r.saldo_geral_rs)}</td>
+      <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(sf)}</span></td>
     </tr>`;
   }).join('');
 }
