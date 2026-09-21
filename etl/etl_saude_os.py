@@ -185,33 +185,54 @@ def _fold(s):
         return ''
     return unicodedata.normalize('NFD', c).encode('ascii', 'ignore').decode().strip().lower()
 
-def scan_os_func_hh(sheet_name, max_header_scan=15):
+FUNC_HEADER_RE = re.compile(r'funcao|sub\s*-?\s*item|cargo|atividade|especialidade|ocupa[cç][aã]o')
+
+def scan_os_func_hh(sheet_name, max_header_scan=25):
     result = {}
     try:
         with wb.get_sheet(sheet_name) as sheet:
             rows = [{c.c: c.v for c in r} for r in sheet.rows()]
     except Exception:
         return result
-    header_row = os_col = func_col = hh_col = None
-    for i in range(min(max_header_scan, len(rows))):
-        row = rows[i]
-        if not row:
-            continue
-        os_c = func_c = hh_c = None
-        for col, val in row.items():
-            t = _fold(val)
-            if not t:
+
+    # Os cabeçalhos de OS/Função/HH podem não estar todos na mesma linha
+    # (cabeçalho em duas linhas, células mescladas etc.), então cada um é
+    # localizado de forma independente — não é preciso que os três apareçam
+    # juntos numa única linha. Os dados começam após a última linha onde
+    # algum dos três foi encontrado.
+    def find_cols(os_re, func_re, hh_re):
+        os_c = func_c = hh_c = last_row = None
+        for i in range(min(max_header_scan, len(rows))):
+            row = rows[i]
+            if not row:
                 continue
-            if os_c is None and re.search(r'\bos\b', t):
-                os_c = col
-            if func_c is None and re.search(r'funcao|sub\s*-?\s*item|cargo', t):
-                func_c = col
-            if hh_c is None and t.startswith('hh'):
-                hh_c = col
-        if os_c is not None and func_c is not None and hh_c is not None:
-            header_row, os_col, func_col, hh_col = i, os_c, func_c, hh_c
-            break
-    if header_row is None:
+            found_in_row = False
+            for col, val in row.items():
+                t = _fold(val)
+                if not t:
+                    continue
+                if os_c is None and os_re.search(t):
+                    os_c = col
+                    found_in_row = True
+                if func_c is None and func_re.search(t):
+                    func_c = col
+                    found_in_row = True
+                if hh_c is None and hh_re.search(t):
+                    hh_c = col
+                    found_in_row = True
+            if found_in_row:
+                last_row = i
+            if os_c is not None and func_c is not None and hh_c is not None:
+                break
+        return os_c, func_c, hh_c, last_row
+
+    os_col, func_col, hh_col, header_row = find_cols(re.compile(r'\bos\b'), FUNC_HEADER_RE, re.compile(r'\bhh\b'))
+    if os_col is None or func_col is None or hh_col is None:
+        # segunda tentativa, mais tolerante, só para os campos que ainda faltam
+        os_re2 = re.compile(r'\bos\b') if os_col is not None else re.compile(r'\bos\b|ordem\s*de\s*servi[cç]o')
+        hh_re2 = re.compile(r'\bhh\b') if hh_col is not None else re.compile(r'\bhh\b|hora\s*homem|homem\s*hora')
+        os_col, func_col, hh_col, header_row = find_cols(os_re2, FUNC_HEADER_RE, hh_re2)
+    if os_col is None or func_col is None or hh_col is None:
         return result
     for d in rows[header_row + 1:]:
         if not d:
