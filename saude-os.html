@@ -386,7 +386,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
@@ -402,7 +402,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .odk-split-sep{width:1px; background:rgba(255,255,255,.2); flex:none;}
 .os-detail-body{padding:14px 18px 16px;}
 .os-detail-func-wrap{border:1px solid var(--border-soft); border-radius:9px; overflow-x:auto;}
-table.os-detail-func-table{width:100%; min-width:820px; font-size:12.5px;}
+table.os-detail-func-table{width:100%; min-width:620px; font-size:12.5px;}
 table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
 table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
 table.os-detail-func-table tbody tr:first-child td{border-top:none;}
@@ -422,7 +422,7 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 /* Modal de detalhamento da OS */
 .os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-.os-modal-frame{width:100%; max-width:1280px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-frame{width:100%; max-width:1100px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
@@ -1011,9 +1011,9 @@ function renderDetalheControls(){
   });
 }
 /* Painel "tecnológico" exibido ao expandir uma OS no Detalhamento por OS:
-   resumo da OS (HH Previsto/Realizado com Prov. embutido, Saldo HH/R$ e
-   Dif. — coloridos conforme estouro) + tabela de saldo por função, tudo
-   somado a partir da aba "1 - PLAN SALDO_OSs DET." por função. */
+   resumo da OS (HH Previsto/Realizado com Prov. separado, Saldo (HH) e
+   Dif. — coloridos conforme estouro) + tabela de saldo por função. Não
+   exibe valores em R$ (removidos a pedido do usuário). */
 function renderOsDetailPanel(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
   // DET." (colunas H/I/J/L), somada por função — garante que os cartões
@@ -1021,7 +1021,6 @@ function renderOsDetailPanel(r, funcoes){
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
-  const saldoRs = funcoes.reduce((a,f)=>a+(f.vl_saldo||0),0);
   const provTotal = funcoes.reduce((a,f)=>a+(f.prov_hh||0),0);
   const hhRealizado = hhRealizadoBase + provTotal;
 
@@ -1045,10 +1044,8 @@ function renderOsDetailPanel(r, funcoes){
       <td class="num-col">${fmtH(f.pend_hh)}</td>
       <td class="num-col">${fmtH(f.prov_hh)}</td>
       <td><div class="odf-bar-cell${neg ? ' neg' : ''}"><span class="track"><span class="fill" style="width:${pct}%;"></span></span><span class="num" style="min-width:56px; text-align:right;">${fmtH(f.saldo)}</span></div></td>
-      <td class="num-col">${fmtRs(f.vl_realizado)}</td>
-      <td class="num-col">${fmtRs(f.vl_saldo)}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="8" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
@@ -1075,18 +1072,17 @@ function renderOsDetailPanel(r, funcoes){
           </div>
         </div>
         <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
-        <div class="odk"><span class="odk-label">Saldo (R$)</span><span class="odk-value">${fmtRs(saldoRs)}</span></div>
         <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">saldo &minus; (realizado + prov.)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
-          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Prov. (HH)</th><th>Saldo (HH)</th><th class="num-col">Valor Realizado (R$)</th><th class="num-col">Saldo (R$)</th></tr></thead>
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Prov. (HH)</th><th>Saldo (HH)</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
-      <div class="os-detail-note"><span class="ni">i</span><span>HH Previsto, Realizado, Saldo (HH) e Valor Realizado/Saldo (R$) vêm da aba "1 - PLAN SALDO_OSs DET." (colunas H/I/J/K/L) por função. Pendências vem da aba "3 - PENDÊNCIAS" (colunas G/I/J) e Prov. das abas "4 - APROPRIAÇÃO"/"5 - PLAN SGE_MOBILE" — HH ainda em validação, fora do sistema. No cartão acima, HH Realizado soma "Já no Sistema" (aba 1) + "Apropriação + Mobile" (abas 4/5). Dif. = Saldo (HH) &minus; (HH Realizado + Prov.): positivo em verde quando ainda sobra saldo, negativo em vermelho quando o realizado estoura o saldo.${anyPend ? '' : ' Nenhuma função desta OS tem Pendências identificadas.'}${anyProv ? '' : ' Nenhuma função desta OS tem Prov. (Apropriação/Mobile) identificado.'}</span></div>
+      <div class="os-detail-note"><span class="ni">i</span><span>HH Previsto, Realizado e Saldo (HH) vêm da aba "1 - PLAN SALDO_OSs DET." (colunas H/I/J) por função. Pendências vem da aba "3 - PENDÊNCIAS" (colunas G/I/J) e Prov. das abas "4 - APROPRIAÇÃO"/"5 - PLAN SGE_MOBILE" — HH ainda em validação, fora do sistema. No cartão acima, HH Realizado soma "Já no Sistema" (aba 1) + "Apropriação + Mobile" (abas 4/5). Dif. = Saldo (HH) &minus; (HH Realizado + Prov.): positivo em verde quando ainda sobra saldo, negativo em vermelho quando o realizado estoura o saldo.${anyPend ? '' : ' Nenhuma função desta OS tem Pendências identificadas.'}${anyProv ? '' : ' Nenhuma função desta OS tem Prov. (Apropriação/Mobile) identificado.'}</span></div>
     </div>
   </div>`;
 }
