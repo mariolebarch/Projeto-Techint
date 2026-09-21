@@ -386,7 +386,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
@@ -396,9 +396,13 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .odk.odk-dif{border-color:rgba(255,255,255,.28);}
 .odk.odk-dif.critical .odk-value{color:#ff9d97;}
 .odk.odk-dif.good .odk-value{color:#9bdd6b;}
+.odk.odk-split{grid-column:span 2;}
+.odk-split-row{display:flex; align-items:stretch; gap:10px; margin-top:1px;}
+.odk-split-col{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
+.odk-split-sep{width:1px; background:rgba(255,255,255,.2); flex:none;}
 .os-detail-body{padding:14px 18px 16px;}
-.os-detail-func-wrap{border:1px solid var(--border-soft); border-radius:9px; overflow:hidden;}
-table.os-detail-func-table{width:100%; font-size:12.5px;}
+.os-detail-func-wrap{border:1px solid var(--border-soft); border-radius:9px; overflow-x:auto;}
+table.os-detail-func-table{width:100%; min-width:820px; font-size:12.5px;}
 table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
 table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
 table.os-detail-func-table tbody tr:first-child td{border-top:none;}
@@ -409,7 +413,6 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-bar-cell .track{flex:1; height:6px; background:var(--border-soft); border-radius:3px; overflow:hidden;}
 .odf-bar-cell .fill{height:100%; border-radius:3px; background:var(--steel);}
 .odf-bar-cell.neg .fill{background:var(--critical);}
-.odf-prov-tag{font-family:var(--font-mono); font-size:9px; font-weight:700; color:var(--warning); background:var(--warning-soft); border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:middle; letter-spacing:.02em;}
 .os-detail-note{margin-top:10px; font-size:11.5px; color:var(--text-muted); line-height:1.5; display:flex; gap:7px; align-items:flex-start;}
 .os-detail-note .ni{flex:none; font-family:var(--font-mono); font-weight:700; color:var(--steel); border:1px solid var(--steel); border-radius:50%; width:15px; height:15px; font-size:9.5px; display:flex; align-items:center; justify-content:center; margin-top:1px;}
 .os-detail-close{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
@@ -419,7 +422,7 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 /* Modal de detalhamento da OS */
 .os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-.os-modal-frame{width:100%; max-width:1060px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-frame{width:100%; max-width:1280px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
@@ -1030,19 +1033,22 @@ function renderOsDetailPanel(r, funcoes){
   const difSign = dif > 0 ? '+' : '';
 
   const anyProv = funcoes.some(f => (f.prov_hh||0) !== 0);
+  const anyPend = funcoes.some(f => (f.pend_hh||0) !== 0);
   const maxAbsSaldo = Math.max(1, ...funcoes.map(f => Math.abs(f.saldo || 0)));
   const funcRows = funcoes.length ? funcoes.map(f => {
     const pct = Math.min(100, Math.abs(f.saldo || 0) / maxAbsSaldo * 100);
     const neg = (f.saldo || 0) < 0;
-    const realizadoTotal = (f.realizado||0) + (f.prov_hh||0);
     return `<tr>
       <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
       <td class="num-col">${fmtH(f.consolidado)}</td>
-      <td class="num-col">${fmtH(realizadoTotal)}${f.prov_hh ? `<span class="odf-prov-tag" title="Inclui ${fmtH(f.prov_hh)}h de Apropriação/Mobile ainda em validação">+prov.</span>` : ''}</td>
+      <td class="num-col">${fmtH(f.realizado)}</td>
+      <td class="num-col">${fmtH(f.pend_hh)}</td>
+      <td class="num-col">${fmtH(f.prov_hh)}</td>
       <td><div class="odf-bar-cell${neg ? ' neg' : ''}"><span class="track"><span class="fill" style="width:${pct}%;"></span></span><span class="num" style="min-width:56px; text-align:right;">${fmtH(f.saldo)}</span></div></td>
+      <td class="num-col">${fmtRs(f.vl_realizado)}</td>
       <td class="num-col">${fmtRs(f.vl_saldo)}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="5" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
@@ -1054,7 +1060,20 @@ function renderOsDetailPanel(r, funcoes){
       </div>
       <div class="os-detail-kpis">
         <div class="odk"><span class="odk-label">HH Previsto</span><span class="odk-value">${fmtH(hhPrevisto)}</span></div>
-        <div class="odk"><span class="odk-label">HH Realizado</span><span class="odk-value">${fmtH(hhRealizado)}</span>${provTotal ? `<span class="odk-sub">+${fmtH(provTotal)}h em Prov.</span>` : ''}</div>
+        <div class="odk odk-split">
+          <span class="odk-label">HH Realizado</span>
+          <div class="odk-split-row">
+            <div class="odk-split-col">
+              <span class="odk-value">${fmtH(hhRealizadoBase)}</span>
+              <span class="odk-sub">Já no Sistema</span>
+            </div>
+            <div class="odk-split-sep"></div>
+            <div class="odk-split-col">
+              <span class="odk-value">${fmtH(provTotal)}</span>
+              <span class="odk-sub">Apropriação + Mobile</span>
+            </div>
+          </div>
+        </div>
         <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
         <div class="odk"><span class="odk-label">Saldo (R$)</span><span class="odk-value">${fmtRs(saldoRs)}</span></div>
         <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">saldo &minus; (realizado + prov.)</span></div>
@@ -1063,11 +1082,11 @@ function renderOsDetailPanel(r, funcoes){
     <div class="os-detail-body">
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
-          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th>Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Prov. (HH)</th><th>Saldo (HH)</th><th class="num-col">Valor Realizado (R$)</th><th class="num-col">Saldo (R$)</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
-      <div class="os-detail-note"><span class="ni">i</span><span>HH Previsto, HH Realizado, Saldo (HH) e Saldo (R$) são a soma das funções abaixo (aba "1 - PLAN SALDO_OSs DET.", colunas H/I/J/L). Dif. = Saldo (HH) &minus; (HH Realizado + Prov.): positivo em verde quando ainda sobra saldo, negativo em vermelho quando o realizado estoura o saldo.${anyProv ? ' O HH Realizado acima já inclui o HH em validação das abas Apropriação/Mobile (nota "+prov."); nas linhas marcadas "+prov." na tabela, o Realizado (HH) por função também já soma esse HH ao decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
+      <div class="os-detail-note"><span class="ni">i</span><span>HH Previsto, Realizado, Saldo (HH) e Valor Realizado/Saldo (R$) vêm da aba "1 - PLAN SALDO_OSs DET." (colunas H/I/J/K/L) por função. Pendências vem da aba "3 - PENDÊNCIAS" (colunas G/I/J) e Prov. das abas "4 - APROPRIAÇÃO"/"5 - PLAN SGE_MOBILE" — HH ainda em validação, fora do sistema. No cartão acima, HH Realizado soma "Já no Sistema" (aba 1) + "Apropriação + Mobile" (abas 4/5). Dif. = Saldo (HH) &minus; (HH Realizado + Prov.): positivo em verde quando ainda sobra saldo, negativo em vermelho quando o realizado estoura o saldo.${anyPend ? '' : ' Nenhuma função desta OS tem Pendências identificadas.'}${anyProv ? '' : ' Nenhuma função desta OS tem Prov. (Apropriação/Mobile) identificado.'}</span></div>
     </div>
   </div>`;
 }
@@ -1733,6 +1752,43 @@ function parseWorkbookToBundleSaudeOs(wb){
   try{ provApropriacao = scanOsFuncHh('4 - APROPRIAÇÃO'); }catch(e){ provApropriacao = {}; }
   try{ provMobile = scanOsFuncHh('5 - PLAN SGE_MOBILE'); }catch(e){ provMobile = {}; }
 
+  // ---------- HH de "Pendências" por OS x Função, aba "3 - PENDÊNCIAS"
+  // (colunas fixas informadas pelo relatório: Função=G, HH=I, OS=J). O nome
+  // exato da aba é localizado por busca tolerante (acento/caixa/espaço), já
+  // que outras abas do relatório vêm com grafia inconsistente — se não
+  // encontrar, simplesmente não soma nada dessa aba.
+  function findSheetName(substrFolded){
+    const names = Object.keys(wb.Sheets);
+    const matches = names.filter(n => foldHeader(n).replace(/\s+/g,'').includes(substrFolded));
+    if(!matches.length) return null;
+    matches.sort((a,b)=>{
+      const aStarts = foldHeader(a).trim().startsWith('3');
+      const bStarts = foldHeader(b).trim().startsWith('3');
+      if(aStarts!==bStarts) return aStarts ? -1 : 1;
+      return a.localeCompare(b);
+    });
+    return matches[0];
+  }
+  let pendenciasPorFunc = {};
+  try{
+    const pendSheetName = findSheetName('pendenc');
+    if(pendSheetName){
+      const wsPend = sheet(pendSheetName);
+      const maxRPend = maxRow(wsPend);
+      for(let r=1; r<=maxRPend; r++){
+        const osVal = osNumImport(cellVal(wsPend,r,10));
+        if(osVal==null) continue;
+        const funcRaw = cleanStrImport(cellVal(wsPend,r,7));
+        if(!funcRaw) continue;
+        const funcao = funcRaw.replace(funcPrefixRe, '');
+        const hhVal = numImport(cellVal(wsPend,r,9));
+        if(!hhVal) continue;
+        const key = osVal+'|'+funcao;
+        pendenciasPorFunc[key] = (pendenciasPorFunc[key]||0) + hhVal;
+      }
+    }
+  }catch(e){ pendenciasPorFunc = {}; }
+
   Object.keys(funcoesPorOs).forEach(key=>{
     const bucket = funcoesPorOs[key];
     funcoesPorOs[key] = Object.entries(bucket)
@@ -1741,6 +1797,8 @@ function parseWorkbookToBundleSaudeOs(wb){
         const provKey = key+'|'+funcao;
         const prov = (provApropriacao[provKey]||0) + (provMobile[provKey]||0);
         if(prov) item.prov_hh = prov;
+        const pend = pendenciasPorFunc[provKey]||0;
+        if(pend) item.pend_hh = pend;
         return item;
       })
       .filter(x=>x.consolidado||x.realizado||x.saldo)

@@ -239,6 +239,47 @@ try:
 except Exception:
     prov_mobile = {}
 
+# ---------- HH de "Pendências" por OS x Função, lido da aba "3 - PENDÊNCIAS"
+# (colunas fixas informadas pelo relatório: Função=G, HH=I, OS=J). O nome
+# exato da aba é localizado por busca tolerante (acento/caixa/espaço), já que
+# outras abas do relatório vêm com grafia inconsistente (ex.: a aba 8 tem um
+# espaço a mais no início do nome) — se não encontrar, simplesmente não soma
+# nada dessa aba, sem interromper a extração.
+def find_sheet_name(substr_folded):
+    try:
+        names = wb.sheets
+    except Exception:
+        return None
+    matches = [n for n in names if substr_folded in _fold(n).replace(' ', '')]
+    if not matches:
+        return None
+    matches.sort(key=lambda n: (not _fold(n).strip().startswith('3'), n))
+    return matches[0]
+
+pendencias_por_func = {}
+pend_sheet_name = find_sheet_name('pendenc')
+if pend_sheet_name:
+    try:
+        with wb.get_sheet(pend_sheet_name) as sheet_pend:
+            pend_rows = [{c.c: c.v for c in r} for r in sheet_pend.rows()]
+        for d in pend_rows:
+            if not d:
+                continue
+            os_val = d.get(9)
+            if not isinstance(os_val, (int, float)) or os_val == 0:
+                continue
+            func_raw = clean(d.get(6))
+            if not func_raw:
+                continue
+            funcao = FUNC_PREFIX_RE.sub('', func_raw)
+            hh_val = num(d.get(8))
+            if not hh_val:
+                continue
+            key = (int(os_val), funcao)
+            pendencias_por_func[key] = pendencias_por_func.get(key, 0.0) + hh_val
+    except Exception:
+        pendencias_por_func = {}
+
 # achata em listas ordenadas por saldo desc, pronto para exibição
 for key, bucket in funcoes_por_os.items():
     os_int = int(key)
@@ -247,9 +288,12 @@ for key, bucket in funcoes_por_os.items():
         if not (vals["consolidado"] or vals["realizado"] or vals["saldo"]):
             continue
         prov = prov_apropriacao.get((os_int, funcao), 0.0) + prov_mobile.get((os_int, funcao), 0.0)
+        pend = pendencias_por_func.get((os_int, funcao), 0.0)
         item = {"funcao": funcao, **vals}
         if prov:
             item["prov_hh"] = prov
+        if pend:
+            item["pend_hh"] = pend
         items.append(item)
     funcoes_por_os[key] = sorted(items, key=lambda x: -x["saldo"])
 
