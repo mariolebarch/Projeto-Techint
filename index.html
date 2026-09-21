@@ -40,6 +40,10 @@ h1{font-size:clamp(34px,5.4vw,48px); line-height:1; margin-top:26px;}
 
 .panel-card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 24px; display:flex; flex-direction:column; gap:12px; transition:transform .15s, box-shadow .15s; border-top:4px solid var(--green);}
 .panel-card:hover{transform:translateY(-2px); box-shadow:0 12px 34px -8px rgba(0,0,0,.55);}
+.pc-icon{width:38px; height:38px; border-radius:9px; background:var(--navy-100); color:var(--green-dark); display:flex; align-items:center; justify-content:center; flex:none;}
+.pc-icon svg{width:20px; height:20px;}
+.panel-card.improd .pc-icon{color:var(--slate);}
+.panel-card.saude .pc-icon{color:var(--navy-700);}
 .panel-card .pc-eyebrow{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-muted); font-weight:600;}
 .panel-card h2{font-size:22px; line-height:1.08; color:var(--text-primary);}
 .panel-card .pc-cta{margin-top:auto; padding-top:6px; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--green-dark); display:flex; align-items:center; gap:6px;}
@@ -60,16 +64,19 @@ h1{font-size:clamp(34px,5.4vw,48px); line-height:1; margin-top:26px;}
     <div class="wrap-mid">
       <div class="grid">
         <a class="panel-card" href="efetivo.html">
+          <span class="pc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
           <span class="pc-eyebrow">Painel &middot; Mão de obra</span>
-          <h2>Efetivo &times; Empilhamento Semanal</h2>
+          <h2>Efetivo &times; Empilhamento</h2>
           <span class="pc-cta">Abrir painel &rarr;</span>
         </a>
         <a class="panel-card improd" href="improdutividades.html">
+          <span class="pc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
           <span class="pc-eyebrow">Painel &middot; Interferências</span>
           <h2>Painel de Improdutividades</h2>
           <span class="pc-cta">Abrir painel &rarr;</span>
         </a>
         <a class="panel-card saude" href="saude-os.html">
+          <span class="pc-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>
           <span class="pc-eyebrow">Painel &middot; Saldo de OS's</span>
           <h2>Saúde das OS's</h2>
           <span class="pc-cta">Abrir painel &rarr;</span>

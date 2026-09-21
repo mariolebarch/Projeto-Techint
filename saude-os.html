@@ -288,7 +288,9 @@ table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
 thead th:hover{filter:brightness(1.12);}
-thead th.sort-active{text-decoration:underline;}
+thead th.sort-active{text-decoration:none;}
+thead th.sort-active::after{content:"▲"; font-size:8px; margin-left:5px; vertical-align:middle; display:inline-block;}
+thead th.sort-active.desc::after{content:"▼";}
 tbody td{padding:8px 12px; border-top:1px solid var(--border-soft); vertical-align:middle;}
 tbody tr:hover td{background:var(--border-soft);}
 .empty-state{padding:30px; text-align:center; color:var(--text-muted); font-size:13.5px;}
@@ -484,9 +486,9 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 }
 
 /* ---------- Ajustes específicos: Saúde das OS's ---------- */
-#sit-bars .label, #risco-bars .label, #fad-bars .label{width:260px;}
+#sit-bars .label, #risco-bars .label{width:260px;}
 @media (max-width:680px){
-  #sit-bars .label, #risco-bars .label, #fad-bars .label{width:140px;}
+  #sit-bars .label, #risco-bars .label{width:140px;}
 }
 </style>
 
@@ -566,9 +568,8 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   <div class="masthead-accent"></div>
   <div class="global-filters">
     <div class="field"><label>OS</label><input class="search-input" id="os-search-global" placeholder="buscar nº OS&hellip;" style="min-width:130px;"></div>
-    <div class="field"><label>Contrato</label><select id="contrato-select-global"></select></div>
+    <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <div class="field"><label>Situa&ccedil;&atilde;o</label><div class="msel" id="sit-msel-global"></div></div>
-    <div class="field"><label>L&iacute;der</label><select id="lider-select-global"></select></div>
     <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
@@ -576,15 +577,19 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
   <nav class="tabbar" id="tabbar">
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
-    <button class="tabbtn" data-tab="pendfad" aria-selected="false">Pendências, Apropriação &amp; FAD's</button>
     <button class="tabbtn" data-tab="detalhe" aria-selected="false">Detalhamento por OS</button>
-    <button class="tabbtn" data-tab="funcao" aria-selected="false">Saldo por Função</button>
   </nav>
 
 
   <!-- ================= VISÃO GERAL ================= -->
   <section class="view active" id="view-visao">
-    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="card">
+      <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Consolidado das OS's nos filtros atuais</span></div>
+      <div class="ov-panorama">
+        <div class="kpi-grid" id="kpi-grid"></div>
+        <div class="ov-panorama-donut" id="ov-gauge"></div>
+      </div>
+    </div>
 
     <div class="two-col">
       <div class="card">
@@ -598,27 +603,6 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     </div>
   </section>
 
-  <!-- ================= PENDÊNCIAS, APROPRIAÇÃO & FAD's ================= -->
-  <section class="view" id="view-pendfad">
-    <div class="kpi-grid" id="pendfad-kpi-grid"></div>
-
-    <div class="card">
-      <div class="card-head"><h3>FAD's por etapa</h3><span class="card-note" id="pendfad-fad-note"></span></div>
-      <div id="fad-bars"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h3>OS's com maior exposição</h3><span class="card-note">Ranking por OS (Pendências + FAD's em aberto, HH) &middot; valores individuais, não somam para o total do relatório acima</span></div>
-      <div class="table-scroll">
-        <table id="exposicao-table">
-          <thead><tr><th>OS</th><th>Situação</th><th class="num-col">Pendências (HH)</th><th class="num-col">FAD's (HH)</th><th class="num-col">Apropriação (HH)</th><th class="num-col">Mobile (HH)</th></tr></thead>
-          <tbody id="exposicao-tbody"></tbody>
-        </table>
-      </div>
-      <div class="empty-state" id="exposicao-empty" style="display:none;">Nenhuma OS com pendência ou FAD em aberto para os filtros atuais.</div>
-    </div>
-  </section>
-
   <!-- ================= DETALHAMENTO POR OS ================= -->
   <section class="view" id="view-detalhe">
     <div class="card">
@@ -626,47 +610,20 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h3>Detalhamento por OS</h3>
         <div class="filters">
           <div class="field"><label>Buscar</label><input class="search-input" id="detalhe-search" placeholder="OS, PEP ou Líder&hellip;"></div>
-          <div class="field"><label>Ordenar por</label><select id="detalhe-sort"></select></div>
         </div>
       </div>
       <div class="table-scroll" style="max-height:640px; overflow-y:auto;">
         <table id="detalhe-table">
           <thead><tr>
-            <th>OS</th><th>PEP / Descrição</th><th>Líder</th><th>Fiscal</th><th>Situação</th>
-            <th class="num-col">HH Previsto</th><th class="num-col">HH Realizado</th><th class="num-col">HH Saldo</th><th class="num-col">% Consumido</th>
-            <th class="num-col">Apropriação (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">FAD's (HH)</th><th class="num-col">Mobile (HH)</th>
-            <th class="num-col">Saldo Geral (HH)</th><th class="num-col">Saldo Geral (R$)</th>
+            <th data-sort="os_label">OS</th><th data-sort="pep">PEP / Descrição</th><th data-sort="lider">Líder</th><th data-sort="fiscal">Fiscal</th><th data-sort="sit">Situação</th>
+            <th class="num-col" data-sort="hh_previsto">HH Previsto</th><th class="num-col" data-sort="hh_realizado">HH Realizado</th><th class="num-col" data-sort="hh_saldo">HH Saldo</th><th class="num-col" data-sort="pct_consumido">% Consumido</th>
+            <th class="num-col" data-sort="apropriacao_hh">Apropriação (HH)</th><th class="num-col" data-sort="pendencias_hh">Pendências (HH)</th><th class="num-col" data-sort="fad_total_hh">FAD's (HH)</th><th class="num-col" data-sort="mobile_hh">Mobile (HH)</th>
+            <th class="num-col" data-sort="saldo_geral_hh">Saldo Geral (HH)</th><th class="num-col" data-sort="saldo_geral_rs">Saldo Geral (R$)</th>
           </tr></thead>
           <tbody id="detalhe-tbody"></tbody>
         </table>
       </div>
       <div class="empty-state" id="detalhe-empty" style="display:none;">Nenhuma OS para os filtros atuais.</div>
-    </div>
-  </section>
-
-  <!-- ================= SALDO POR FUNÇÃO ================= -->
-  <section class="view" id="view-funcao">
-    <div class="card">
-      <div class="card-head"><h3>Funções com maior Saldo Disponível</h3><span class="card-note">Top 15 &middot; soma do Saldo (HH) da função nas OS's filtradas &middot; onde há mais capacidade contratada ociosa</span></div>
-      <div id="funcao-bars"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h3>Ranking de Funções</h3>
-        <div class="filters">
-          <div class="field"><label>Buscar</label><input class="search-input" id="funcao-search" placeholder="ex: Soldador&hellip;"></div>
-          <div class="field"><label>Ordenar por</label><select id="funcao-sort"></select></div>
-        </div>
-      </div>
-      <p class="card-note">Realizado e Saldo por função batem com os totais de HH Realizado/Saldo da OS &middot; considera os filtros de OS/Contrato/Situação/Líder acima.</p>
-      <div class="table-scroll" style="max-height:560px; overflow-y:auto;">
-        <table id="funcao-table">
-          <thead><tr><th>Função</th><th class="num-col">Qtd. OS's</th><th class="num-col">Realizado (HH)</th><th class="num-col">Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
-          <tbody id="funcao-tbody"></tbody>
-        </table>
-      </div>
-      <div class="empty-state" id="funcao-empty" style="display:none;">Nenhuma função para os filtros atuais.</div>
     </div>
   </section>
 
@@ -729,8 +686,7 @@ const state = {
   osSearch: '',
   contrato: 'all',
   sit: new Set(),
-  lider: 'all',
-  detalhe: {search:'', sort:'saldo_asc', expanded:new Set()},
+  detalhe: {search:'', sortKey:'hh_saldo', sortDir:'asc', expanded:new Set()},
 };
 
 function passCommon(r){
@@ -741,18 +697,9 @@ function passCommon(r){
   }
   if(state.contrato!=='all' && r.contrato!==state.contrato) return false;
   if(state.sit.size>0 && !state.sit.has(r.sit)) return false;
-  if(state.lider!=='all' && r.lider!==state.lider) return false;
   return true;
 }
 function filteredOS(){ return DATA.os_list.filter(passCommon); }
-
-function populateSelect(sel, options, allLabel, current, labelFn){
-  sel.innerHTML = '';
-  const optAll = document.createElement('option'); optAll.value='all'; optAll.textContent=allLabel;
-  sel.appendChild(optAll);
-  options.forEach(o=>{ const opt = document.createElement('option'); opt.value=o; opt.textContent=labelFn?labelFn(o):o; sel.appendChild(opt); });
-  sel.value = current || 'all';
-}
 
 /* ---------- Multi-select genérico (Situação) ---------- */
 function buildSitMultiSelect(){
@@ -818,10 +765,16 @@ function renderGlobalFilters(){
   buildSitMultiSelect();
   const contratoOptions = DATA.contratos || [];
   if(state.contrato!=='all' && !contratoOptions.includes(state.contrato)) state.contrato = 'all';
-  populateSelect(document.getElementById('contrato-select-global'), contratoOptions, 'Todos os contratos', state.contrato, contratoLabel);
-  const liderOptions = DATA.lideres || [];
-  if(state.lider!=='all' && !liderOptions.includes(state.lider)) state.lider = 'all';
-  populateSelect(document.getElementById('lider-select-global'), liderOptions, 'Todos os líderes', state.lider);
+  const cbox = document.getElementById('contrato-toggle-global');
+  cbox.innerHTML = '';
+  [['all','Todos']].concat(contratoOptions.map(c=>[c, contratoLabel(c)])).forEach(([val,label])=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    if(state.contrato===val) btn.classList.add('active');
+    btn.addEventListener('click', ()=>{ state.contrato=val; renderAll(); });
+    cbox.appendChild(btn);
+  });
 }
 
 /* ---------- Barra horizontal genérica (usa .bar-row/.bar-track/.bar-fill já estilizados) ---------- */
@@ -851,7 +804,7 @@ function renderAlerts(){
     const totalNeg = negativas.reduce((a,r)=>a+r.saldo_final_hh,0);
     const el = document.createElement('div');
     el.className = 'callout critical';
-    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(negativas.length)} OS's com Saldo Final negativo</h4><p>Juntas, consumiram ${fmtH(Math.abs(totalNeg))}h além do previsto. Veja "Detalhamento por OS" ordenando por Saldo Final para identificá-las.</p></div>`;
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(negativas.length)} OS's com Saldo Final negativo</h4><p>Juntas, consumiram ${fmtH(Math.abs(totalNeg))}h além do previsto. Veja "Detalhamento por OS" — clique no cabeçalho HH Saldo para ordenar e identificá-las.</p></div>`;
     box.appendChild(el);
   }
 
@@ -860,7 +813,7 @@ function renderAlerts(){
     const totalFad = comFad.reduce((a,r)=>a+r.fad_total_hh,0);
     const el = document.createElement('div');
     el.className = 'callout warning';
-    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(comFad.length)} OS's com FAD's em aberto</h4><p>${fmtH(totalFad)}h aguardando elaboração, revisão ou aprovação — veja a aba "Pendências, Apropriação & FAD's".</p></div>`;
+    el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(comFad.length)} OS's com FAD's em aberto</h4><p>${fmtH(totalFad)}h aguardando elaboração, revisão ou aprovação — veja a coluna FAD's (HH) em "Detalhamento por OS" ou exporte a planilha completa.</p></div>`;
     box.appendChild(el);
   }
 
@@ -899,6 +852,54 @@ function renderKPIs(){
   `;
 }
 
+/* Ponteiro semicircular: mostra o % de HH Previsto já consumido pelas OS's
+   filtradas — arco azul (consumido) + arco verde (saldo restante), agulha
+   na fronteira entre os dois. Vira totalmente vermelho se ultrapassar 100%. */
+function renderGauge(){
+  const rows = filteredOS();
+  const hhPrev = rows.reduce((a,r)=>a+(r.hh_previsto||0), 0);
+  const hhReal = rows.reduce((a,r)=>a+(r.hh_realizado||0), 0);
+  const hhSaldo = hhPrev - hhReal;
+  const pct = hhPrev>0 ? hhReal/hhPrev : 0;
+  const pctClamped = Math.max(0, Math.min(1, pct));
+  const over = pct>1;
+
+  const cx=100, cy=100, r=82;
+  const angleAt = p => Math.PI * (1 - p);
+  const pt = p => { const a=angleAt(p); return [cx+r*Math.cos(a), cy-r*Math.sin(a)]; };
+  const [x0,y0] = pt(0);
+  const [xMid,yMid] = pt(pctClamped);
+  const [x1,y1] = pt(1);
+
+  const usedColor = over ? 'var(--critical)' : 'var(--steel)';
+  const remainColor = over ? 'var(--critical)' : 'var(--good)';
+  const usedArc = `M${x0},${y0} A${r},${r} 0 0 1 ${xMid},${yMid}`;
+  const remainArc = pctClamped<1 ? `M${xMid},${yMid} A${r},${r} 0 0 1 ${x1},${y1}` : '';
+
+  const needleLen = r - 14;
+  const needleAngle = angleAt(pctClamped);
+  const nx = cx + needleLen*Math.cos(needleAngle), ny = cy - needleLen*Math.sin(needleAngle);
+
+  const box = document.getElementById('ov-gauge');
+  box.innerHTML = `
+    <svg viewBox="0 0 200 128" style="width:100%; height:auto; display:block;" role="img" aria-label="Ponteiro de percentual consumido">
+      <path d="M${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1}" fill="none" stroke="var(--border-soft)" stroke-width="14" stroke-linecap="round"/>
+      <path d="${usedArc}" fill="none" stroke="${usedColor}" stroke-width="14" stroke-linecap="round"/>
+      ${remainArc ? `<path d="${remainArc}" fill="none" stroke="${remainColor}" stroke-width="14" stroke-linecap="round"/>` : ''}
+      <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="5.5" fill="var(--text-primary)"/>
+      <text x="${cx}" y="${cy-16}" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="700" fill="${over?'var(--critical)':'var(--text-primary)'}">${fmtPct(pct)}</text>
+    </svg>
+    <div style="text-align:center; margin-top:-8px;">
+      <div class="num" style="font-size:14px; color:var(--text-secondary);">${fmtInt(hhReal)}h consumidas${over ? ' — acima do previsto' : ''}</div>
+    </div>
+    <div class="stat-strip" style="justify-content:center; margin-top:10px;">
+      <div class="s"><span class="v num">${fmtInt(hhPrev)}</span><span class="k">HH Previsto</span></div>
+      <div class="s"><span class="v num" style="color:${hhSaldo<0?'var(--critical)':'var(--good)'};">${fmtInt(hhSaldo)}</span><span class="k">Saldo Final</span></div>
+    </div>
+  `;
+}
+
 function renderSitBars(){
   const rows = filteredOS();
   const byS = new Map();
@@ -920,71 +921,28 @@ function renderRiscoBars(){
   renderBarList(box, entries, {negativeCritical:true, color:'var(--good)'});
 }
 
-/* ---------- Pendências, Apropriação & FAD's ---------- */
-function periodoLabel(p){
-  if(!p) return '';
-  return p.replace(/^PCI e MOA:\s*/i, '');
-}
-function renderPendFadKPIs(){
-  // Assim como o Saldo Geral, estes 4 totais são calculados pela própria planilha
-  // com uma lógica que não bate com a soma das OS's individuais (a coluna dessas
-  // OS's é só "para verificação do fluxo", nas palavras da própria planilha) — por
-  // isso mostramos sempre o total oficial de DATA.totais, não filtrado.
-  const t = DATA.totais || {};
-  const p = DATA.periodos || {};
-  const grid = document.getElementById('pendfad-kpi-grid');
-  grid.innerHTML = `
-    <div class="kpi"><span class="kpi-label">FAD's — Total (HH)</span><span class="kpi-value">${fmtInt(t.fad_total_hh)}</span><span class="kpi-sub">${fmtRs(t.fad_total_rs)} &middot; ${escHtml(periodoLabel(p.fads))}</span></div>
-    <div class="kpi"><span class="kpi-label">Pendências (HH)</span><span class="kpi-value">${fmtInt(t.pendencias_hh)}</span><span class="kpi-sub">${fmtRs(t.pendencias_rs)} &middot; ${escHtml(periodoLabel(p.pendencias))}</span></div>
-    <div class="kpi"><span class="kpi-label">Apropriação (HH)</span><span class="kpi-value">${fmtInt(t.apropriacao_hh)}</span><span class="kpi-sub">${fmtRs(t.apropriacao_rs)} &middot; ${escHtml(periodoLabel(p.apropriacao))}</span></div>
-    <div class="kpi"><span class="kpi-label">SGE Mobile (HH)</span><span class="kpi-value">${fmtInt(t.mobile_hh)}</span><span class="kpi-sub">${fmtRs(t.mobile_rs)} &middot; ${escHtml(periodoLabel(p.mobile))}</span></div>
-  `;
-  document.getElementById('pendfad-fad-note').textContent = 'Totais do relatório (não consideram os filtros acima) — consulta somente para verificação do fluxo, não interfere no saldo final. ' + periodoLabel(p.fads);
-}
-function renderFadBars(){
-  const t = DATA.totais || {};
-  const entries = [
-    {label:'Em elaboração (TEBRA)', v: t.fad_elab_hh||0},
-    {label:'Aguardando revisão (TEBRA)', v: t.fad_revisao_hh||0},
-    {label:'Pendente de aprovação (USM)', v: t.fad_aprovacao_hh||0},
-  ];
-  renderBarList(document.getElementById('fad-bars'), entries, {color:'var(--warning)'});
-}
-function renderExposicaoTable(){
-  const rows = filteredOS().filter(r=>(r.pendencias_hh>0 || r.fad_total_hh>0) && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA');
-  rows.sort((a,b)=> (b.pendencias_hh+b.fad_total_hh) - (a.pendencias_hh+a.fad_total_hh));
-  const top = rows.slice(0, 25);
-  const tbody = document.getElementById('exposicao-tbody');
-  const empty = document.getElementById('exposicao-empty');
-  if(top.length===0){ tbody.innerHTML=''; empty.style.display=''; return; }
-  empty.style.display = 'none';
-  tbody.innerHTML = top.map(r=>`<tr>
-    <td class="mono-tag">${escHtml(r.os_label)}</td>
-    <td>${escHtml(r.sit||'')}</td>
-    <td class="num-col">${fmtH(r.pendencias_hh)}</td>
-    <td class="num-col">${fmtH(r.fad_total_hh)}</td>
-    <td class="num-col">${fmtH(r.apropriacao_hh)}</td>
-    <td class="num-col">${fmtH(r.mobile_hh)}</td>
-  </tr>`).join('');
-}
-
 /* ---------- Detalhamento por OS ---------- */
-const DETALHE_SORTS = {
-  saldo_asc: {label:'Saldo Final (menor → maior)', fn:(a,b)=>a.saldo_final_hh-b.saldo_final_hh},
-  saldo_geral_asc: {label:'Saldo Geral (menor → maior)', fn:(a,b)=>a.saldo_geral_hh-b.saldo_geral_hh},
-  pct_desc: {label:'% Consumido (maior → menor)', fn:(a,b)=>b.pct_consumido-a.pct_consumido},
-  previsto_desc: {label:'HH Previsto (maior → menor)', fn:(a,b)=>b.hh_previsto-a.hh_previsto},
-  pend_desc: {label:'Pendências (maior → menor)', fn:(a,b)=>b.pendencias_hh-a.pendencias_hh},
-  os_asc: {label:'OS (crescente)', fn:(a,b)=>(a.os||0)-(b.os||0)},
+const DETALHE_COL_TYPE = {
+  os_label:'str', pep:'str', lider:'str', fiscal:'str', sit:'str',
+  hh_previsto:'num', hh_realizado:'num', hh_saldo:'num', pct_consumido:'num',
+  apropriacao_hh:'num', pendencias_hh:'num', fad_total_hh:'num', mobile_hh:'num',
+  saldo_geral_hh:'num', saldo_geral_rs:'num',
 };
+function detalheSortFn(){
+  const key = state.detalhe.sortKey, dir = state.detalhe.sortDir==='desc' ? -1 : 1;
+  const isNum = DETALHE_COL_TYPE[key]==='num';
+  return (a,b)=>{
+    if(isNum) return ((a[key]||0)-(b[key]||0)) * dir;
+    return String(a[key]||'').localeCompare(String(b[key]||'')) * dir;
+  };
+}
 function renderDetalheControls(){
-  const sel = document.getElementById('detalhe-sort');
-  if(sel.options.length===0){
-    Object.entries(DETALHE_SORTS).forEach(([k,v])=>{
-      const opt = document.createElement('option'); opt.value=k; opt.textContent=v.label; sel.appendChild(opt);
-    });
-    sel.value = state.detalhe.sort;
-  }
+  document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
+    const key = th.dataset.sort;
+    const active = key === state.detalhe.sortKey;
+    th.classList.toggle('sort-active', active);
+    th.classList.toggle('desc', active && state.detalhe.sortDir==='desc');
+  });
 }
 function renderDetalheTable(){
   let rows = filteredOS();
@@ -992,7 +950,7 @@ function renderDetalheTable(){
     const q = state.detalhe.search.toLowerCase();
     rows = rows.filter(r => ((r.os_label||'')+' '+(r.pep||'')+' '+(r.lider||'')).toLowerCase().includes(q));
   }
-  rows = rows.slice().sort(DETALHE_SORTS[state.detalhe.sort].fn);
+  rows = rows.slice().sort(detalheSortFn());
   const tbody = document.getElementById('detalhe-tbody');
   const empty = document.getElementById('detalhe-empty');
   if(rows.length===0){ tbody.innerHTML=''; empty.style.display=''; return; }
@@ -1021,16 +979,18 @@ function renderDetalheTable(){
     return mainRow + `<tr class="detail-row"><td colspan="15" style="padding:4px 12px 8px 34px;">
         <table style="width:auto; min-width:520px;"><thead><tr>
           <th style="background:none; color:var(--text-muted); font-weight:600; padding:4px 12px 4px 0;">Função</th>
+          <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">HH Previsto</th>
           <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Realizado (HH)</th>
           <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (HH)</th>
           <th class="num-col" style="background:none; color:var(--text-muted); font-weight:600;">Saldo (R$)</th>
         </tr></thead><tbody>${funcoes.map(f=>`<tr>
           <td style="border-top:1px solid var(--border-soft); padding:4px 12px 4px 0;">${escHtml(f.funcao)}</td>
+          <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.consolidado)}</td>
           <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.realizado)}</td>
           <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtH(f.saldo)}</td>
           <td class="num-col" style="border-top:1px solid var(--border-soft);">${fmtRs(f.vl_saldo)}</td>
         </tr>`).join('')}</tbody></table>
-        <div class="card-note" style="margin-top:4px;">Realizado e Saldo por função batem com o total da OS acima &middot; Consolidado (orçado) não é mostrado aqui pois pode não estar totalmente detalhado por função na planilha de origem.</div>
+        <div class="card-note" style="margin-top:4px;">Realizado e Saldo por função batem com o total da OS acima &middot; HH Previsto por função pode não somar exatamente ao HH Previsto total da OS, pois parte do orçamento pode não estar detalhada por função na planilha de origem.</div>
       </td></tr>`;
   }).join('');
 }
@@ -1044,78 +1004,24 @@ document.getElementById('detalhe-tbody').addEventListener('click', e=>{
   else state.detalhe.expanded.add(os);
   renderDetalheTable();
 });
+document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.sort;
+    if(state.detalhe.sortKey===key) state.detalhe.sortDir = state.detalhe.sortDir==='asc' ? 'desc' : 'asc';
+    else { state.detalhe.sortKey = key; state.detalhe.sortDir = DETALHE_COL_TYPE[key]==='num' ? 'asc' : 'asc'; }
+    renderDetalheControls();
+    renderDetalheTable();
+  });
+});
 
 document.getElementById('os-search-global').addEventListener('input', e=>{ state.osSearch = e.target.value; renderAll(); });
-document.getElementById('contrato-select-global').addEventListener('change', e=>{ state.contrato = e.target.value; renderAll(); });
-document.getElementById('lider-select-global').addEventListener('change', e=>{ state.lider = e.target.value; renderAll(); });
 document.getElementById('global-clear-btn').addEventListener('click', ()=>{
-  state.osSearch=''; state.contrato='all'; state.sit=new Set(); state.lider='all';
+  state.osSearch=''; state.contrato='all'; state.sit=new Set();
   document.getElementById('os-search-global').value='';
   renderAll();
 });
 document.getElementById('detalhe-search').addEventListener('input', e=>{ state.detalhe.search=e.target.value; renderDetalheTable(); });
-document.getElementById('detalhe-sort').addEventListener('change', e=>{ state.detalhe.sort=e.target.value; renderDetalheTable(); });
 
-/* ---------- Saldo por Função ---------- */
-function aggregateFuncoes(rows){
-  const byFuncao = new Map();
-  rows.forEach(r=>{
-    if(r.os==null) return;
-    funcoesForOs(r.os).forEach(f=>{
-      if(!byFuncao.has(f.funcao)) byFuncao.set(f.funcao, {funcao:f.funcao, realizado:0, saldo:0, vl_saldo:0, osSet:new Set()});
-      const g = byFuncao.get(f.funcao);
-      g.realizado += f.realizado; g.saldo += f.saldo; g.vl_saldo += f.vl_saldo;
-      g.osSet.add(r.os);
-    });
-  });
-  return Array.from(byFuncao.values()).map(g=>({...g, nOs:g.osSet.size}));
-}
-function renderFuncaoBars(){
-  const rows = filteredOS();
-  const agg = aggregateFuncoes(rows);
-  const entries = agg.slice().sort((a,b)=>b.saldo-a.saldo).slice(0,15).map(g=>({label:g.funcao, v:g.saldo}));
-  const box = document.getElementById('funcao-bars');
-  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma função para os filtros atuais.</div>'; return; }
-  renderBarList(box, entries, {color:'var(--good)'});
-}
-const FUNCAO_SORTS = {
-  saldo_desc: {label:'Saldo (maior → menor)', fn:(a,b)=>b.saldo-a.saldo},
-  realizado_desc: {label:'Realizado (maior → menor)', fn:(a,b)=>b.realizado-a.realizado},
-  nos_desc: {label:'Qtd. OS\'s (maior → menor)', fn:(a,b)=>b.nOs-a.nOs},
-  funcao_asc: {label:'Função (A → Z)', fn:(a,b)=>a.funcao.localeCompare(b.funcao)},
-};
-const stateFuncao = {search:'', sort:'saldo_desc'};
-function renderFuncaoControls(){
-  const sel = document.getElementById('funcao-sort');
-  if(sel.options.length===0){
-    Object.entries(FUNCAO_SORTS).forEach(([k,v])=>{
-      const opt = document.createElement('option'); opt.value=k; opt.textContent=v.label; sel.appendChild(opt);
-    });
-    sel.value = stateFuncao.sort;
-  }
-}
-function renderFuncaoTable(){
-  const rows = filteredOS();
-  let agg = aggregateFuncoes(rows);
-  if(stateFuncao.search){
-    const q = stateFuncao.search.toLowerCase();
-    agg = agg.filter(g=>g.funcao.toLowerCase().includes(q));
-  }
-  agg.sort(FUNCAO_SORTS[stateFuncao.sort].fn);
-  const tbody = document.getElementById('funcao-tbody');
-  const empty = document.getElementById('funcao-empty');
-  if(agg.length===0){ tbody.innerHTML=''; empty.style.display=''; return; }
-  empty.style.display = 'none';
-  tbody.innerHTML = agg.map(g=>`<tr>
-    <td>${escHtml(g.funcao)}</td>
-    <td class="num-col">${fmtInt(g.nOs)}</td>
-    <td class="num-col">${fmtH(g.realizado)}</td>
-    <td class="num-col">${fmtH(g.saldo)}</td>
-    <td class="num-col">${fmtRs(g.vl_saldo)}</td>
-  </tr>`).join('');
-}
-document.getElementById('funcao-search').addEventListener('input', e=>{ stateFuncao.search=e.target.value; renderFuncaoTable(); });
-document.getElementById('funcao-sort').addEventListener('change', e=>{ stateFuncao.sort=e.target.value; renderFuncaoTable(); });
 
 /* ---------- Abas ---------- */
 document.querySelectorAll('.tabbtn').forEach(btn=>{
@@ -1128,16 +1034,11 @@ document.querySelectorAll('.tabbtn').forEach(btn=>{
 function renderAll(){
   renderGlobalFilters();
   renderKPIs();
+  renderGauge();
   renderSitBars();
   renderRiscoBars();
-  renderPendFadKPIs();
-  renderFadBars();
-  renderExposicaoTable();
   renderDetalheControls();
   renderDetalheTable();
-  renderFuncaoBars();
-  renderFuncaoControls();
-  renderFuncaoTable();
   renderAlerts();
 }
 
@@ -1150,7 +1051,6 @@ function exportFiltersSummarySheet(){
     ['Busca OS', state.osSearch || 'Nenhuma'],
     ['Contrato', state.contrato==='all' ? 'Todos' : state.contrato],
     ['Situação', state.sit.size ? Array.from(state.sit).join(', ') : 'Todas'],
-    ['Líder', state.lider==='all' ? 'Todos' : state.lider],
   ]};
 }
 function exportResumoSheet(){
@@ -1663,7 +1563,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
       bundle = parseWorkbookToBundleSaudeOs(wb);
       DATA = normalizeBundle(bundle);
-      state.osSearch=''; state.contrato='all'; state.sit=new Set(); state.lider='all';
+      state.osSearch=''; state.contrato='all'; state.sit=new Set();
       document.getElementById('os-search-global').value = '';
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
