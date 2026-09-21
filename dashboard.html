@@ -804,6 +804,10 @@ function osTitulo(osKey){ const m = DATA.os_meta[osKey]; if(!m) return ''; retur
 function osSortVal(osKey){ if(osKey === 'Apoio') return -1; if(osKey === 'PCI') return -0.5; const n = parseInt(osKey,10); return isNaN(n) ? 999999 : n; }
 function contratoOfOs(osKey){ const m = DATA.os_meta[String(osKey)]; return m ? m.contrato : 'MOA'; }
 function escHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* Dobra um nome para comparação tolerante a acento/caixa/espaçamento —
+   evita falhas de correspondência entre a grafia na coluna "Encarregado"
+   e a grafia na própria linha desse encarregado como "Nome". */
+function foldName(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); }
 function relLuminance(hex){
   hex = (hex||'').replace('#','').trim();
   if(hex.length!==6) return 1;
@@ -2501,9 +2505,12 @@ function renderApont(){
 
   // Cargo do próprio encarregado (não o dos colaboradores apontados por ele) —
   // buscado no cadastro completo, já que o encarregado pode não estar
-  // presente na data filtrada.
+  // presente na data filtrada. Comparação por nome "dobrado" (sem acento,
+  // caixa ou espaçamento) porque a grafia na coluna "Encarregado" de outras
+  // linhas nem sempre bate exatamente com a grafia na própria linha desse
+  // encarregado como "Nome" — isso zerava o cargo de alguns encarregados.
   const cargoByName = new Map();
-  DATA.efetivo.forEach(r=>{ if(r.nome && r.cargo && !cargoByName.has(r.nome)) cargoByName.set(r.nome, r.cargo); });
+  DATA.efetivo.forEach(r=>{ if(r.nome && r.cargo){ const key = foldName(r.nome); if(!cargoByName.has(key)) cargoByName.set(key, r.cargo); } });
 
   const groups = new Map();
   ef.forEach(r=>{
@@ -2511,7 +2518,7 @@ function renderApont(){
     const enc = r.encarregado || '—';
     const os = String(r.os);
     const key = sup+'||'+enc+'||'+os;
-    if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoByName.get(enc) || '—', pessoas:[]});
+    if(!groups.has(key)) groups.set(key, {sup, enc, os, cargo: cargoByName.get(foldName(enc)) || '—', pessoas:[]});
     groups.get(key).pessoas.push(r);
   });
   const search = state.apont.search.toLowerCase();
