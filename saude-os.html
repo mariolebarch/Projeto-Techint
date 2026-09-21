@@ -417,15 +417,15 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .os-detail-close svg{width:13px; height:13px; flex:none;}
 
 /* Modal de detalhamento da OS */
-.os-modal-overlay{position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
+.os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-.os-modal-frame{width:100%; max-width:1060px; max-height:90vh; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-frame{width:100%; max-width:1060px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
 @media (max-width:680px){
   .os-modal-overlay{padding:0;}
-  .os-modal-frame{max-width:none; max-height:100vh; height:100vh; border-radius:0;}
+  .os-modal-frame{max-width:none; max-height:100%; height:100%; border-radius:0;}
 }
 tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
@@ -1010,11 +1010,27 @@ function renderOsDetailPanel(r, funcoes){
   const realizadoFad = r.fad_total_hh || 0;
   const realizadoProv = (r.apropriacao_hh || 0) + (r.mobile_hh || 0);
   const saldoHh = r.hh_saldo || 0;
-  const dif = (realizadoFad + realizadoProv) - saldoHh;
+  const dif = (r.hh_realizado || 0) - saldoHh;
   const difClass = dif > 0 ? 'critical' : 'good';
   const difSign = dif > 0 ? '+' : '';
 
   const anyProv = funcoes.some(f => (f.prov_hh||0) !== 0);
+
+  // Realizado e Saldo por função (aba 1) já foram conferidos linha a linha
+  // contra o total da OS em rodadas anteriores — quando essa soma diverge
+  // muito do HH Previsto/Realizado mostrado acima para ESTA OS específica,
+  // é sinal de uma inconsistência pontual na planilha de origem (não um
+  // bug do painel), então avisamos em vez de esconder o problema.
+  const funcPrevistoSum = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
+  const funcRealizadoSum = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
+  const tolPrev = Math.max(5, Math.abs(r.hh_previsto||0)*0.05);
+  const tolReal = Math.max(5, Math.abs(r.hh_realizado||0)*0.05);
+  const prevOk = Math.abs(funcPrevistoSum - (r.hh_previsto||0)) <= tolPrev;
+  const realOk = Math.abs(funcRealizadoSum - (r.hh_realizado||0)) <= tolReal;
+  const diffParts = [];
+  if(!realOk) diffParts.push(`Realizado: ${fmtH(funcRealizadoSum)}h por função contra ${fmtH(r.hh_realizado)}h no resumo`);
+  if(!prevOk) diffParts.push(`HH Previsto: ${fmtH(funcPrevistoSum)}h por função contra ${fmtH(r.hh_previsto)}h no resumo`);
+  const reconcileWarning = (funcoes.length && diffParts.length) ? `<div class="callout" style="margin:0 0 14px;"><span class="glyph">!</span><div><h4>Os totais por função não batem com o resumo da OS</h4><p>${diffParts.join(' &middot; ')} &mdash; uma divergência que foge do padrão observado nas demais OS's. Pode ser uma inconsistência pontual na planilha de origem para esta OS específica; confira com cautela antes de usar esses números para decisão.</p></div></div>` : '';
   const maxAbsSaldo = Math.max(1, ...funcoes.map(f => Math.abs(f.saldo || 0)));
   const funcRows = funcoes.length ? funcoes.map(f => {
     const pct = Math.min(100, Math.abs(f.saldo || 0) / maxAbsSaldo * 100);
@@ -1043,17 +1059,18 @@ function renderOsDetailPanel(r, funcoes){
         <div class="odk"><span class="odk-label">Realizado (FAD's)</span><span class="odk-value">${fmtH(realizadoFad)}</span><span class="odk-sub">já no sistema</span></div>
         <div class="odk"><span class="odk-label">Realizado (Prov.)</span><span class="odk-value">${fmtH(realizadoProv)}</span><span class="odk-sub">apropriação + mobile</span></div>
         <div class="odk"><span class="odk-label">Saldo (HH)</span><span class="odk-value">${fmtH(saldoHh)}</span></div>
-        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span></div>
+        <div class="odk odk-dif ${difClass}"><span class="odk-label">Dif.</span><span class="odk-value">${difSign}${fmtH(dif)}</span><span class="odk-sub">realizado &minus; saldo</span></div>
       </div>
     </div>
     <div class="os-detail-body">
+      ${reconcileWarning}
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
           <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th>Saldo (HH)</th><th class="num-col">Saldo (R$)</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
-      <div class="os-detail-note"><span class="ni">i</span><span>Saldo por função bate com o total da OS acima. Realizado (FAD's), Realizado (Prov.) e Dif. no resumo são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório).${anyProv ? ' Nas linhas marcadas "+prov." abaixo, o Realizado (HH) por função já soma o HH em validação das abas Apropriação/Mobile ao HH decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
+      <div class="os-detail-note"><span class="ni">i</span><span>Saldo por função bate com o total da OS acima. Realizado (FAD's) e Realizado (Prov.) no resumo são calculados no nível da OS inteira (abas FAD's/Apropriação/Mobile do relatório); Dif. = HH Realizado &minus; Saldo (HH).${anyProv ? ' Nas linhas marcadas "+prov." abaixo, o Realizado (HH) por função já soma o HH em validação das abas Apropriação/Mobile ao HH decretado.' : ' O detalhamento de Apropriação/Mobile por função depende de dados adicionais da planilha de origem, ainda não encontrados nesta base.'}</span></div>
     </div>
   </div>`;
 }
@@ -1092,10 +1109,20 @@ function renderDetalheTable(){
 }
 
 /* ---------- Modal de detalhamento da OS ---------- */
+/* O desfoque do modal deve cobrir só do fim do cabeçalho fixo para baixo
+   (nunca o próprio masthead) — mede a altura real do masthead (que muda
+   por breakpoint/tamanho de fonte) e expõe como variável CSS. */
+function updateMastheadHeightVar(){
+  const el = document.querySelector('.masthead-sticky');
+  if(el) document.documentElement.style.setProperty('--masthead-h', el.offsetHeight + 'px');
+}
+window.addEventListener('resize', updateMastheadHeightVar);
+
 function openOsModal(os){
   const r = (DATA.os_list || []).find(row => row.os === os);
   if(!r) return;
   state.detalhe.modalOs = os;
+  updateMastheadHeightVar();
   const overlay = document.getElementById('os-modal-overlay');
   document.getElementById('os-modal-frame').innerHTML = renderOsDetailPanel(r, funcoesForOs(os));
   overlay.classList.add('open');
