@@ -6,6 +6,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 /* ============ TOKENS ============ */
@@ -395,30 +397,30 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 
 /* Painel de detalhe da OS (expansão em "Detalhamento por OS") */
 .os-detail-panel{background:var(--paper); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 6px 20px -8px rgba(0,0,0,.35);}
-.os-detail-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1px), radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%); background-size:20px 20px, 100% 100%; padding:16px 18px 14px;}
-.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; padding-right:88px;}
+.os-detail-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1px), radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%); background-size:20px 20px, 100% 100%; padding:14px 18px 12px;}
+.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; padding-right:225px;}
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:10px;}
-@media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:8px;}
+@media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
-.odk{min-width:0; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
+.odk{min-width:0; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:7px 10px 6px; display:flex; flex-direction:column; gap:2px; backdrop-filter:blur(2px);}
 .odk-label{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55); font-weight:600; line-height:1.25;}
 .odk-value{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff; line-height:1.15; overflow-wrap:break-word;}
 .odk-value-lg{font-size:20px;}
 @keyframes odk-blink{0%,100%{opacity:1;} 50%{opacity:.4;}}
 .odk-blink{animation:odk-blink 1.3s ease-in-out infinite;}
 .odk-sub{font-size:9px; color:rgba(255,255,255,.45);}
-.odk-block-legend{margin-top:5px; font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--green);}
+.odk-block-legend{margin-top:4px; font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--green);}
 .odk.odk-dif{border-color:rgba(255,255,255,.28);}
 .odk.odk-dif.critical .odk-value{color:#ff9d97;}
 .odk.odk-dif.good .odk-value{color:#9bdd6b;}
 .odk.odk-split{grid-column:span 3;}
 .odk.odk-split-2, .odk.odk-wide{grid-column:span 2;}
 @media (max-width:520px){.odk.odk-split, .odk.odk-split-2{grid-column:1/-1;}}
-.odk-split-row{display:flex; align-items:stretch; gap:10px; margin-top:1px;}
-.odk-split-col{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; overflow:hidden;}
+.odk-split-row{display:flex; align-items:stretch; gap:10px; margin-top:0;}
+.odk-split-col{display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; overflow:hidden;}
 .odk-split-sep{width:1px; background:rgba(255,255,255,.2); flex:none;}
 .os-detail-body{padding:14px 18px 16px;}
 .os-detail-func-wrap{position:relative; border:1px solid var(--border-soft); border-radius:9px; overflow-x:auto;}
@@ -426,19 +428,36 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-func-wrap.has-hscroll:not(.scrolled-end)::after{opacity:1;}
 table.os-detail-func-table{width:100%; min-width:760px; font-size:12.5px;}
 table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
+table.os-detail-func-table thead th.num-col, table.os-detail-func-table td.num-col{text-align:center;}
 table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
 table.os-detail-func-table tbody tr:first-child td{border-top:none;}
 table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
-.os-detail-close{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
+.os-detail-actions{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:8px; z-index:3;}
+.os-detail-close{display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .os-detail-close:hover{background:rgba(255,255,255,.2); border-color:#fff;}
 .os-detail-close svg{width:13px; height:13px; flex:none;}
+.os-detail-download-wrap{position:relative;}
+.os-detail-download{display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid var(--steel); background:var(--steel); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:filter .15s;}
+.os-detail-download:hover{filter:brightness(1.1);}
+.os-detail-download svg{width:13px; height:13px; flex:none;}
+.os-detail-download-menu{position:absolute; top:calc(100% + 8px); right:0; min-width:240px; background:var(--paper); border:1px solid var(--border); border-radius:10px; box-shadow:0 14px 30px -10px rgba(0,0,0,.4); padding:6px; display:none; flex-direction:column; gap:2px;}
+.os-detail-download-menu.open{display:flex;}
+.os-detail-download-menu button{display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; text-align:left; background:none; border:none; border-radius:7px; padding:8px 10px; cursor:pointer; font-family:var(--font-body); font-size:12.5px; font-weight:600; color:var(--text-primary);}
+.os-detail-download-menu button:hover{background:var(--steel-soft);}
+.os-detail-download-menu button .sub{font-size:10.5px; font-weight:400; color:var(--text-secondary);}
+.os-detail-download-status{padding:5px 10px 1px; font-size:10.5px; color:var(--text-secondary);}
+.os-detail-download-status.error{color:var(--critical);}
+@media (max-width:560px){
+  .os-detail-actions{position:static; justify-content:flex-end; margin-bottom:10px;}
+  .os-detail-titlebar{padding-right:0;}
+}
 
 /* Modal de detalhamento da OS */
 .os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-.os-modal-frame{width:100%; max-width:1220px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-frame{width:100%; max-width:1400px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
@@ -1050,21 +1069,20 @@ function computeSaldoFinal(r, funcoes){
 function saldoFinalForOs(r){
   return computeSaldoFinal(r, funcoesForOs(r.os));
 }
-function renderOsDetailPanel(r, funcoes){
+function computeOsSummary(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
   // DET." (colunas H/I/J/L), somada por função — garante que os cartões
   // acima batem sempre com a tabela de funções abaixo. Pendência/Aprop.+
-  // Mob. usam o total por OS (ver computeSaldoFinal).
+  // Mob. usam o total por OS (ver computeSaldoFinal). Reaproveitado tanto
+  // pela renderização quanto pela exportação (Excel/PDF) para não haver
+  // divergência entre o que é mostrado e o que é exportado.
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
   const provTotal = r.prov_total_hh || 0;
   const pendTotal = r.pend_total_hh || 0;
   const hhTotalRealizado = hhRealizadoBase + pendTotal + provTotal;
-
   const saldoFinal = computeSaldoFinal(r, funcoes);
-  const sfClass = saldoFinal >= 0 ? 'good' : 'critical';
-  const sfSign = saldoFinal > 0 ? '+' : '';
 
   // Saldo Final em R$: cada função tem seu próprio valor unitário (aba 1,
   // coluna E), então a conversão é feita função a função (com o Saldo
@@ -1073,33 +1091,54 @@ function renderOsDetailPanel(r, funcoes){
   // diferentes. Por isso usa o Saldo Final por função (não o total por OS
   // acima): só HH já atribuído a uma função tem uma taxa conhecida para
   // converter em R$.
-  const saldoFinalRs = funcoes.reduce((a,f) => {
-    const sfHH = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
-    return a + sfHH * (f.valor_unitario||0);
-  }, 0);
-  const sfRsClass = saldoFinalRs >= 0 ? 'good' : 'critical';
-  const sfRsSign = saldoFinalRs > 0 ? '+' : '';
-
-  const funcRows = funcoes.length ? funcoes.map(f => {
+  const funcRows = funcoes.map(f => {
     const sf = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
-    const sfCls = sf >= 0 ? 'good' : 'critical';
-    const sfSgn = sf > 0 ? '+' : '';
     const fTotalRealizado = (f.realizado||0) + (f.pend_hh||0) + (f.prov_hh||0);
+    return {
+      funcao: f.funcao, previsto: f.consolidado||0, realizado: f.realizado||0,
+      saldo: f.saldo||0, pend: f.pend_hh||0, prov: f.prov_hh||0,
+      totalRealizado: fTotalRealizado, saldoFinal: sf, valorUnitario: f.valor_unitario||0,
+    };
+  });
+  const saldoFinalRs = funcRows.reduce((a,f) => a + f.saldoFinal * f.valorUnitario, 0);
+
+  return { hhPrevisto, hhRealizadoBase, saldoHh, provTotal, pendTotal, hhTotalRealizado, saldoFinal, saldoFinalRs, funcRows };
+}
+function renderOsDetailPanel(r, funcoes){
+  const s = computeOsSummary(r, funcoes);
+  const sfClass = s.saldoFinal >= 0 ? 'good' : 'critical';
+  const sfSign = s.saldoFinal > 0 ? '+' : '';
+  const sfRsClass = s.saldoFinalRs >= 0 ? 'good' : 'critical';
+  const sfRsSign = s.saldoFinalRs > 0 ? '+' : '';
+
+  const funcRows = s.funcRows.length ? s.funcRows.map(f => {
+    const sfCls = f.saldoFinal >= 0 ? 'good' : 'critical';
+    const sfSgn = f.saldoFinal > 0 ? '+' : '';
     return `<tr>
       <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
-      <td class="num-col">${fmtH(f.consolidado)}</td>
+      <td class="num-col">${fmtH(f.previsto)}</td>
       <td class="num-col">${fmtH(f.realizado)}</td>
       <td class="num-col">${fmtH(f.saldo)}</td>
-      <td class="num-col">${fmtH(f.pend_hh)}</td>
-      <td class="num-col">${fmtH(f.prov_hh)}</td>
-      <td class="num-col">${fmtH(fTotalRealizado)}</td>
-      <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(sf)}</span></td>
+      <td class="num-col">${fmtH(f.pend)}</td>
+      <td class="num-col">${fmtH(f.prov)}</td>
+      <td class="num-col">${fmtH(f.totalRealizado)}</td>
+      <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(f.saldoFinal)}</span></td>
     </tr>`;
   }).join('') : `<tr><td colspan="8" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
-      <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>
+      <div class="os-detail-actions">
+        <div class="os-detail-download-wrap">
+          <button type="button" class="os-detail-download" id="os-detail-download-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
+          <div class="os-detail-download-menu" id="os-detail-download-menu">
+            <button type="button" data-action="xlsx">Exportar tabela (Excel)<span class="sub">Dados da OS e detalhamento por função</span></button>
+            <button type="button" data-action="pdf">Exportar quadro (PDF)<span class="sub">Imagem em alta qualidade p/ apresentação</span></button>
+            <div class="os-detail-download-status" id="os-detail-download-status" hidden></div>
+          </div>
+        </div>
+        <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>
+      </div>
       <div class="os-detail-titlebar">
         <span class="os-detail-eyebrow">Resumo da OS</span>
         <span class="os-detail-osnum">${escHtml(r.os_label)}</span>
@@ -1110,17 +1149,17 @@ function renderOsDetailPanel(r, funcoes){
           <div class="odk-split-row">
             <div class="odk-split-col">
               <span class="odk-label">HH Previsto</span>
-              <span class="odk-value">${fmtH(hhPrevisto)}</span>
+              <span class="odk-value">${fmtH(s.hhPrevisto)}</span>
             </div>
             <div class="odk-split-sep"></div>
             <div class="odk-split-col">
               <span class="odk-label">HH Realizado</span>
-              <span class="odk-value">${fmtH(hhRealizadoBase)}</span>
+              <span class="odk-value">${fmtH(s.hhRealizadoBase)}</span>
             </div>
             <div class="odk-split-sep"></div>
             <div class="odk-split-col">
               <span class="odk-label">HH Saldo</span>
-              <span class="odk-value">${fmtH(saldoHh)}</span>
+              <span class="odk-value">${fmtH(s.saldoHh)}</span>
             </div>
           </div>
           <div class="odk-block-legend">Sistema SGE</div>
@@ -1129,19 +1168,19 @@ function renderOsDetailPanel(r, funcoes){
           <div class="odk-split-row">
             <div class="odk-split-col">
               <span class="odk-label">HH Pendência</span>
-              <span class="odk-value">${fmtH(pendTotal)}</span>
+              <span class="odk-value">${fmtH(s.pendTotal)}</span>
             </div>
             <div class="odk-split-sep"></div>
             <div class="odk-split-col">
               <span class="odk-label">Aprop. + Mob.</span>
-              <span class="odk-value">${fmtH(provTotal)}</span>
+              <span class="odk-value">${fmtH(s.provTotal)}</span>
             </div>
           </div>
           <div class="odk-block-legend">Projeção</div>
         </div>
-        <div class="odk"><span class="odk-label">HH Total Realizado</span><span class="odk-value">${fmtH(hhTotalRealizado)}</span><span class="odk-sub">HH Realizado + HH Pendência + Aprop. + Mob.</span></div>
-        <div class="odk odk-dif odk-wide ${sfClass}"><span class="odk-label">HH Saldo Final</span><span class="odk-value odk-value-lg odk-blink">${sfSign}${fmtH(saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
-        <div class="odk odk-dif odk-wide ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value odk-value-lg odk-blink">${sfRsSign}${fmtRs(saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
+        <div class="odk odk-wide"><span class="odk-label">HH Total Realizado</span><span class="odk-value">${fmtH(s.hhTotalRealizado)}</span><span class="odk-sub">HH Realizado + HH Pendência + Aprop. + Mob.</span></div>
+        <div class="odk odk-dif odk-wide ${sfClass}"><span class="odk-label">HH Saldo Final</span><span class="odk-value odk-value-lg odk-blink">${sfSign}${fmtH(s.saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
+        <div class="odk odk-dif odk-wide ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value odk-value-lg odk-blink">${sfRsSign}${fmtRs(s.saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
@@ -1205,6 +1244,7 @@ function openOsModal(os){
   document.querySelectorAll('#detalhe-tbody tr.os-row.expanded').forEach(tr=>tr.classList.remove('expanded'));
   if(row) row.classList.add('expanded');
   document.getElementById('os-detail-close-btn').addEventListener('click', closeOsModal);
+  wireOsDetailDownload(r, funcoesForOs(os));
 }
 function closeOsModal(){
   state.detalhe.modalOs = null;
@@ -1212,6 +1252,97 @@ function closeOsModal(){
   document.body.classList.remove('os-modal-lock');
   document.querySelectorAll('#detalhe-tbody tr.os-row.expanded').forEach(tr=>tr.classList.remove('expanded'));
 }
+function exportOsResumoXlsx(r, funcoes){
+  const s = computeOsSummary(r, funcoes);
+  const resumoAoa = [
+    ['Resumo da OS'],
+    ['OS', r.os_label],
+    ['PEP / Descrição', r.pep || ''],
+    ['Líder', r.lider || ''],
+    ['Fiscal', r.fiscal || ''],
+    ['Situação', r.sit || ''],
+    [],
+    ['Indicador', 'Valor'],
+    ['HH Previsto', s.hhPrevisto],
+    ['HH Realizado', s.hhRealizadoBase],
+    ['HH Saldo', s.saldoHh],
+    ['HH Pendência', s.pendTotal],
+    ['Aprop. + Mob.', s.provTotal],
+    ['HH Total Realizado', s.hhTotalRealizado],
+    ['HH Saldo Final', s.saldoFinal],
+    ['Saldo Final (R$)', s.saldoFinalRs],
+  ];
+  const funcAoa = [
+    ['Função', 'HH Previsto', 'HH Realizado', 'HH Saldo', 'HH Pendência', 'Aprop. + Mob. (HH)', 'HH Total Realizado', 'HH Saldo Final'],
+    ...s.funcRows.map(f => [f.funcao, f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal]),
+  ];
+  downloadWorkbook([
+    { name: 'Resumo', aoa: resumoAoa },
+    { name: 'Funções', aoa: funcAoa },
+  ], `ResumoOS_${r.os_label}`);
+}
+async function exportOsPanelPdf(r){
+  if(typeof html2canvas !== 'function' || !window.jspdf) throw new Error('Bibliotecas de exportação indisponíveis.');
+  const panel = document.querySelector('#os-modal-frame .os-detail-panel');
+  if(!panel) throw new Error('Painel não encontrado.');
+  // scale:3 garante uma imagem em alta resolução (retina) para a foto do
+  // quadro ficar nítida em apresentações mesmo ampliada; a página do PDF é
+  // dimensionada no tamanho real do painel (em mm, a 96dpi) para a imagem
+  // preencher a página inteira sem cortes nem bordas em branco.
+  const canvas = await html2canvas(panel, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+  const imgData = canvas.toDataURL('image/png', 1.0);
+  const { jsPDF } = window.jspdf;
+  const pxToMm = px => px * 25.4 / 96;
+  const wMm = pxToMm(canvas.width / 3);
+  const hMm = pxToMm(canvas.height / 3);
+  const pdf = new jsPDF({ orientation: wMm >= hMm ? 'landscape' : 'portrait', unit: 'mm', format: [wMm, hMm] });
+  pdf.addImage(imgData, 'PNG', 0, 0, wMm, hMm, undefined, 'FAST');
+  const ts = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const stamp = ts.getFullYear() + '-' + pad(ts.getMonth()+1) + '-' + pad(ts.getDate()) + '_' + pad(ts.getHours()) + 'h' + pad(ts.getMinutes());
+  pdf.save(`ResumoOS_${r.os_label}_${stamp}.pdf`);
+}
+function wireOsDetailDownload(r, funcoes){
+  const btn = document.getElementById('os-detail-download-btn');
+  const menu = document.getElementById('os-detail-download-menu');
+  const statusEl = document.getElementById('os-detail-download-status');
+  if(!btn || !menu) return;
+  const setStatus = (msg, isError) => {
+    statusEl.hidden = !msg;
+    statusEl.textContent = msg || '';
+    statusEl.className = 'os-detail-download-status' + (isError ? ' error' : '');
+  };
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+  });
+  const xlsxBtn = menu.querySelector('[data-action="xlsx"]');
+  const pdfBtn = menu.querySelector('[data-action="pdf"]');
+  if(xlsxBtn) xlsxBtn.addEventListener('click', () => {
+    try{
+      exportOsResumoXlsx(r, funcoes);
+      setStatus('Excel gerado com sucesso.', false);
+    }catch(err){
+      console.error(err);
+      setStatus('Falha ao gerar o Excel.', true);
+    }
+  });
+  if(pdfBtn) pdfBtn.addEventListener('click', async () => {
+    setStatus('Gerando PDF...', false);
+    try{
+      await exportOsPanelPdf(r);
+      setStatus('PDF gerado com sucesso.', false);
+    }catch(err){
+      console.error(err);
+      setStatus('Falha ao gerar o PDF. Verifique a conexão.', true);
+    }
+  });
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('.os-detail-download-wrap')){
+    document.querySelectorAll('.os-detail-download-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
 document.getElementById('os-modal-overlay').addEventListener('click', e=>{
   if(e.target.id === 'os-modal-overlay') closeOsModal();
 });
