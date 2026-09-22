@@ -91,8 +91,16 @@
 
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
+/* overflow-x:hidden só no html, nunca também no body: quando os dois
+   declaram overflow explícito, o navegador trata cada um como seu próprio
+   contêiner de rolagem (em vez de um único, propagado ao viewport), e
+   position:sticky de qualquer descendente (o masthead, por ex.) para de
+   grudar no topo — o scroll real acontece no html, mas o sticky calcula
+   em cima do body, que nunca rola de verdade. Um overflow-x:hidden já
+   basta para esconder a barra de rolagem horizontal que o masthead em
+   width:100vw pode gerar. */
 html{overflow-x:hidden; width:100%;}
-body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; width:100%;}
+body{background:var(--sand); color:var(--text-primary); font-family:var(--font-body); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; width:100%;}
 ::selection{background:var(--steel-soft);}
 h1,h2,h3,h4{font-family:var(--font-display);font-weight:800;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance;margin:0;color:var(--text-primary);}
 .num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
@@ -493,8 +501,13 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 #page-loader.hide{opacity:0; visibility:hidden; pointer-events:none;}
 #page-loader .pl-spinner{width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.22); border-top-color:var(--green); animation:pl-spin .8s linear infinite;}
 @keyframes pl-spin{to{transform:rotate(360deg);}}
-.app{opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;}
-.app.loaded{opacity:1; transform:translateY(0);}
+/* Sem transform aqui de propósito: um transform (mesmo translateY(0),
+   valor "neutro") em qualquer ancestral quebra position:sticky/fixed dos
+   descendentes (o masthead deixa de grudar no topo ao rolar a página, e o
+   overlay do modal descola do lugar certo) — por isso a entrada usa só
+   opacidade, sem o efeito de deslizar para cima. */
+.app{opacity:0; transition:opacity .5s ease;}
+.app.loaded{opacity:1;}
 
 /* ============ MOBILE ============ */
 .msel-panel, .settings-panel{max-width:calc(100vw - 32px);}
