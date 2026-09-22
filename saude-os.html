@@ -450,26 +450,37 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .os-detail-download-status.error{color:var(--critical);}
 
 /* Modal de detalhamento da OS */
-.os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
+.os-modal-overlay{position:fixed; inset:0; z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-/* .os-modal-shell tem width/height 100% (definidos, não "auto") de propósito:
-   é o que permite tanto o max-width:1400px do quadro quanto o
-   max-height:100% dele resolverem corretamente contra o overlay — a mesma
-   técnica já usada pelo overlay em si (top/bottom fixos = altura
-   definida), só que um nível mais fundo, pra caber a coluna de botões ao
-   lado do quadro sem quebrar esse cálculo. */
-.os-modal-shell{display:flex; align-items:center; justify-content:center; gap:14px; width:100%; height:100%;}
-.os-modal-actions{flex:none; align-self:flex-start; width:112px; display:flex; flex-direction:column; gap:8px; margin-top:4px;}
-.os-modal-frame{width:100%; max-width:1400px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+/* .os-modal-shell é só um contêiner de posicionamento (position:relative)
+   do tamanho exato do quadro — sem flexbox tentando centralizar/alinhar
+   quadro e coluna de botões como itens irmãos (isso não dá certo quando
+   um é bem mais alto que o outro: cada item acaba centralizado sozinho
+   dentro da altura toda do overlay, então os botões ficam soltos no meio
+   da tela em vez de grudados no topo do quadro). Em vez disso, o quadro
+   define seu próprio tamanho direto em unidades de viewport (sem depender
+   de porcentagem de um ancestral) e os botões são position:absolute
+   ancorados no canto superior direito desse contêiner — sempre exatamente
+   no topo do quadro, seja ele curto ou alto. */
+/* A coluna de botões é position:absolute (fora do fluxo), então o overlay
+   centraliza .os-modal-shell olhando só pro quadro (única caixa que conta
+   pro tamanho de .os-modal-shell) — sem compensar, o par quadro+botões
+   fica descentralizado pra esquerda, já que a "sobra" de espaço da coluna
+   de botões (14px de gap + 112px de largura = 126px) é toda posicionada
+   à direita do quadro só depois da centralização. Desloca a caixa 63px
+   (metade de 126px) pra esquerda pra o par inteiro ficar centralizado. */
+.os-modal-shell{position:relative; transform:translateX(-63px);}
+.os-modal-actions{position:absolute; top:0; left:100%; margin-left:14px; width:112px; display:flex; flex-direction:column; gap:8px;}
+.os-modal-frame{width:min(1400px, calc(100vw - 182px)); max-height:calc(100vh - 56px); overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
 @media (max-width:680px){
   .os-modal-overlay{padding:0;}
-  .os-modal-shell{flex-direction:column-reverse; gap:0;}
-  .os-modal-actions{width:100%; flex-direction:row; justify-content:flex-end; gap:8px; margin:0; padding:10px 14px; background:var(--navy);}
+  .os-modal-shell{position:static; transform:none; display:flex; flex-direction:column-reverse; width:100%; height:100%;}
+  .os-modal-actions{position:static; width:100%; flex-direction:row; justify-content:flex-end; gap:8px; margin:0; padding:10px 14px; background:var(--navy);}
   .os-modal-actions .os-detail-download-wrap, .os-modal-actions .os-detail-close{width:auto; flex:1;}
-  .os-modal-frame{flex:1; min-height:0; max-width:none; max-height:100%; height:100%; border-radius:0;}
+  .os-modal-frame{width:100%; flex:1; min-height:0; max-width:none; max-height:100%; height:100%; border-radius:0;}
 }
 tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
@@ -1231,20 +1242,10 @@ function renderDetalheTable(){
 }
 
 /* ---------- Modal de detalhamento da OS ---------- */
-/* O desfoque do modal deve cobrir só do fim do cabeçalho fixo para baixo
-   (nunca o próprio masthead) — mede a altura real do masthead (que muda
-   por breakpoint/tamanho de fonte) e expõe como variável CSS. */
-function updateMastheadHeightVar(){
-  const el = document.querySelector('.masthead-sticky');
-  if(el) document.documentElement.style.setProperty('--masthead-h', el.offsetHeight + 'px');
-}
-window.addEventListener('resize', updateMastheadHeightVar);
-
 function openOsModal(os){
   const r = (DATA.os_list || []).find(row => row.os === os);
   if(!r) return;
   state.detalhe.modalOs = os;
-  updateMastheadHeightVar();
   const overlay = document.getElementById('os-modal-overlay');
   document.getElementById('os-modal-frame').innerHTML = renderOsDetailPanel(r, funcoesForOs(os));
   document.getElementById('os-modal-actions').innerHTML = renderOsModalActions();
