@@ -398,7 +398,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 /* Painel de detalhe da OS (expansão em "Detalhamento por OS") */
 .os-detail-panel{background:var(--paper); border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 6px 20px -8px rgba(0,0,0,.35);}
 .os-detail-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); background-image:radial-gradient(circle, rgba(255,255,255,.09) 1px, transparent 1px), radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%); background-size:20px 20px, 100% 100%; padding:14px 18px 12px;}
-.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; padding-right:225px;}
+.os-detail-titlebar{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
@@ -407,8 +407,8 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .odk{min-width:0; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:7px 10px 6px; display:flex; flex-direction:column; gap:2px; backdrop-filter:blur(2px);}
 .odk-label{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55); font-weight:600; line-height:1.25;}
-.odk-value{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff; line-height:1.15; overflow-wrap:break-word;}
-.odk-value-lg{font-size:20px;}
+.odk-value{font-family:var(--font-mono); font-size:clamp(13px,1.05vw,16px); font-weight:700; color:#fff; line-height:1.15; overflow-wrap:break-word;}
+.odk-value-lg{font-size:clamp(16px,1.35vw,20px);}
 @keyframes odk-blink{0%,100%{opacity:1;} 50%{opacity:.4;}}
 .odk-blink{animation:odk-blink 1.3s ease-in-out infinite;}
 .odk-sub{font-size:9px; color:rgba(255,255,255,.45);}
@@ -434,36 +434,42 @@ table.os-detail-func-table tbody tr:first-child td{border-top:none;}
 table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
-.os-detail-actions{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:8px; z-index:3;}
-.os-detail-close{display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
-.os-detail-close:hover{background:rgba(255,255,255,.2); border-color:#fff;}
-.os-detail-close svg{width:13px; height:13px; flex:none;}
-.os-detail-download-wrap{position:relative;}
-.os-detail-download{display:flex; align-items:center; gap:6px; height:32px; padding:0 14px; border-radius:16px; border:1px solid var(--steel); background:var(--steel); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; transition:filter .15s;}
+.os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
+.os-detail-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
+.os-detail-close svg{width:12px; height:12px; flex:none;}
+.os-detail-download-wrap{position:relative; width:100%;}
+.os-detail-download{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid var(--steel); background:var(--steel); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:filter .15s;}
 .os-detail-download:hover{filter:brightness(1.1);}
 .os-detail-download svg{width:13px; height:13px; flex:none;}
-.os-detail-download-menu{position:absolute; top:calc(100% + 8px); right:0; min-width:240px; background:var(--paper); border:1px solid var(--border); border-radius:10px; box-shadow:0 14px 30px -10px rgba(0,0,0,.4); padding:6px; display:none; flex-direction:column; gap:2px;}
+.os-detail-download-menu{position:absolute; top:calc(100% + 8px); right:0; min-width:240px; background:var(--paper); border:1px solid var(--border); border-radius:10px; box-shadow:0 14px 30px -10px rgba(0,0,0,.4); padding:6px; display:none; flex-direction:column; gap:2px; z-index:5;}
 .os-detail-download-menu.open{display:flex;}
 .os-detail-download-menu button{display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; text-align:left; background:none; border:none; border-radius:7px; padding:8px 10px; cursor:pointer; font-family:var(--font-body); font-size:12.5px; font-weight:600; color:var(--text-primary);}
 .os-detail-download-menu button:hover{background:var(--steel-soft);}
 .os-detail-download-menu button .sub{font-size:10.5px; font-weight:400; color:var(--text-secondary);}
 .os-detail-download-status{padding:5px 10px 1px; font-size:10.5px; color:var(--text-secondary);}
 .os-detail-download-status.error{color:var(--critical);}
-@media (max-width:560px){
-  .os-detail-actions{position:static; justify-content:flex-end; margin-bottom:10px;}
-  .os-detail-titlebar{padding-right:0;}
-}
 
 /* Modal de detalhamento da OS */
 .os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
+/* .os-modal-shell tem width/height 100% (definidos, não "auto") de propósito:
+   é o que permite tanto o max-width:1400px do quadro quanto o
+   max-height:100% dele resolverem corretamente contra o overlay — a mesma
+   técnica já usada pelo overlay em si (top/bottom fixos = altura
+   definida), só que um nível mais fundo, pra caber a coluna de botões ao
+   lado do quadro sem quebrar esse cálculo. */
+.os-modal-shell{display:flex; align-items:center; justify-content:center; gap:14px; width:100%; height:100%;}
+.os-modal-actions{flex:none; align-self:flex-start; width:112px; display:flex; flex-direction:column; gap:8px; margin-top:4px;}
 .os-modal-frame{width:100%; max-width:1400px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
 @media (max-width:680px){
   .os-modal-overlay{padding:0;}
-  .os-modal-frame{max-width:none; max-height:100%; height:100%; border-radius:0;}
+  .os-modal-shell{flex-direction:column-reverse; gap:0;}
+  .os-modal-actions{width:100%; flex-direction:row; justify-content:flex-end; gap:8px; margin:0; padding:10px 14px; background:var(--navy);}
+  .os-modal-actions .os-detail-download-wrap, .os-modal-actions .os-detail-close{width:auto; flex:1;}
+  .os-modal-frame{flex:1; min-height:0; max-width:none; max-height:100%; height:100%; border-radius:0;}
 }
 tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
@@ -727,7 +733,10 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
      position:fixed, o que prendia esse overlay dentro da largura de .app
      (1360px centralizada) em vez de cobrir a tela inteira. -->
 <div class="os-modal-overlay" id="os-modal-overlay">
-  <div class="os-modal-frame" id="os-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da OS"></div>
+  <div class="os-modal-shell">
+    <div class="os-modal-frame" id="os-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da OS"></div>
+    <div class="os-modal-actions" id="os-modal-actions"></div>
+  </div>
 </div>
 
 <script id="bundle-data" type="application/json">{"meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"}, "periodos": {"fads": null, "pendencias": null, "apropriacao": null, "mobile": null}, "os_list": [], "totais": {"hh_previsto": 0, "hh_realizado": 0, "hh_saldo": 0, "vl_previsto": 0, "vl_realizado": 0, "vl_saldo": 0, "fad_elab_hh": 0, "fad_elab_rs": 0, "fad_revisao_hh": 0, "fad_revisao_rs": 0, "fad_aprovacao_hh": 0, "fad_aprovacao_rs": 0, "fad_total_hh": 0, "fad_total_rs": 0, "pendencias_hh": 0, "pendencias_rs": 0, "apropriacao_hh": 0, "apropriacao_rs": 0, "mobile_hh": 0, "mobile_rs": 0, "saldo_geral_hh": 0, "saldo_geral_pct": 0, "saldo_geral_rs": 0}, "contratos": [], "lideres": [], "fiscais": [], "situacoes": [], "contrato_labels": {}, "funcoes_por_os": {}}</script>
@@ -1104,6 +1113,17 @@ function computeOsSummary(r, funcoes){
 
   return { hhPrevisto, hhRealizadoBase, saldoHh, provTotal, pendTotal, hhTotalRealizado, saldoFinal, saldoFinalRs, funcRows };
 }
+function renderOsModalActions(){
+  return `<div class="os-detail-download-wrap">
+      <button type="button" class="os-detail-download" id="os-detail-download-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
+      <div class="os-detail-download-menu" id="os-detail-download-menu">
+        <button type="button" data-action="xlsx">Exportar tabela (Excel)<span class="sub">Dados da OS e detalhamento por função</span></button>
+        <button type="button" data-action="pdf">Exportar quadro (PDF)<span class="sub">Imagem em alta qualidade p/ apresentação</span></button>
+        <div class="os-detail-download-status" id="os-detail-download-status" hidden></div>
+      </div>
+    </div>
+    <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>`;
+}
 function renderOsDetailPanel(r, funcoes){
   const s = computeOsSummary(r, funcoes);
   const sfClass = s.saldoFinal >= 0 ? 'good' : 'critical';
@@ -1128,17 +1148,6 @@ function renderOsDetailPanel(r, funcoes){
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
-      <div class="os-detail-actions">
-        <div class="os-detail-download-wrap">
-          <button type="button" class="os-detail-download" id="os-detail-download-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
-          <div class="os-detail-download-menu" id="os-detail-download-menu">
-            <button type="button" data-action="xlsx">Exportar tabela (Excel)<span class="sub">Dados da OS e detalhamento por função</span></button>
-            <button type="button" data-action="pdf">Exportar quadro (PDF)<span class="sub">Imagem em alta qualidade p/ apresentação</span></button>
-            <div class="os-detail-download-status" id="os-detail-download-status" hidden></div>
-          </div>
-        </div>
-        <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>
-      </div>
       <div class="os-detail-titlebar">
         <span class="os-detail-eyebrow">Resumo da OS</span>
         <span class="os-detail-osnum">${escHtml(r.os_label)}</span>
@@ -1238,6 +1247,7 @@ function openOsModal(os){
   updateMastheadHeightVar();
   const overlay = document.getElementById('os-modal-overlay');
   document.getElementById('os-modal-frame').innerHTML = renderOsDetailPanel(r, funcoesForOs(os));
+  document.getElementById('os-modal-actions').innerHTML = renderOsModalActions();
   overlay.classList.add('open');
   document.body.classList.add('os-modal-lock');
   const row = document.querySelector(`#detalhe-tbody tr.os-row[data-os="${os}"]`);
@@ -1285,18 +1295,33 @@ async function exportOsPanelPdf(r){
   if(typeof html2canvas !== 'function' || !window.jspdf) throw new Error('Bibliotecas de exportação indisponíveis.');
   const panel = document.querySelector('#os-modal-frame .os-detail-panel');
   if(!panel) throw new Error('Painel não encontrado.');
-  // scale:3 garante uma imagem em alta resolução (retina) para a foto do
-  // quadro ficar nítida em apresentações mesmo ampliada; a página do PDF é
-  // dimensionada no tamanho real do painel (em mm, a 96dpi) para a imagem
-  // preencher a página inteira sem cortes nem bordas em branco.
-  const canvas = await html2canvas(panel, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+  const PDF_SCALE = 4;
+  // A tabela de função tem overflow-x:auto (cabe em telas estreitas), mas
+  // isso faz o html2canvas capturar só a fatia visível no momento do
+  // clique — colunas fora da área rolada saíam cortadas da foto. Antes de
+  // capturar, expande o wrapper pra largura total do conteúdo e desfaz
+  // depois, garantindo a tabela inteira na imagem.
+  const wraps = [...panel.querySelectorAll('.os-detail-func-wrap')];
+  const prevStyles = wraps.map(w => w.style.cssText);
+  wraps.forEach(w => { w.style.overflow = 'visible'; w.style.width = w.scrollWidth + 'px'; });
+  let canvas;
+  try{
+    // scale:4 (≈384dpi) garante uma imagem em alta resolução para a foto
+    // do quadro ficar nítida em apresentações mesmo ampliada/impressa; a
+    // página do PDF é dimensionada no tamanho real do painel (em mm, a
+    // 96dpi) para a imagem preencher a página inteira sem cortes nem
+    // bordas em branco.
+    canvas = await html2canvas(panel, { scale: PDF_SCALE, backgroundColor: '#ffffff', useCORS: true, imageTimeout: 15000 });
+  } finally {
+    wraps.forEach((w, i) => { w.style.cssText = prevStyles[i]; });
+  }
   const imgData = canvas.toDataURL('image/png', 1.0);
   const { jsPDF } = window.jspdf;
   const pxToMm = px => px * 25.4 / 96;
-  const wMm = pxToMm(canvas.width / 3);
-  const hMm = pxToMm(canvas.height / 3);
+  const wMm = pxToMm(canvas.width / PDF_SCALE);
+  const hMm = pxToMm(canvas.height / PDF_SCALE);
   const pdf = new jsPDF({ orientation: wMm >= hMm ? 'landscape' : 'portrait', unit: 'mm', format: [wMm, hMm] });
-  pdf.addImage(imgData, 'PNG', 0, 0, wMm, hMm, undefined, 'FAST');
+  pdf.addImage(imgData, 'PNG', 0, 0, wMm, hMm);
   const ts = new Date();
   const pad = n => String(n).padStart(2, '0');
   const stamp = ts.getFullYear() + '-' + pad(ts.getMonth()+1) + '-' + pad(ts.getDate()) + '_' + pad(ts.getHours()) + 'h' + pad(ts.getMinutes());
