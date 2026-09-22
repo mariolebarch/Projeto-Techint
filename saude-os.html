@@ -400,27 +400,31 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .os-detail-osnum{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
 .os-detail-sub{font-size:12px; color:rgba(255,255,255,.65); margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%;}
-.os-detail-kpis{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px;}
+.os-detail-kpis{display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:10px;}
 @media (max-width:900px){.os-detail-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:520px){.os-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
-.odk{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
-.odk-label{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.odk-value{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff; line-height:1.15;}
+.odk{min-width:0; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:3px; backdrop-filter:blur(2px);}
+.odk-label{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55); font-weight:600; line-height:1.25;}
+.odk-value{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff; line-height:1.15; overflow-wrap:break-word;}
+.odk-value-lg{font-size:20px;}
+@keyframes odk-blink{0%,100%{opacity:1;} 50%{opacity:.4;}}
+.odk-blink{animation:odk-blink 1.3s ease-in-out infinite;}
 .odk-sub{font-size:9px; color:rgba(255,255,255,.45);}
+.odk-block-legend{margin-top:5px; font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--green);}
 .odk.odk-dif{border-color:rgba(255,255,255,.28);}
 .odk.odk-dif.critical .odk-value{color:#ff9d97;}
 .odk.odk-dif.good .odk-value{color:#9bdd6b;}
 .odk.odk-split{grid-column:span 3;}
-.odk.odk-split-2{grid-column:span 2;}
+.odk.odk-split-2, .odk.odk-wide{grid-column:span 2;}
 @media (max-width:520px){.odk.odk-split, .odk.odk-split-2{grid-column:1/-1;}}
 .odk-split-row{display:flex; align-items:stretch; gap:10px; margin-top:1px;}
-.odk-split-col{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
+.odk-split-col{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; overflow:hidden;}
 .odk-split-sep{width:1px; background:rgba(255,255,255,.2); flex:none;}
 .os-detail-body{padding:14px 18px 16px;}
 .os-detail-func-wrap{position:relative; border:1px solid var(--border-soft); border-radius:9px; overflow-x:auto;}
 .os-detail-func-wrap::after{content:""; position:absolute; top:0; right:0; bottom:0; width:22px; background:linear-gradient(to right, transparent, var(--paper)); pointer-events:none; opacity:0; transition:opacity .15s ease;}
 .os-detail-func-wrap.has-hscroll:not(.scrolled-end)::after{opacity:1;}
-table.os-detail-func-table{width:100%; min-width:620px; font-size:12.5px;}
+table.os-detail-func-table{width:100%; min-width:760px; font-size:12.5px;}
 table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
 table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
 table.os-detail-func-table tbody tr:first-child td{border-top:none;}
@@ -434,7 +438,7 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 /* Modal de detalhamento da OS */
 .os-modal-overlay{position:fixed; left:0; right:0; bottom:0; top:var(--masthead-h, 104px); z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
 .os-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
-.os-modal-frame{width:100%; max-width:1100px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
+.os-modal-frame{width:100%; max-width:1220px; max-height:100%; overflow-y:auto; border-radius:14px; transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08);}
 .os-modal-overlay.open .os-modal-frame{transform:translateY(0) scale(1);}
 .os-modal-frame .os-detail-panel{box-shadow:none;}
 body.os-modal-lock{overflow:hidden;}
@@ -1056,6 +1060,7 @@ function renderOsDetailPanel(r, funcoes){
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
   const provTotal = r.prov_total_hh || 0;
   const pendTotal = r.pend_total_hh || 0;
+  const hhTotalRealizado = hhRealizadoBase + pendTotal + provTotal;
 
   const saldoFinal = computeSaldoFinal(r, funcoes);
   const sfClass = saldoFinal >= 0 ? 'good' : 'critical';
@@ -1079,16 +1084,18 @@ function renderOsDetailPanel(r, funcoes){
     const sf = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
     const sfCls = sf >= 0 ? 'good' : 'critical';
     const sfSgn = sf > 0 ? '+' : '';
+    const fTotalRealizado = (f.realizado||0) + (f.pend_hh||0) + (f.prov_hh||0);
     return `<tr>
       <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
       <td class="num-col">${fmtH(f.consolidado)}</td>
       <td class="num-col">${fmtH(f.realizado)}</td>
+      <td class="num-col">${fmtH(f.saldo)}</td>
       <td class="num-col">${fmtH(f.pend_hh)}</td>
       <td class="num-col">${fmtH(f.prov_hh)}</td>
-      <td class="num-col">${fmtH(f.saldo)}</td>
+      <td class="num-col">${fmtH(fTotalRealizado)}</td>
       <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(sf)}</span></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="7" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
@@ -1112,10 +1119,11 @@ function renderOsDetailPanel(r, funcoes){
             </div>
             <div class="odk-split-sep"></div>
             <div class="odk-split-col">
-              <span class="odk-label">Saldo (HH)</span>
+              <span class="odk-label">HH Saldo</span>
               <span class="odk-value">${fmtH(saldoHh)}</span>
             </div>
           </div>
+          <div class="odk-block-legend">Sistema SGE</div>
         </div>
         <div class="odk odk-split-2">
           <div class="odk-split-row">
@@ -1129,15 +1137,17 @@ function renderOsDetailPanel(r, funcoes){
               <span class="odk-value">${fmtH(provTotal)}</span>
             </div>
           </div>
+          <div class="odk-block-legend">Projeção</div>
         </div>
-        <div class="odk odk-dif ${sfClass}"><span class="odk-label">Saldo Final</span><span class="odk-value">${sfSign}${fmtH(saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
-        <div class="odk odk-dif ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value">${sfRsSign}${fmtRs(saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
+        <div class="odk"><span class="odk-label">HH Total Realizado</span><span class="odk-value">${fmtH(hhTotalRealizado)}</span><span class="odk-sub">HH Realizado + HH Pendência + Aprop. + Mob.</span></div>
+        <div class="odk odk-dif odk-wide ${sfClass}"><span class="odk-label">HH Saldo Final</span><span class="odk-value odk-value-lg odk-blink">${sfSign}${fmtH(saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
+        <div class="odk odk-dif odk-wide ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value odk-value-lg odk-blink">${sfRsSign}${fmtRs(saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
       </div>
     </div>
     <div class="os-detail-body">
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
-          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">Realizado (HH)</th><th class="num-col">Pendências (HH)</th><th class="num-col">Aprop. + Mob. (HH)</th><th class="num-col">Saldo (HH)</th><th class="num-col">Saldo Final (HH)</th></tr></thead>
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">HH Realizado</th><th class="num-col">HH Saldo</th><th class="num-col">HH Pendência</th><th class="num-col">Aprop. + Mob. (HH)</th><th class="num-col">HH Total Realizado</th><th class="num-col">HH Saldo Final</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
