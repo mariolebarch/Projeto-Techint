@@ -261,7 +261,13 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-item .lbl{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .msel-empty{padding:10px 6px; font-size:12.5px; color:var(--text-muted);}
 
-.table-scroll{overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
+.table-scroll{position:relative; overflow-x:auto; border-radius:8px; border:1px solid var(--border-soft);}
+/* Dica visual de que a tabela rola na horizontal (essencial no celular, onde
+   colunas extras ficam fora da tela sem nenhum indício de que dá pra
+   arrastar) — um degradê no canto direito que funde com o fundo do card,
+   só visível enquanto sobrar conteúdo pra rolar (classes via JS abaixo). */
+.table-scroll::after{content:""; position:absolute; top:0; right:0; bottom:0; width:22px; background:linear-gradient(to right, transparent, var(--paper)); pointer-events:none; opacity:0; transition:opacity .15s ease;}
+.table-scroll.has-hscroll:not(.scrolled-end)::after{opacity:1;}
 table{border-collapse:collapse; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; z-index:3; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
@@ -3249,6 +3255,26 @@ setTimeout(()=>{
   if(loader) loader.classList.add('hide');
 }, 350);
 sbInit();
+
+/* Liga/desliga o degradê de "essa tabela rola" (.has-hscroll/.scrolled-end,
+   ver CSS de .table-scroll) em toda tabela que existir na página, inclusive
+   as recriadas dinamicamente pelos filtros — reavaliado a cada redesenho via
+   MutationObserver, sem precisar tocar em cada função de render. */
+function updateTableScrollHints(){
+  document.querySelectorAll('.table-scroll').forEach(el=>{
+    el.classList.toggle('has-hscroll', el.scrollWidth > el.clientWidth + 1);
+    el.classList.toggle('scrolled-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+  });
+}
+let _tsRaf = null;
+function scheduleTableScrollHints(){
+  if(_tsRaf) return;
+  _tsRaf = requestAnimationFrame(()=>{ _tsRaf = null; updateTableScrollHints(); });
+}
+window.addEventListener('resize', scheduleTableScrollHints);
+document.addEventListener('scroll', scheduleTableScrollHints, true);
+new MutationObserver(scheduleTableScrollHints).observe(document.body, {childList:true, subtree:true});
+scheduleTableScrollHints();
 
 })();
 </script>
