@@ -156,6 +156,7 @@ button.settings-item:hover{background:var(--sand);}
 .switch input:focus-visible + .switch-slider{outline:2px solid var(--steel); outline-offset:2px;}
 .settings-status{margin:6px 6px 2px; font-size:11.5px; padding:8px 9px; border-radius:7px; background:var(--sand); color:var(--text-secondary);}
 .settings-status.ok{background:var(--good-soft); color:var(--good);}
+.settings-status.warn{background:var(--warning-soft); color:var(--warning); font-weight:600;}
 .settings-status.error{background:var(--critical-soft); color:var(--critical);}
 
 .sb-block{padding:9px 10px; display:flex; flex-direction:column; gap:6px;}
@@ -2889,7 +2890,8 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
         statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
       }
     } else if(sb){
-      statusEl.textContent += ' (salvo neste navegador — sobrevive a um F5 nesta aba, mas só você vê. Faça login no Supabase abaixo para publicar para todos.)';
+      statusEl.className = 'settings-status warn';
+      statusEl.textContent = '⚠️ Dados atualizados, mas NÃO publicados — só este navegador está vendo essa base agora (' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros). Para todo mundo ver (inclusive celular e outros computadores), faça login no Supabase abaixo ("Entrar para publicar dados") e importe a planilha de novo.';
     }
     e.target.value = '';
   };
