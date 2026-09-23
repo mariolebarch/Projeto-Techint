@@ -1471,15 +1471,23 @@ function exportSuplementacaoSelected(){
   const groups = suplementacaoMergedGroups();
   const items = [];
   groups.forEach(g=>g.items.forEach(it=>{
-    if(state.supl.selected.has(it.key)) items.push({os_label:g.os_label, item:it.item, hh:it.hh, rs:it.rs, motivo:it.motivo});
+    if(state.supl.selected.has(it.key)) items.push({os:g.os, os_label:g.os_label, item:it.item, hh:it.hh, rs:it.rs, motivo:it.motivo});
   }));
   if(!items.length) return;
   items.sort((a,b)=> (a.os_label||'').localeCompare(b.os_label||'') || (b.hh||0)-(a.hh||0));
-  const aoa = [['Numero da OS','Item','HH (h)','Valor R$','Motivo']];
+  const byOs = new Map();
   items.forEach(it=>{
-    aoa.push([it.os_label, it.item||'', it.hh, it.rs, it.motivo||'']);
+    if(!byOs.has(it.os)) byOs.set(it.os, {os:it.os, os_label:it.os_label, hh:0, rs:0, items:[]});
+    const g = byOs.get(it.os); g.hh += it.hh||0; g.rs += it.rs||0; g.items.push(it);
   });
-  downloadWorkbook([{ name: 'Suplementação Pendência', aoa }], 'SuplementacaoPendencia');
+  const aoa = [['Numero da OS','Item','HH (h)','Valor R$','Motivo']];
+  const highlightRows = [];
+  Array.from(byOs.values()).forEach(g=>{
+    aoa.push([g.os_label, String(g.os), g.hh, g.rs, '']);
+    highlightRows.push(aoa.length - 1);
+    g.items.forEach(it=> aoa.push([it.os_label, it.item||'', it.hh, it.rs, it.motivo||'']));
+  });
+  downloadWorkbook([{ name: 'Suplementação Pendência', aoa, highlightRows }], 'SuplementacaoPendencia');
 }
 document.getElementById('supl-search').addEventListener('input', e=>{
   state.supl.search = e.target.value;
@@ -1856,6 +1864,7 @@ function xlsxColLetter(n){
 function xlsxCellRef(r, c){ return xlsxColLetter(c) + (r + 1); }
 const XLSX_HEADER_FILL = '6FA834';  // verde Techint (var(--table-accent)) — igual ao cabeçalho das tabelas do painel
 const XLSX_BAND_FILL = 'E5E0DA';    // tom areia (var(--sand)) — faixa zebrada
+const XLSX_TOTAL_FILL = 'E6EDF4';   // azul claro (var(--navy-100)) — igual à linha de total por OS na tela
 const XLSX_BORDER_COLOR = 'C6C2BE'; // var(--border)
 function xlsxColFmt(headerText){
   const h = String(headerText || '');
@@ -1873,18 +1882,19 @@ function xlsxBuildStylesXml(){
     <font><b/><sz val="10.5"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
     <font><b/><sz val="10.5"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="4">
+  <fills count="5">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF${XLSX_HEADER_FILL}"/><bgColor indexed="64"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF${XLSX_BAND_FILL}"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF${XLSX_TOTAL_FILL}"/><bgColor indexed="64"/></patternFill></fill>
   </fills>
   <borders count="2">
     <border><left/><right/><top/><bottom/><diagonal/></border>
     <border><left style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></left><right style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></right><top style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></top><bottom style="thin"><color rgb="FF${XLSX_BORDER_COLOR}"/></bottom><diagonal/></border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="8">
+  <cellXfs count="11">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
@@ -1893,23 +1903,29 @@ function xlsxBuildStylesXml(){
     <xf numFmtId="164" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
     <xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
     <xf numFmtId="165" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="2" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="165" fontId="2" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
 }
 // Índices de estilo: 0 padrão, 1 cabeçalho, 2 texto, 3 texto-faixa,
-// 4 decimal, 5 decimal-faixa, 6 inteiro, 7 inteiro-faixa
-function xlsxStyleIdFor(rowIdx, colFmt, isText){
+// 4 decimal, 5 decimal-faixa, 6 inteiro, 7 inteiro-faixa,
+// 8 texto-total, 9 decimal-total, 10 inteiro-total (linha de total por OS, destacada)
+function xlsxStyleIdFor(rowIdx, colFmt, isText, highlight){
+  if (highlight) return isText ? 8 : (colFmt === 'dec' ? 9 : 10);
   const band = rowIdx % 2 === 0;
   if (isText) return band ? 3 : 2;
   if (colFmt === 'dec') return band ? 5 : 4;
   return band ? 7 : 6;
 }
-function xlsxBuildSheetXml(aoa){
+function xlsxBuildSheetXml(aoa, highlightRows){
   const nRows = aoa.length;
   const nCols = nRows ? Math.max(...aoa.map(r => r.length)) : 0;
   const header = aoa[0] || [];
   const colFmts = header.map(h => xlsxColFmt(h));
+  const highlightSet = highlightRows ? new Set(highlightRows) : null;
 
   const widths = [];
   for (let c = 0; c < nCols; c++) {
@@ -1932,7 +1948,7 @@ function xlsxBuildSheetXml(aoa){
       const ref = xlsxCellRef(r, c);
       let sIdx;
       if (r === 0) sIdx = 1;
-      else sIdx = xlsxStyleIdFor(r - 1, colFmts[c], typeof v !== 'number');
+      else sIdx = xlsxStyleIdFor(r - 1, colFmts[c], typeof v !== 'number', highlightSet && highlightSet.has(r));
       if (typeof v === 'number' && isFinite(v)) {
         cellsXml += `<c r="${ref}" s="${sIdx}"><v>${v}</v></c>`;
       } else {
@@ -2004,7 +2020,7 @@ function buildTechintXlsxBytes(sheets){
   files.push({ name: 'xl/_rels/workbook.xml.rels', data: enc.encode(xlsxBuildWorkbookRelsXml(sheets.length)) });
   files.push({ name: 'xl/styles.xml', data: enc.encode(xlsxBuildStylesXml()) });
   sheets.forEach((s, i) => {
-    files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(xlsxBuildSheetXml(s.aoa)) });
+    files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(xlsxBuildSheetXml(s.aoa, s.highlightRows)) });
   });
   return xlsxBuildZip(files);
 }
@@ -2017,7 +2033,7 @@ function downloadXlsxBytes(bytes, filename){
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
 function downloadWorkbook(sheets, filenamePrefix){
-  const bytes = buildTechintXlsxBytes(sheets.map(s=>({name:s.name.slice(0,31), aoa:s.aoa})));
+  const bytes = buildTechintXlsxBytes(sheets.map(s=>({name:s.name.slice(0,31), aoa:s.aoa, highlightRows:s.highlightRows})));
   const ts = new Date();
   const pad = n=>String(n).padStart(2,'0');
   const stamp = ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate())+'_'+pad(ts.getHours())+'h'+pad(ts.getMinutes());
