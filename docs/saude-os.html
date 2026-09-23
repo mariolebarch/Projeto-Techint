@@ -392,10 +392,12 @@ tr.supl-row.selected td{background:var(--steel-soft);}
 #supl-table input[type="checkbox"], #supl-select-all{accent-color:var(--steel); width:15px; height:15px; cursor:pointer;}
 /* Filtros da aba Suplementação Pendência no tema Techint (azul-escuro),
    padronizados com o restante do painel. */
-#supl-search, #supl-motivo-filter{background:var(--navy); border:1px solid var(--navy); color:#fff;}
+#supl-search{background:var(--navy); border:1px solid var(--navy); color:#fff;}
 #supl-search::placeholder{color:rgba(255,255,255,.6);}
-#supl-search:focus, #supl-motivo-filter:focus{border-color:var(--navy-700); outline:none;}
-#supl-motivo-filter{appearance:none; -webkit-appearance:none; -moz-appearance:none; padding-right:28px; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='white'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; max-width:240px;}
+#supl-search:focus{border-color:var(--navy-700); outline:none;}
+#supl-motivo-msel .msel-btn{background:var(--navy); border-color:var(--navy); color:#fff; min-width:190px;}
+#supl-motivo-msel .msel-btn::after{color:#fff;}
+#supl-motivo-msel .msel-btn:hover, #supl-motivo-msel.open .msel-btn{border-color:var(--navy-700);}
 .icon-btn{position:relative; width:36px; height:36px; border-radius:50%; border:1px solid var(--steel); background:var(--steel); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:filter .15s, opacity .15s;}
 .icon-btn svg{width:16px; height:16px; flex:none;}
 .icon-btn:not(:disabled):hover{filter:brightness(1.1);}
@@ -756,10 +758,9 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h3>Suplementação Pendência</h3>
         <div class="filters">
           <div class="field"><label>Buscar</label><input class="search-input" id="supl-search" placeholder="OS, item ou motivo&hellip;"></div>
-          <div class="field"><label>Motivo</label><select id="supl-motivo-filter"><option value="all">Todos os motivos</option></select></div>
+          <div class="field"><label>Motivo</label><div class="msel" id="supl-motivo-msel"></div></div>
           <div class="field"><label>&nbsp;</label><button class="icon-btn" id="supl-export-btn" type="button" disabled title="Exportar selecionadas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span class="icon-btn-badge" id="supl-export-count" hidden>0</span></button></div>
         </div>
-        <span class="card-note">Detalhamento por OS da aba "3 - PENDÊNCIAS" &mdash; motivo de cada HH pendente (coluna T)</span>
       </div>
       <div class="table-scroll" id="supl-wrap" style="max-height:640px; overflow-y:auto;">
         <table id="supl-table">
@@ -851,7 +852,7 @@ const state = {
   contrato: 'all',
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
-  supl: {search:'', motivo:'all', selected: new Set()},
+  supl: {search:'', motivos: new Set(), selected: new Set()},
 };
 
 function passCommon(r){
@@ -1289,8 +1290,8 @@ function renderDetalheTable(){
 function suplementacaoRows(){
   const allowedOs = new Set(filteredOS().map(r=>r.os));
   let rows = (DATA.pendencias_detalhe || []).filter(r => r.os!=null && allowedOs.has(r.os));
-  if(state.supl.motivo && state.supl.motivo!=='all'){
-    rows = rows.filter(r => (r.motivo||'') === state.supl.motivo);
+  if(state.supl.motivos.size>0){
+    rows = rows.filter(r => state.supl.motivos.has(r.motivo||''));
   }
   const q = (state.supl.search||'').trim().toLowerCase();
   if(q){
@@ -1301,19 +1302,82 @@ function suplementacaoRows(){
   }
   return rows;
 }
-function populateSuplMotivoFilter(){
-  const sel = document.getElementById('supl-motivo-filter');
-  if(!sel) return;
+function suplementacaoAvailableMotivos(){
   const allowedOs = new Set(filteredOS().map(r=>r.os));
-  const motivos = Array.from(new Set(
+  return Array.from(new Set(
     (DATA.pendencias_detalhe||[])
       .filter(r=>r.os!=null && allowedOs.has(r.os) && r.motivo)
       .map(r=>r.motivo)
   )).sort((a,b)=>a.localeCompare(b));
-  if(state.supl.motivo!=='all' && !motivos.includes(state.supl.motivo)) state.supl.motivo = 'all';
-  sel.innerHTML = '<option value="all">Todos os motivos</option>' +
-    motivos.map(m=>`<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
-  sel.value = state.supl.motivo;
+}
+/* Multi-select de Motivo (mesmo componente .msel usado em Situação),
+   permitindo filtrar por mais de um motivo ao mesmo tempo. */
+function buildSuplMotivoMultiSelect(){
+  const container = document.getElementById('supl-motivo-msel');
+  if(!container) return;
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  container.appendChild(panel);
+
+  const keys = suplementacaoAvailableMotivos();
+  Array.from(state.supl.motivos).forEach(m => { if(!keys.includes(m)) state.supl.motivos.delete(m); });
+
+  function updateBtnLabel(){
+    if(state.supl.motivos.size===0) btn.textContent = 'Todos os motivos';
+    else if(state.supl.motivos.size<=2) btn.textContent = Array.from(state.supl.motivos).join(', ');
+    else btn.textContent = state.supl.motivos.size + ' motivos selecionados';
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Selecionar todos</button><button type="button" data-act="none">Limpar</button>`;
+  panel.appendChild(actions);
+
+  if(keys.length===0){
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'msel-empty';
+    emptyEl.textContent = 'Nenhum motivo para os filtros atuais.';
+    panel.appendChild(emptyEl);
+  }
+  keys.forEach(key=>{
+    const row = document.createElement('label'); row.className='msel-item';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = state.supl.motivos.has(key);
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) state.supl.motivos.add(key); else state.supl.motivos.delete(key);
+      updateBtnLabel();
+      renderSuplementacaoTable();
+    });
+    const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = key;
+    row.appendChild(cb); row.appendChild(lbl);
+    panel.appendChild(row);
+  });
+
+  updateBtnLabel();
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    keys.forEach(k=>state.supl.motivos.add(k));
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    updateBtnLabel(); renderSuplementacaoTable();
+  });
+  actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
+    state.supl.motivos.clear();
+    panel.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    updateBtnLabel(); renderSuplementacaoTable();
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
 }
 /* Linhas por OS x Item, somando HH e Valor R$ de todas as ocorrências
    daquele mesmo item na OS — a pedido do usuário, pra não repetir o
@@ -1354,7 +1418,7 @@ function renderSuplementacaoTable(){
   const tbody = document.getElementById('supl-tbody');
   const empty = document.getElementById('supl-empty');
   const selectAllEl = document.getElementById('supl-select-all');
-  populateSuplMotivoFilter();
+  buildSuplMotivoMultiSelect();
   const groups = suplementacaoMergedGroups();
 
   // Uma seleção só continua válida enquanto o item ainda está visível nos
@@ -1411,7 +1475,7 @@ function exportSuplementacaoSelected(){
   }));
   if(!items.length) return;
   items.sort((a,b)=> (a.os_label||'').localeCompare(b.os_label||'') || (b.hh||0)-(a.hh||0));
-  const aoa = [['Numero da OS','Item','HH','Valor R$','Motivo']];
+  const aoa = [['Numero da OS','Item','HH (h)','Valor R$','Motivo']];
   items.forEach(it=>{
     aoa.push([it.os_label, it.item||'', it.hh, it.rs, it.motivo||'']);
   });
@@ -1419,10 +1483,6 @@ function exportSuplementacaoSelected(){
 }
 document.getElementById('supl-search').addEventListener('input', e=>{
   state.supl.search = e.target.value;
-  renderSuplementacaoTable();
-});
-document.getElementById('supl-motivo-filter').addEventListener('change', e=>{
-  state.supl.motivo = e.target.value;
   renderSuplementacaoTable();
 });
 document.getElementById('supl-select-all').addEventListener('change', e=>{
