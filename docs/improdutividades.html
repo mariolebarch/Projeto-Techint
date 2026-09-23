@@ -1351,7 +1351,7 @@ function openInterfDetailModal(tipoLabel, kind){
   let emptyMsg = '';
   if(!entries.length){
     if(!(DATA.interferencias_raw||[]).length){
-      emptyMsg = 'A base carregada ainda não tem os dados linha a linha (interferencias_raw) — reimporte a planilha em Configurações → Atualizar dados para habilitar este detalhamento.';
+      emptyMsg = 'A base publicada no Supabase é de uma versão anterior do painel e ainda não tem os dados linha a linha (interferencias_raw) necessários para este detalhamento. Não é algo deste dispositivo: alguém precisa reabrir o painel em um computador com a planilha, ir em Configurações → Atualizar dados, importar de novo e publicar (logado no Supabase) — feito isso, o detalhamento passa a aparecer em todos os dispositivos.';
     } else if(!rows.length){
       emptyMsg = `Nenhuma ocorrência de "${tipoLabel}" encontrada na base atual para os filtros de data/OS/supervisor selecionados.`;
     } else {
