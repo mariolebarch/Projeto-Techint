@@ -1292,12 +1292,19 @@ function renderVisaoTiposChart(){
 
 /* ---------- Detalhamento por tipo (clique em "A Disposição" / "Retrabalho
    Usiminas" no gráfico "Interferências Registradas") ---------- */
+// Casa o tipo do clique de forma robusta a maiúsculas/minúsculas e acentos
+// — a grafia exata na planilha real (ex.: "A disposição" vs "A Disposição")
+// pode variar, e uma comparação exata estava fazendo o quadro de "A
+// Disposição" nunca abrir.
+function foldLabel(s){
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase();
+}
 const INTERF_DETAIL_TYPES = {
-  'A Disposição': 'resumo',
-  'Retrabalho Usiminas': 'rnc',
+  [foldLabel('A Disposição')]: 'resumo',
+  [foldLabel('Retrabalho Usiminas')]: 'rnc',
 };
 function handleTipoBarClick(entry, checkOnly){
-  const kind = INTERF_DETAIL_TYPES[entry.k];
+  const kind = INTERF_DETAIL_TYPES[foldLabel(entry.k)];
   if(!kind) return false;
   if(!checkOnly) openInterfDetailModal(entry.k, kind);
   return true;
@@ -1316,16 +1323,28 @@ function ovTiposDisplayRowsRaw(){
   return filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
 }
 function openInterfDetailModal(tipoLabel, kind){
-  const rows = ovTiposDisplayRowsRaw().filter(r => normalizeTipoLabel(r.it) === tipoLabel);
-  // RESUMO (definição): mostra toda ocorrência, com ou sem definição —
-  // omitir esconderia HH real da OS. Nº RNC: só ocorrências com número
-  // definido entram na lista, a pedido do usuário.
-  const entries = kind==='rnc'
-    ? rows.filter(r => r.rnc).map(r => ({def: 'RNC '+r.rnc, muted:false, hh: r.real, d: r.d, os: r.os}))
-    : rows.map(r => ({def: r.resumo || 'Sem definição registrada', muted: !r.resumo, hh: r.real, d: r.d, os: r.os}));
-  entries.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
+  const targetFold = foldLabel(tipoLabel);
+  const rows = ovTiposDisplayRowsRaw().filter(r => foldLabel(normalizeTipoLabel(r.it)) === targetFold);
+  // RESUMO (definição): agrupa por texto — mesma definição em ocorrências
+  // diferentes vira um total só, "sem definição" vira um grupo próprio.
+  // Nº RNC: só ocorrências com número definido entram, agrupadas por
+  // número de RNC (o valor da célula já vem como "RNC 34" etc. — usado
+  // como está, sem prefixo extra, pra não duplicar "RNC").
+  const grouped = new Map();
+  const source = kind==='rnc' ? rows.filter(r => r.rnc) : rows;
+  source.forEach(r => {
+    const key = kind==='rnc' ? r.rnc.trim() : (r.resumo ? r.resumo.trim() : '\u0000sem-definicao');
+    if(!grouped.has(key)){
+      const label = kind==='rnc' ? r.rnc.trim() : (r.resumo ? r.resumo.trim() : 'Sem definição registrada');
+      grouped.set(key, {def: label, muted: kind!=='rnc' && !r.resumo, hh: 0, count: 0});
+    }
+    const g = grouped.get(key);
+    g.hh += r.real;
+    g.count += 1;
+  });
+  const entries = Array.from(grouped.values()).sort((a,b)=> b.hh - a.hh);
   const total = entries.reduce((a,e)=>a+e.hh, 0);
-  const subtitle = kind==='rnc' ? 'Nº RNC por ocorrência (aba Export_BI, col. W)' : 'Definição por ocorrência (aba Export_BI, col. X — RESUMO)';
+  const subtitle = kind==='rnc' ? 'Total de HH por Nº RNC (aba Export_BI, col. W)' : 'Total de HH por definição (aba Export_BI, col. X — RESUMO)';
   // Diagnóstico: distingue "não achei nenhuma linha desse tipo" (base sem
   // interferencias_raw — precisa reimportar a planilha) de "achei linhas,
   // mas nenhuma com RNC preenchido" (base ok, só falta preencher na
@@ -1344,7 +1363,7 @@ function openInterfDetailModal(tipoLabel, kind){
   const rowsHtml = entries.length ? entries.map(e => `<div class="interf-modal-row">
       <div class="txt">
         <div class="def${e.muted?' muted':''}">${escHtml(e.def)}</div>
-        <div class="meta">${e.d ? fmtDateLabel(e.d) : '—'} &middot; OS ${escHtml(e.os||'—')}</div>
+        <div class="meta">${e.count} ocorrência${e.count===1?'':'s'}</div>
       </div>
       <div class="hh">${fmtH(e.hh)}h</div>
     </div>`).join('') : `<div class="empty-state">${escHtml(emptyMsg)}</div>`;
@@ -1356,7 +1375,7 @@ function openInterfDetailModal(tipoLabel, kind){
       <div class="interf-modal-title">${escHtml(tipoLabel)}</div>
       <div class="interf-modal-sub">${subtitle}</div>
     </div>
-    <div class="interf-modal-total"><span class="n">${fmtH(total)}h</span><span class="l">Total &middot; ${entries.length} ocorrência${entries.length===1?'':'s'}</span></div>
+    <div class="interf-modal-total"><span class="n">${fmtH(total)}h</span><span class="l">Total &middot; ${entries.length} ${kind==='rnc'?(entries.length===1?'RNC distinto':'RNCs distintos'):(entries.length===1?'definição distinta':'definições distintas')}</span></div>
     <div class="interf-modal-body">${rowsHtml}</div>
   `;
   document.getElementById('interf-modal-overlay').classList.add('open');
