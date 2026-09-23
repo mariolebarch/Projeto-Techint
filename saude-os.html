@@ -388,6 +388,8 @@ tr.os-row{cursor:pointer;}
 tr.os-row td:first-child{position:relative;}
 tr.os-row.expanded td{background:var(--steel-soft);}
 tr.os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+tr.supl-row.selected td{background:var(--steel-soft);}
+#supl-table input[type="checkbox"], #supl-select-all{accent-color:var(--steel); width:15px; height:15px; cursor:pointer;}
 tr.detail-row td{background:var(--sand); border-top:none;}
 tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
@@ -687,6 +689,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   <nav class="tabbar" id="tabbar">
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
     <button class="tabbtn" data-tab="detalhe" aria-selected="false">Detalhamento por OS</button>
+    <button class="tabbtn" data-tab="suplementacao" aria-selected="false">Suplementação Pendência</button>
   </nav>
 
 
@@ -731,6 +734,30 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         </table>
       </div>
       <div class="empty-state" id="detalhe-empty" style="display:none;">Nenhuma OS para os filtros atuais.</div>
+    </div>
+  </section>
+
+  <!-- ================= SUPLEMENTAÇÃO PENDÊNCIA ================= -->
+  <section class="view" id="view-suplementacao">
+    <div class="card">
+      <div class="card-head">
+        <h3>Suplementação Pendência</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar</label><input class="search-input" id="supl-search" placeholder="OS, item ou motivo&hellip;"></div>
+          <div class="field"><label>&nbsp;</label><button class="small-btn" id="supl-export-btn" type="button" disabled>Exportar selecionadas (<span id="supl-export-count">0</span>)</button></div>
+        </div>
+        <span class="card-note">Detalhamento por OS da aba "3 - PENDÊNCIAS" &mdash; motivo de cada HH pendente (coluna T)</span>
+      </div>
+      <div class="table-scroll" id="supl-wrap" style="max-height:640px; overflow-y:auto;">
+        <table id="supl-table">
+          <thead><tr>
+            <th style="width:34px;"><input type="checkbox" id="supl-select-all"></th>
+            <th>Item</th><th>Motivo</th><th class="num-col">HH</th><th class="num-col">Valor R$</th>
+          </tr></thead>
+          <tbody id="supl-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="supl-empty" style="display:none;">Nenhuma pendência para os filtros atuais.</div>
     </div>
   </section>
 
@@ -811,6 +838,7 @@ const state = {
   contrato: 'all',
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
+  supl: {search:'', selected: new Set()},
 };
 
 function passCommon(r){
@@ -1241,6 +1269,125 @@ function renderDetalheTable(){
   }).join('');
 }
 
+/* ---------- Suplementação Pendência ---------- */
+/* Linhas da aba "3 - PENDÊNCIAS" (uma por ocorrência, sem agregação),
+   restritas às OS's que passam pelos filtros globais (Contrato/Situação/
+   busca de OS) e pela busca local desta aba. */
+function suplementacaoRows(){
+  const allowedOs = new Set(filteredOS().map(r=>r.os));
+  let rows = (DATA.pendencias_detalhe || []).filter(r => r.os!=null && allowedOs.has(r.os));
+  const q = (state.supl.search||'').trim().toLowerCase();
+  if(q){
+    rows = rows.filter(r =>
+      (r.os_label||'').toLowerCase().includes(q) ||
+      (r.item||'').toLowerCase().includes(q) ||
+      (r.motivo||'').toLowerCase().includes(q));
+  }
+  return rows;
+}
+function updateSuplementacaoExportButton(){
+  const btn = document.getElementById('supl-export-btn');
+  const countEl = document.getElementById('supl-export-count');
+  const n = state.supl.selected.size;
+  countEl.textContent = n;
+  btn.disabled = n===0;
+}
+function renderSuplementacaoTable(){
+  const tbody = document.getElementById('supl-tbody');
+  const empty = document.getElementById('supl-empty');
+  const selectAllEl = document.getElementById('supl-select-all');
+  const rows = suplementacaoRows();
+  // Uma seleção só continua válida enquanto a linha ainda está visível nos
+  // filtros atuais — evita "exportar selecionadas" incluir algo que já
+  // saiu de vista sem o usuário perceber.
+  const visibleIds = new Set(rows.map(r=>r.id));
+  Array.from(state.supl.selected).forEach(id => { if(!visibleIds.has(id)) state.supl.selected.delete(id); });
+
+  if(rows.length===0){
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    selectAllEl.checked = false;
+    selectAllEl.indeterminate = false;
+    updateSuplementacaoExportButton();
+    return;
+  }
+  empty.style.display = 'none';
+
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {os: r.os, os_label: r.os_label, items: [], hh: 0, rs: 0});
+    const g = byOs.get(r.os);
+    g.items.push(r);
+    g.hh += r.hh||0;
+    g.rs += r.valor_rs||0;
+  });
+  const groups = Array.from(byOs.values()).sort((a,b)=> b.hh - a.hh);
+
+  let html = '';
+  groups.forEach(g=>{
+    g.items.sort((a,b)=> (b.hh||0)-(a.hh||0));
+    const osInfo = (DATA.os_list||[]).find(o=>o.os===g.os);
+    const allChecked = g.items.every(it=>state.supl.selected.has(it.id));
+    html += `<tr class="detail-group-header">
+      <td><input type="checkbox" class="supl-select-os" data-os="${g.os}" ${allChecked?'checked':''}></td>
+      <td colspan="2"><span class="mono-tag">${escHtml(g.os_label)}</span> ${escHtml(osInfo && osInfo.pep || '')}</td>
+      <td class="num-col">${fmtH(g.hh)}</td>
+      <td class="num-col">${fmtRs(g.rs)}</td>
+    </tr>`;
+    g.items.forEach(it=>{
+      const checked = state.supl.selected.has(it.id);
+      html += `<tr class="supl-row${checked?' selected':''}" data-id="${escHtml(it.id)}">
+        <td><input type="checkbox" class="supl-select-row" data-id="${escHtml(it.id)}" ${checked?'checked':''}></td>
+        <td>${escHtml(it.item||'—')}</td>
+        <td>${escHtml(it.motivo||'—')}</td>
+        <td class="num-col">${fmtH(it.hh)}</td>
+        <td class="num-col">${fmtRs(it.valor_rs)}</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = html;
+
+  const allVisibleChecked = rows.every(r=>state.supl.selected.has(r.id));
+  const noneChecked = state.supl.selected.size===0;
+  selectAllEl.checked = allVisibleChecked;
+  selectAllEl.indeterminate = !allVisibleChecked && !noneChecked;
+  updateSuplementacaoExportButton();
+}
+function exportSuplementacaoSelected(){
+  const rows = (DATA.pendencias_detalhe || []).filter(r => state.supl.selected.has(r.id));
+  if(!rows.length) return;
+  rows.sort((a,b)=> (a.os_label||'').localeCompare(b.os_label||'') || (b.hh||0)-(a.hh||0));
+  const aoa = [['Numero da OS','Item','HH','Valor R$']];
+  rows.forEach(r=>{
+    aoa.push([r.os_label, r.item||'', r.hh, r.valor_rs]);
+  });
+  downloadWorkbook([{ name: 'Suplementação Pendência', aoa }], 'SuplementacaoPendencia');
+}
+document.getElementById('supl-search').addEventListener('input', e=>{
+  state.supl.search = e.target.value;
+  renderSuplementacaoTable();
+});
+document.getElementById('supl-select-all').addEventListener('change', e=>{
+  const rows = suplementacaoRows();
+  if(e.target.checked) rows.forEach(r=>state.supl.selected.add(r.id));
+  else rows.forEach(r=>state.supl.selected.delete(r.id));
+  renderSuplementacaoTable();
+});
+document.getElementById('supl-tbody').addEventListener('change', e=>{
+  if(e.target.classList.contains('supl-select-row')){
+    const id = e.target.dataset.id;
+    if(e.target.checked) state.supl.selected.add(id); else state.supl.selected.delete(id);
+    renderSuplementacaoTable();
+  } else if(e.target.classList.contains('supl-select-os')){
+    const os = Number(e.target.dataset.os);
+    const rows = suplementacaoRows().filter(r=>r.os===os);
+    if(e.target.checked) rows.forEach(r=>state.supl.selected.add(r.id));
+    else rows.forEach(r=>state.supl.selected.delete(r.id));
+    renderSuplementacaoTable();
+  }
+});
+document.getElementById('supl-export-btn').addEventListener('click', exportSuplementacaoSelected);
+
 /* ---------- Modal de detalhamento da OS ---------- */
 function openOsModal(os){
   const r = (DATA.os_list || []).find(row => row.os === os);
@@ -1417,6 +1564,7 @@ function renderAll(){
   renderRiscoBars();
   renderDetalheControls();
   renderDetalheTable();
+  renderSuplementacaoTable();
   renderAlerts();
 }
 
@@ -1984,8 +2132,42 @@ function parseWorkbookToBundleSaudeOs(wb){
     return matches[0];
   }
   // Função=col G, HH=col I, OS=col J
-  const pendScan = scanFixedCols(findSheetName('pendenc'), 10, 7, 9);
+  const pendSheetName = findSheetName('pendenc');
+  const pendScan = scanFixedCols(pendSheetName, 10, 7, 9);
   const pendenciasPorFunc = pendScan.byFunc;
+
+  // Detalhamento linha a linha da aba "3 - PENDÊNCIAS" para a aba
+  // "Suplementação Pendência": cada linha pendente com seu motivo (coluna
+  // T) e valor (coluna Q), sem agregação — para o usuário resolver
+  // pendência por pendência. Colunas informadas pelo usuário: OS=J,
+  // Código=F, Função=G (Item = "Código - Função"), HH=I, Valor R$=Q,
+  // Motivo=T.
+  const pendenciasDetalhe = [];
+  if(pendSheetName){
+    let wsPend;
+    try{ wsPend = sheet(pendSheetName); }catch(e){ wsPend = null; }
+    if(wsPend){
+      const maxRPend = maxRow(wsPend);
+      for(let r=1; r<=maxRPend; r++){
+        const osVal = osNumImport(cellVal(wsPend,r,10));
+        if(osVal==null) continue;
+        const hhVal = numImport(cellVal(wsPend,r,9));
+        if(!hhVal) continue;
+        const codigo = cleanStrImport(cellVal(wsPend,r,6));
+        const funcaoR = cleanStrImport(cellVal(wsPend,r,7));
+        const item = [codigo, funcaoR].filter(Boolean).join(' - ');
+        pendenciasDetalhe.push({
+          id: 'p' + pendenciasDetalhe.length,
+          os: osVal,
+          os_label: osLabelForImport(osVal, null),
+          item,
+          hh: hhVal,
+          valor_rs: numImport(cellVal(wsPend,r,17)),
+          motivo: cleanStrImport(cellVal(wsPend,r,20)),
+        });
+      }
+    }
+  }
 
   // Totais por OS (não filtrados por função) — usados nos cartões do
   // Resumo da OS e no Saldo Final, para nunca perder HH pendente/em
@@ -2020,6 +2202,7 @@ function parseWorkbookToBundleSaudeOs(wb){
     meta: {empresa: 'TECHINT ENGENHARIA E CONSTRUCAO SA'},
     periodos, os_list: osList, totais, contratos, contrato_labels: contratoLabels,
     lideres, fiscais, situacoes, funcoes_por_os: funcoesPorOs,
+    pendencias_detalhe: pendenciasDetalhe,
   };
 }
 

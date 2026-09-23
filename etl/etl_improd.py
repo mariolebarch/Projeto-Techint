@@ -128,7 +128,10 @@ for r in range(2, max_row+1):
     hora_fim = to_hm(ws.cell(row=r, column=15).value)
     dur = to_hours(ws.cell(row=r, column=16).value)
     plan = to_hours(ws.cell(row=r, column=17).value)
-    real = to_hours(ws.cell(row=r, column=18).value)
+    # HH (o "real" usado em todo o painel — cartões, gráficos, exports,
+    # SLA) vem da coluna P (Duração Horas), a pedido do usuário — não da
+    # coluna R (antigo "Interferência Real"). Previsto continua na Q.
+    real = to_hours(ws.cell(row=r, column=16).value)
     h_ativ = to_hours(ws.cell(row=r, column=19).value)
     observacao = clean(ws.cell(row=r, column=20).value)
     interf = clean_or_dash(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)

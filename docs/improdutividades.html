@@ -2740,7 +2740,9 @@ function parseWorkbookToBundleImprod(wb){
     const horaFim = toHmImport(cellVal(ws,r,15));
     const dur = toHoursImport(cellVal(ws,r,16));
     const plan = toHoursImport(cellVal(ws,r,17));
-    const real = toHoursImport(cellVal(ws,r,18));
+    // HH usado em todo o painel vem da coluna P (Duração Horas), não da R
+    // ("Interferência Real") — a pedido do usuário. Previsto continua Q.
+    const real = toHoursImport(cellVal(ws,r,16));
     const hAtiv = toHoursImport(cellVal(ws,r,19));
     const observacao = cleanStrImport(cellVal(ws,r,20));
     const interf = cleanStrImportOrDash(cellVal(ws,r,22)); // coluna V (Reclassificação)

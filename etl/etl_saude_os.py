@@ -242,7 +242,43 @@ def find_sheet_name(substr_folded):
     return matches[0]
 
 # Função=col G(idx6), HH=col I(idx8), OS=col J(idx9)
-pendencias_por_func, pendencias_por_os = scan_fixed_cols(find_sheet_name('pendenc'), 9, 6, 8)
+pend_sheet_name = find_sheet_name('pendenc')
+pendencias_por_func, pendencias_por_os = scan_fixed_cols(pend_sheet_name, 9, 6, 8)
+
+# Detalhamento linha a linha da aba "3 - PENDÊNCIAS" para a aba
+# "Suplementação Pendência" do painel: cada linha pendente com seu motivo
+# (coluna T) e valor (coluna Q), sem agregação — para o usuário resolver
+# pendência por pendência. Colunas informadas pelo usuário: OS=J(idx9),
+# Código=F(idx5), Função=G(idx6) (Item = "Código - Função"), HH=I(idx8),
+# Valor R$=Q(idx16), Motivo=T(idx19).
+pendencias_detalhe = []
+if pend_sheet_name:
+    try:
+        with wb.get_sheet(pend_sheet_name) as sheet_pend:
+            pend_rows = [{c.c: c.v for c in r} for r in sheet_pend.rows()]
+    except Exception:
+        pend_rows = []
+    for d in pend_rows:
+        if not d:
+            continue
+        os_val = os_num(d.get(9))
+        if os_val is None:
+            continue
+        hh_val = num(d.get(8))
+        if not hh_val:
+            continue
+        codigo = clean(d.get(5))
+        funcao_r = clean(d.get(6))
+        item = ' - '.join(p for p in (codigo, funcao_r) if p)
+        pendencias_detalhe.append({
+            "id": f"p{len(pendencias_detalhe)}",
+            "os": os_val,
+            "os_label": os_label_for(os_val, None),
+            "item": item,
+            "hh": round(hh_val, 3),
+            "valor_rs": round(num(d.get(16)), 3),
+            "motivo": clean(d.get(19)),
+        })
 
 # Totais por OS (não filtrados por função) — usados nos cartões do Resumo
 # da OS e no Saldo Final, para nunca perder HH pendente/em projeção só
@@ -286,12 +322,14 @@ bundle = {
     "fiscais": fiscais,
     "situacoes": situacoes,
     "funcoes_por_os": funcoes_por_os,
+    "pendencias_detalhe": pendencias_detalhe,
 }
 
 with open(args.output, "w", encoding="utf-8") as f:
     json.dump(bundle, f, ensure_ascii=False)
 
 print("OS rows:", len(os_list))
+print("Pendências detalhe rows:", len(pendencias_detalhe))
 print("Períodos:", periodos)
 print("Contratos:", contratos)
 print("Situações:", situacoes)
