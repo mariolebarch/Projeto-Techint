@@ -42,6 +42,11 @@ def to_hours(v):
     if isinstance(v, (int, float)): return round(float(v), 4)
     return 0.0
 
+def to_hm(v):
+    if isinstance(v, (datetime.datetime, datetime.time)): return v.strftime('%H:%M')
+    if isinstance(v, str): return v.strip() or None
+    return None
+
 # ---------- Interferências (responsável) ----------
 ws_int = wb['Interferências']
 responsavel_by_interf = {}
@@ -94,22 +99,41 @@ ws = wb['Export_BI']
 max_row = ws.max_row
 
 groups = {}
+interferencias_raw = []
 sit_hit = 0
 total_rows = 0
 unmapped_interf = set()
 unmapped_sup = set()
 
+# Mapa de colunas do Export_BI usado pelo detalhamento linha a linha (export
+# "Interferências (detalhado)" e o clique em tipos como "A Disposição"/
+# "Retrabalho Usiminas"): a ordem das colunas 1-24 bate exatamente com a
+# lista de campos passada pelo usuário (a mesma sequência de A a X), com as
+# colunas V/W/X (22/23/24 = Reclassificação/Nº RNC/RESUMO) confirmadas
+# explicitamente. "Interferência" (col. 7), "Empresa" (col. 8) e "Reclass."
+# (col. 21) ficam de fora do export a pedido do usuário.
 for r in range(2, max_row+1):
+    registro = clean(ws.cell(row=r, column=1).value)
+    tipo_registro = clean(ws.cell(row=r, column=2).value)
     rdc = clean(ws.cell(row=r, column=3).value)
     os_val = norm_os(ws.cell(row=r, column=4).value)
+    atividade = clean(ws.cell(row=r, column=5).value)
     grupo = clean_or_dash(ws.cell(row=r, column=6).value)
-    interf = clean_or_dash(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)
     encarregado = clean(ws.cell(row=r, column=9).value)
+    recurso = clean(ws.cell(row=r, column=10).value)
+    matricula = clean(ws.cell(row=r, column=11).value)
     data_ini = ws.cell(row=r, column=12).value
+    hora_ini = to_hm(ws.cell(row=r, column=13).value)
+    data_fim = to_iso_date(ws.cell(row=r, column=14).value)
+    hora_fim = to_hm(ws.cell(row=r, column=15).value)
     dur = to_hours(ws.cell(row=r, column=16).value)
     plan = to_hours(ws.cell(row=r, column=17).value)
     real = to_hours(ws.cell(row=r, column=18).value)
     h_ativ = to_hours(ws.cell(row=r, column=19).value)
+    observacao = clean(ws.cell(row=r, column=20).value)
+    interf = clean_or_dash(ws.cell(row=r, column=22).value)  # coluna V (Reclassificação)
+    rnc = clean_or_dash(ws.cell(row=r, column=23).value)  # coluna W (Nº RNC)
+    resumo = clean_or_dash(ws.cell(row=r, column=24).value)  # coluna X (RESUMO)
 
     if os_val is None and interf is None and encarregado is None:
         continue
@@ -139,6 +163,15 @@ for r in range(2, max_row+1):
     g["dur"] += dur
     g["hAtiv"] += h_ativ
 
+    interferencias_raw.append({
+        "registro": registro, "tipoRegistro": tipo_registro, "rdc": rdc, "os": os_val,
+        "atividade": atividade, "gi": grupo, "enc": encarregado, "recurso": recurso,
+        "matricula": matricula, "d": d_iso, "hIni": hora_ini, "dFim": data_fim, "hFim": hora_fim,
+        "dur": round(dur, 3), "plan": round(plan, 3), "real": round(real, 3), "hAtiv": round(h_ativ, 3),
+        "obs": observacao, "it": interf, "rnc": rnc, "resumo": resumo,
+        "resp": resp, "sup": sup,
+    })
+
 interferencias = list(groups.values())
 for g in interferencias:
     g["plan"] = round(g["plan"], 3)
@@ -148,6 +181,7 @@ for g in interferencias:
 
 print("Export_BI total rows:", total_rows)
 print("Aggregated interferencias groups:", len(interferencias))
+print("Raw interferencias rows (detalhado):", len(interferencias_raw))
 print("RDC situacao match rate:", sit_hit, "/", total_rows, f"({100*sit_hit/total_rows:.2f}%)")
 print("Unmapped interferencia types:", unmapped_interf)
 print("Unmapped encarregados (no supervisor):", len(unmapped_sup))
@@ -161,6 +195,7 @@ situacoes = sorted(set(rc["sit"] for rc in rdcs if rc["sit"]))
 bundle = {
     "meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"},
     "interferencias": interferencias,
+    "interferencias_raw": interferencias_raw,
     "rdcs": rdcs,
     "interferencia_tipos": interferencia_list,
     "datas": datas,

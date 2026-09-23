@@ -444,6 +444,36 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 .sup-filter-chip button:hover{background:var(--navy);}
 .sup-row{cursor:pointer; transition:border-color .15s, box-shadow .15s;}
 .sup-row.selected{border-color:var(--navy); box-shadow:0 0 0 2px var(--navy-700) inset;}
+.cmp-hit.has-detail{cursor:pointer;}
+
+/* Modal de detalhamento de tipo de interferência (clique em "A Disposição" /
+   "Retrabalho Usiminas" no gráfico "Interferências Registradas"). Fora de
+   .app de propósito: .app tem transform (animação de entrada), e um
+   transform em qualquer ancestral cria um novo containing block para
+   position:fixed, o que prenderia esse overlay dentro da largura de .app
+   em vez de cobrir a tela inteira. */
+.interf-modal-overlay{position:fixed; inset:0; z-index:250; display:flex; align-items:center; justify-content:center; padding:28px; background:rgba(4,12,24,.62); backdrop-filter:blur(7px) saturate(1.1); -webkit-backdrop-filter:blur(7px) saturate(1.1); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility 0s linear .25s;}
+.interf-modal-overlay.open{opacity:1; visibility:visible; transition:opacity .25s ease, visibility 0s linear 0s;}
+.interf-modal-frame{width:100%; max-width:600px; max-height:100%; overflow-y:auto; border-radius:12px; background:var(--paper); box-shadow:0 40px 90px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.08); transform:translateY(18px) scale(.97); transition:transform .3s cubic-bezier(.2,.8,.2,1);}
+.interf-modal-overlay.open .interf-modal-frame{transform:translateY(0) scale(1);}
+body.interf-modal-lock{overflow:hidden;}
+.interf-modal-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); padding:16px 60px 16px 18px; border-radius:12px 12px 0 0;}
+.interf-modal-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
+.interf-modal-title{font-family:var(--font-display); font-size:21px; font-weight:800; color:#fff; text-transform:uppercase; margin-top:2px; line-height:1.1;}
+.interf-modal-sub{font-size:12px; color:rgba(255,255,255,.65); margin-top:5px;}
+.interf-modal-close{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:5px; height:30px; padding:0 12px; border-radius:15px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
+.interf-modal-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
+.interf-modal-total{padding:11px 18px; border-bottom:1px solid var(--border-soft); display:flex; align-items:baseline; gap:9px; background:var(--sand);}
+.interf-modal-total .n{font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--text-primary);}
+.interf-modal-total .l{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600;}
+.interf-modal-body{padding:4px 10px 12px; max-height:min(52vh, 420px); overflow-y:auto;}
+.interf-modal-row{padding:10px 8px; border-bottom:1px solid var(--border-soft); display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+.interf-modal-row:last-child{border-bottom:none;}
+.interf-modal-row .txt{flex:1; min-width:0;}
+.interf-modal-row .def{font-size:13px; color:var(--text-primary); font-weight:500; line-height:1.4;}
+.interf-modal-row .def.muted{color:var(--text-muted); font-style:italic; font-weight:400;}
+.interf-modal-row .meta{font-size:11px; color:var(--text-muted); margin-top:3px;}
+.interf-modal-row .hh{flex:none; font-family:var(--font-mono); font-size:14px; font-weight:700; color:var(--steel-strong); white-space:nowrap;}
 
 #page-loader{position:fixed; inset:0; z-index:500; background:var(--navy); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; transition:opacity .45s ease, visibility .45s ease;}
 #page-loader.hide{opacity:0; visibility:hidden; pointer-events:none;}
@@ -678,6 +708,10 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   <div class="foot-note">
     Painel gerado a partir de <span class="mono-tag">Base_Painel_de_improdutividades.xlsx</span> (abas Export_BI, SGE, Interferências e Supervisores). Empresa: <span id="foot-empresa"></span>.
   </div>
+</div>
+
+<div class="interf-modal-overlay" id="interf-modal-overlay">
+  <div class="interf-modal-frame" id="interf-modal-frame" role="dialog" aria-modal="true" aria-label="Detalhamento da interferência"></div>
 </div>
 
 <script id="bundle-data" type="application/json">{"meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"}, "interferencias": [], "rdcs": [], "interferencia_tipos": [], "datas": [], "os_list": [], "grupos": [], "supervisores": [], "situacoes": []}</script>
@@ -1249,12 +1283,81 @@ function renderVisaoTiposChart(){
   });
   const entries = Array.from(byTipo.entries()).map(([k,o])=>({k,v:o.v,resp:o.resp})).sort((a,b)=>b.v-a.v);
   if(filter==='ALL'){
-    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
+    renderTiposColumnChart(box, entries, {colorFn: e => e.resp==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onBarClick: handleTipoBarClick});
   } else {
-    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)'});
+    renderTiposColumnChart(box, entries, {flatColor: filter==='USIMINAS' ? 'var(--resp-usiminas)' : 'var(--resp-techint)', onBarClick: handleTipoBarClick});
   }
   renderSupDetailTable(rows);
 }
+
+/* ---------- Detalhamento por tipo (clique em "A Disposição" / "Retrabalho
+   Usiminas" no gráfico "Interferências Registradas") ---------- */
+const INTERF_DETAIL_TYPES = {
+  'A Disposição': 'resumo',
+  'Retrabalho Usiminas': 'rnc',
+};
+function handleTipoBarClick(entry, checkOnly){
+  const kind = INTERF_DETAIL_TYPES[entry.k];
+  if(!kind) return false;
+  if(!checkOnly) openInterfDetailModal(entry.k, kind);
+  return true;
+}
+/* Mesmo recorte de filtros do gráfico "Interferências Registradas"
+   (ovTiposDisplayRows), só que na base linha a linha (interferencias_raw)
+   em vez da agregada — para poder mostrar RESUMO/Nº RNC por ocorrência. */
+function filteredInterfRaw(){
+  return (DATA.interferencias_raw || []).filter(r => passCommon(r) && (state.grupo==='all' || r.gi===state.grupo));
+}
+function ovTiposDisplayRowsRaw(){
+  const filter = state.ovTipos.filter;
+  const supFilter = state.ovTipos.sup;
+  const baseRows = supFilter ? filteredInterfRaw().filter(r=>r.sup===supFilter) : filteredInterfRaw();
+  if(filter==='REALPREV') return baseRows.filter(r => SLA_INTERFERENCIAS.has(r.it));
+  return filter==='ALL' ? baseRows : baseRows.filter(r => r.resp===filter);
+}
+function openInterfDetailModal(tipoLabel, kind){
+  const rows = ovTiposDisplayRowsRaw().filter(r => normalizeTipoLabel(r.it) === tipoLabel);
+  // RESUMO (definição): mostra toda ocorrência, com ou sem definição —
+  // omitir esconderia HH real da OS. Nº RNC: só ocorrências com número
+  // definido entram na lista, a pedido do usuário.
+  const entries = kind==='rnc'
+    ? rows.filter(r => r.rnc).map(r => ({def: 'RNC '+r.rnc, muted:false, hh: r.real, d: r.d, os: r.os}))
+    : rows.map(r => ({def: r.resumo || 'Sem definição registrada', muted: !r.resumo, hh: r.real, d: r.d, os: r.os}));
+  entries.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
+  const total = entries.reduce((a,e)=>a+e.hh, 0);
+  const subtitle = kind==='rnc' ? 'Nº RNC por ocorrência (aba Export_BI, col. W)' : 'Definição por ocorrência (aba Export_BI, col. X — RESUMO)';
+  const rowsHtml = entries.length ? entries.map(e => `<div class="interf-modal-row">
+      <div class="txt">
+        <div class="def${e.muted?' muted':''}">${escHtml(e.def)}</div>
+        <div class="meta">${e.d ? fmtDateLabel(e.d) : '—'} &middot; OS ${escHtml(e.os||'—')}</div>
+      </div>
+      <div class="hh">${fmtH(e.hh)}h</div>
+    </div>`).join('') : `<div class="empty-state">Nenhuma ocorrência ${kind==='rnc' ? 'com Nº RNC definido' : ''} para os filtros atuais.</div>`;
+
+  document.getElementById('interf-modal-frame').innerHTML = `
+    <div class="interf-modal-head">
+      <button type="button" class="interf-modal-close" id="interf-modal-close-btn">&times; Fechar</button>
+      <span class="interf-modal-eyebrow">Detalhamento</span>
+      <div class="interf-modal-title">${escHtml(tipoLabel)}</div>
+      <div class="interf-modal-sub">${subtitle}</div>
+    </div>
+    <div class="interf-modal-total"><span class="n">${fmtH(total)}h</span><span class="l">Total &middot; ${entries.length} ocorrência${entries.length===1?'':'s'}</span></div>
+    <div class="interf-modal-body">${rowsHtml}</div>
+  `;
+  document.getElementById('interf-modal-overlay').classList.add('open');
+  document.body.classList.add('interf-modal-lock');
+  document.getElementById('interf-modal-close-btn').addEventListener('click', closeInterfDetailModal);
+}
+function closeInterfDetailModal(){
+  document.getElementById('interf-modal-overlay').classList.remove('open');
+  document.body.classList.remove('interf-modal-lock');
+}
+document.getElementById('interf-modal-overlay').addEventListener('click', e=>{
+  if(e.target.id === 'interf-modal-overlay') closeInterfDetailModal();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && document.getElementById('interf-modal-overlay').classList.contains('open')) closeInterfDetailModal();
+});
 
 /* ---------- Detalhamento ---------- */
 function toTitleCase(s){
@@ -1749,7 +1852,8 @@ function renderTiposColumnChart(box, entries, opts){
     hit.addEventListener('pointermove', ()=>{
       const color = colorOf(e);
       tooltip.innerHTML = `<span class="tt-date">${escHtml(e.k)}</span>` +
-        `<div class="tt-row"><span class="sw" style="background:${color};"></span>${opts.colorFn ? escHtml(e.resp||'—') : 'Real'}<span class="tt-val">${fmtH(e.v)}h</span></div>`;
+        `<div class="tt-row"><span class="sw" style="background:${color};"></span>${opts.colorFn ? escHtml(e.resp||'—') : 'Real'}<span class="tt-val">${fmtH(e.v)}h</span></div>` +
+        (opts.onBarClick && opts.onBarClick(e, true) ? `<div class="tt-row" style="color:var(--text-muted); font-style:italic;">Clique para ver detalhes</div>` : '');
       tooltip.classList.add('show');
       const wrapRect = box.getBoundingClientRect();
       const svgRect = svgEl.getBoundingClientRect();
@@ -1761,6 +1865,10 @@ function renderTiposColumnChart(box, entries, opts){
       tooltip.style.top = '4px';
     });
     hit.addEventListener('pointerleave', ()=>{ tooltip.classList.remove('show'); });
+    if(opts.onBarClick && opts.onBarClick(e, true)){
+      hit.classList.add('has-detail');
+      hit.addEventListener('click', ()=> opts.onBarClick(e, false));
+    }
   });
 }
 
@@ -2090,12 +2198,25 @@ function exportFiltersSummarySheet(){
     ['Responsabilidade (Impacto por OS)', state.poros.osRespFilter==='all' ? 'Todas' : state.poros.osRespFilter],
   ]};
 }
+/* Interferências (detalhado): linha a linha, direto do Export_BI (sem
+   agregação) — só as colunas marcadas "Sim" pelo usuário; respeita os
+   filtros globais (data/OS/supervisor), igual à Base completa. */
 function exportInterfSheet(){
-  let rows = ovTiposDisplayRows();
-  rows = rows.slice().sort((a,b)=> a.d.localeCompare(b.d) || String(a.os).localeCompare(String(b.os)));
-  const aoa = [['Data','OS','Grupo Interferência','Tipo','Responsabilidade','Encarregado','Supervisor','Ocorrências','Previsto (h)','Real (h)']];
+  let rows = (DATA.interferencias_raw || []).filter(passCommon);
+  rows = rows.slice().sort((a,b)=> String(a.d).localeCompare(String(b.d)) || String(a.os).localeCompare(String(b.os)));
+  const aoa = [[
+    'Nº Registro','Tipo Registro','RDC','OS','Atividade','Grupo Interferência','Encarregado',
+    'Recurso','Matrícula','Data Inicial','Hora Inicial','Data Final','Hora Final','Duração Horas',
+    'Interferência (Plan)','Interferência (Real)','Horas Atividade (Duração - Real)','Observação',
+    'Reclassificação','Nº RNC','RESUMO',
+  ]];
   rows.forEach(r=>{
-    aoa.push([r.d, r.os, r.gi||'', r.it||'', r.resp||'', r.enc||'', r.sup||'', r.n, r.plan, r.real]);
+    aoa.push([
+      r.registro||'', r.tipoRegistro||'', r.rdc||'', r.os||'', r.atividade||'', r.gi||'', r.enc||'',
+      r.recurso||'', r.matricula||'', r.d||'', r.hIni||'', r.dFim||'', r.hFim||'', r.dur,
+      r.plan, r.real, r.hAtiv, r.obs||'',
+      r.it||'', r.rnc||'', r.resumo||'',
+    ]);
   });
   return {name:'Interferências', aoa};
 }
@@ -2521,6 +2642,11 @@ function toHoursImport(v){
   if(typeof v==='number') return Math.round(v*10000)/10000;
   return 0.0;
 }
+function toHmImport(v){
+  if(v instanceof Date) return String(v.getUTCHours()).padStart(2,'0')+':'+String(v.getUTCMinutes()).padStart(2,'0');
+  if(typeof v==='string') return v.trim() || null;
+  return null;
+}
 function parseWorkbookToBundleImprod(wb){
   function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
   function maxRow(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.r+1; }
@@ -2562,16 +2688,33 @@ function parseWorkbookToBundleImprod(wb){
 
   const ws = sheet('Export_BI');
   const groups = {};
+  const interferenciasRaw = [];
+  // Mapa de colunas 1-24 igual ao ETL Python (etl_improd.py) — mesma ordem
+  // da lista de campos do usuário, com V/W/X (22/23/24 = Reclassificação/
+  // Nº RNC/RESUMO) confirmadas. "Interferência" (7), "Empresa" (8) e
+  // "Reclass." (21) ficam de fora do export a pedido do usuário.
   for(let r=2; r<=maxRow(ws); r++){
+    const registro = cleanStrImport(cellVal(ws,r,1));
+    const tipoRegistro = cleanStrImport(cellVal(ws,r,2));
+    const rdc = cleanStrImport(cellVal(ws,r,3));
     const osVal = normOsImport(cellVal(ws,r,4));
+    const atividade = cleanStrImport(cellVal(ws,r,5));
     const grupo = cleanStrImportOrDash(cellVal(ws,r,6));
-    const interf = cleanStrImportOrDash(cellVal(ws,r,22)); // coluna V (Reclassificação)
     const encarregado = cleanStrImport(cellVal(ws,r,9));
+    const recurso = cleanStrImport(cellVal(ws,r,10));
+    const matricula = cleanStrImport(cellVal(ws,r,11));
     const dataIni = cellVal(ws,r,12);
+    const horaIni = toHmImport(cellVal(ws,r,13));
+    const dataFim = toIsoDateImport(cellVal(ws,r,14));
+    const horaFim = toHmImport(cellVal(ws,r,15));
+    const dur = toHoursImport(cellVal(ws,r,16));
     const plan = toHoursImport(cellVal(ws,r,17));
     const real = toHoursImport(cellVal(ws,r,18));
-    const dur = toHoursImport(cellVal(ws,r,16));
     const hAtiv = toHoursImport(cellVal(ws,r,19));
+    const observacao = cleanStrImport(cellVal(ws,r,20));
+    const interf = cleanStrImportOrDash(cellVal(ws,r,22)); // coluna V (Reclassificação)
+    const rnc = cleanStrImportOrDash(cellVal(ws,r,23)); // coluna W (Nº RNC)
+    const resumo = cleanStrImportOrDash(cellVal(ws,r,24)); // coluna X (RESUMO)
 
     if(osVal===null && interf===null && encarregado===null) continue;
 
@@ -2583,6 +2726,13 @@ function parseWorkbookToBundleImprod(wb){
     if(!groups[key]) groups[key] = {d:dIso, os:osVal, gi:grupo, it:interf, resp, enc:encarregado, sup, n:0, plan:0, real:0, dur:0, hAtiv:0};
     const g = groups[key];
     g.n += 1; g.plan += plan; g.real += real; g.dur += dur; g.hAtiv += hAtiv;
+
+    interferenciasRaw.push({
+      registro, tipoRegistro, rdc, os:osVal, atividade, gi:grupo, enc:encarregado, recurso,
+      matricula, d:dIso, hIni:horaIni, dFim:dataFim, hFim:horaFim,
+      dur: Math.round(dur*1000)/1000, plan: Math.round(plan*1000)/1000, real: Math.round(real*1000)/1000, hAtiv: Math.round(hAtiv*1000)/1000,
+      obs:observacao, it:interf, rnc, resumo, resp, sup,
+    });
   }
   const interferencias = Object.values(groups).map(g=>Object.assign(g, {
     plan: Math.round(g.plan*1000)/1000, real: Math.round(g.real*1000)/1000,
@@ -2597,7 +2747,7 @@ function parseWorkbookToBundleImprod(wb){
 
   return {
     meta: {empresa: 'TECHINT ENGENHARIA E CONSTRUCAO SA'},
-    interferencias, rdcs, interferencia_tipos: interferenciaList,
+    interferencias, interferencias_raw: interferenciasRaw, rdcs, interferencia_tipos: interferenciaList,
     datas, os_list: osList, grupos, supervisores, situacoes,
   };
 }
