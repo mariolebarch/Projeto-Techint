@@ -390,6 +390,18 @@ tr.os-row.expanded td{background:var(--steel-soft);}
 tr.os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
 tr.supl-row.selected td{background:var(--steel-soft);}
 #supl-table input[type="checkbox"], #supl-select-all{accent-color:var(--steel); width:15px; height:15px; cursor:pointer;}
+/* Filtros da aba Suplementação Pendência no tema Techint (azul-escuro),
+   padronizados com o restante do painel. */
+#supl-search, #supl-motivo-filter{background:var(--navy); border:1px solid var(--navy); color:#fff;}
+#supl-search::placeholder{color:rgba(255,255,255,.6);}
+#supl-search:focus, #supl-motivo-filter:focus{border-color:var(--navy-700); outline:none;}
+#supl-motivo-filter{appearance:none; -webkit-appearance:none; -moz-appearance:none; padding-right:28px; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='white'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; max-width:240px;}
+.icon-btn{position:relative; width:36px; height:36px; border-radius:50%; border:1px solid var(--steel); background:var(--steel); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:filter .15s, opacity .15s;}
+.icon-btn svg{width:16px; height:16px; flex:none;}
+.icon-btn:not(:disabled):hover{filter:brightness(1.1);}
+.icon-btn:disabled{opacity:.4; cursor:default;}
+.icon-btn-badge{position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--critical); color:#fff; font-family:var(--font-mono); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1;}
+.icon-btn-badge[hidden]{display:none;}
 tr.detail-row td{background:var(--sand); border-top:none;}
 tr.detail-row .detail-name{color:var(--text-secondary); padding-left:34px; position:relative;}
 tr.detail-row .detail-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
@@ -744,7 +756,8 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h3>Suplementação Pendência</h3>
         <div class="filters">
           <div class="field"><label>Buscar</label><input class="search-input" id="supl-search" placeholder="OS, item ou motivo&hellip;"></div>
-          <div class="field"><label>&nbsp;</label><button class="small-btn" id="supl-export-btn" type="button" disabled>Exportar selecionadas (<span id="supl-export-count">0</span>)</button></div>
+          <div class="field"><label>Motivo</label><select id="supl-motivo-filter"><option value="all">Todos os motivos</option></select></div>
+          <div class="field"><label>&nbsp;</label><button class="icon-btn" id="supl-export-btn" type="button" disabled title="Exportar selecionadas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span class="icon-btn-badge" id="supl-export-count" hidden>0</span></button></div>
         </div>
         <span class="card-note">Detalhamento por OS da aba "3 - PENDÊNCIAS" &mdash; motivo de cada HH pendente (coluna T)</span>
       </div>
@@ -838,7 +851,7 @@ const state = {
   contrato: 'all',
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
-  supl: {search:'', selected: new Set()},
+  supl: {search:'', motivo:'all', selected: new Set()},
 };
 
 function passCommon(r){
@@ -1272,10 +1285,13 @@ function renderDetalheTable(){
 /* ---------- Suplementação Pendência ---------- */
 /* Linhas da aba "3 - PENDÊNCIAS" (uma por ocorrência, sem agregação),
    restritas às OS's que passam pelos filtros globais (Contrato/Situação/
-   busca de OS) e pela busca local desta aba. */
+   busca de OS), pelo filtro de Motivo e pela busca local desta aba. */
 function suplementacaoRows(){
   const allowedOs = new Set(filteredOS().map(r=>r.os));
   let rows = (DATA.pendencias_detalhe || []).filter(r => r.os!=null && allowedOs.has(r.os));
+  if(state.supl.motivo && state.supl.motivo!=='all'){
+    rows = rows.filter(r => (r.motivo||'') === state.supl.motivo);
+  }
   const q = (state.supl.search||'').trim().toLowerCase();
   if(q){
     rows = rows.filter(r =>
@@ -1285,25 +1301,70 @@ function suplementacaoRows(){
   }
   return rows;
 }
+function populateSuplMotivoFilter(){
+  const sel = document.getElementById('supl-motivo-filter');
+  if(!sel) return;
+  const allowedOs = new Set(filteredOS().map(r=>r.os));
+  const motivos = Array.from(new Set(
+    (DATA.pendencias_detalhe||[])
+      .filter(r=>r.os!=null && allowedOs.has(r.os) && r.motivo)
+      .map(r=>r.motivo)
+  )).sort((a,b)=>a.localeCompare(b));
+  if(state.supl.motivo!=='all' && !motivos.includes(state.supl.motivo)) state.supl.motivo = 'all';
+  sel.innerHTML = '<option value="all">Todos os motivos</option>' +
+    motivos.map(m=>`<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+  sel.value = state.supl.motivo;
+}
+/* Linhas por OS x Item, somando HH e Valor R$ de todas as ocorrências
+   daquele mesmo item na OS — a pedido do usuário, pra não repetir o
+   mesmo item (ex. "779 - ENCARREGADO DE ELÉTRICA HN") em várias linhas.
+   Quando as ocorrências mescladas têm motivos diferentes, junta todos
+   (";") em vez de descartar informação. */
+function suplementacaoMergedGroups(){
+  const rows = suplementacaoRows();
+  const byOs = new Map();
+  rows.forEach(r=>{
+    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, os_label:r.os_label, hh:0, rs:0, itemsMap:new Map()});
+    const g = byOs.get(r.os);
+    g.hh += r.hh||0;
+    g.rs += r.valor_rs||0;
+    const itemKey = r.item || '—';
+    if(!g.itemsMap.has(itemKey)) g.itemsMap.set(itemKey, {key: r.os+'||'+itemKey, item:itemKey, hh:0, rs:0, motivos:new Set()});
+    const it = g.itemsMap.get(itemKey);
+    it.hh += r.hh||0;
+    it.rs += r.valor_rs||0;
+    if(r.motivo) it.motivos.add(r.motivo);
+  });
+  return Array.from(byOs.values()).map(g=>({
+    os: g.os, os_label: g.os_label, hh: g.hh, rs: g.rs,
+    items: Array.from(g.itemsMap.values())
+      .map(it=>({key:it.key, item:it.item, hh:it.hh, rs:it.rs, motivo:Array.from(it.motivos).join('; ')}))
+      .sort((a,b)=>(b.hh||0)-(a.hh||0)),
+  })).sort((a,b)=> b.hh - a.hh);
+}
 function updateSuplementacaoExportButton(){
   const btn = document.getElementById('supl-export-btn');
   const countEl = document.getElementById('supl-export-count');
   const n = state.supl.selected.size;
   countEl.textContent = n;
+  countEl.hidden = n===0;
   btn.disabled = n===0;
 }
 function renderSuplementacaoTable(){
   const tbody = document.getElementById('supl-tbody');
   const empty = document.getElementById('supl-empty');
   const selectAllEl = document.getElementById('supl-select-all');
-  const rows = suplementacaoRows();
-  // Uma seleção só continua válida enquanto a linha ainda está visível nos
+  populateSuplMotivoFilter();
+  const groups = suplementacaoMergedGroups();
+
+  // Uma seleção só continua válida enquanto o item ainda está visível nos
   // filtros atuais — evita "exportar selecionadas" incluir algo que já
   // saiu de vista sem o usuário perceber.
-  const visibleIds = new Set(rows.map(r=>r.id));
-  Array.from(state.supl.selected).forEach(id => { if(!visibleIds.has(id)) state.supl.selected.delete(id); });
+  const visibleKeys = new Set();
+  groups.forEach(g=>g.items.forEach(it=>visibleKeys.add(it.key)));
+  Array.from(state.supl.selected).forEach(k => { if(!visibleKeys.has(k)) state.supl.selected.delete(k); });
 
-  if(rows.length===0){
+  if(groups.length===0){
     tbody.innerHTML = '';
     empty.style.display = '';
     selectAllEl.checked = false;
@@ -1313,21 +1374,10 @@ function renderSuplementacaoTable(){
   }
   empty.style.display = 'none';
 
-  const byOs = new Map();
-  rows.forEach(r=>{
-    if(!byOs.has(r.os)) byOs.set(r.os, {os: r.os, os_label: r.os_label, items: [], hh: 0, rs: 0});
-    const g = byOs.get(r.os);
-    g.items.push(r);
-    g.hh += r.hh||0;
-    g.rs += r.valor_rs||0;
-  });
-  const groups = Array.from(byOs.values()).sort((a,b)=> b.hh - a.hh);
-
   let html = '';
   groups.forEach(g=>{
-    g.items.sort((a,b)=> (b.hh||0)-(a.hh||0));
     const osInfo = (DATA.os_list||[]).find(o=>o.os===g.os);
-    const allChecked = g.items.every(it=>state.supl.selected.has(it.id));
+    const allChecked = g.items.every(it=>state.supl.selected.has(it.key));
     html += `<tr class="detail-group-header">
       <td><input type="checkbox" class="supl-select-os" data-os="${g.os}" ${allChecked?'checked':''}></td>
       <td colspan="2"><span class="mono-tag">${escHtml(g.os_label)}</span> ${escHtml(osInfo && osInfo.pep || '')}</td>
@@ -1335,31 +1385,35 @@ function renderSuplementacaoTable(){
       <td class="num-col">${fmtRs(g.rs)}</td>
     </tr>`;
     g.items.forEach(it=>{
-      const checked = state.supl.selected.has(it.id);
-      html += `<tr class="supl-row${checked?' selected':''}" data-id="${escHtml(it.id)}">
-        <td><input type="checkbox" class="supl-select-row" data-id="${escHtml(it.id)}" ${checked?'checked':''}></td>
+      const checked = state.supl.selected.has(it.key);
+      html += `<tr class="supl-row${checked?' selected':''}" data-key="${escHtml(it.key)}">
+        <td><input type="checkbox" class="supl-select-row" data-key="${escHtml(it.key)}" ${checked?'checked':''}></td>
         <td>${escHtml(it.item||'—')}</td>
         <td>${escHtml(it.motivo||'—')}</td>
         <td class="num-col">${fmtH(it.hh)}</td>
-        <td class="num-col">${fmtRs(it.valor_rs)}</td>
+        <td class="num-col">${fmtRs(it.rs)}</td>
       </tr>`;
     });
   });
   tbody.innerHTML = html;
 
-  const allVisibleChecked = rows.every(r=>state.supl.selected.has(r.id));
+  const allVisibleChecked = Array.from(visibleKeys).every(k=>state.supl.selected.has(k));
   const noneChecked = state.supl.selected.size===0;
   selectAllEl.checked = allVisibleChecked;
   selectAllEl.indeterminate = !allVisibleChecked && !noneChecked;
   updateSuplementacaoExportButton();
 }
 function exportSuplementacaoSelected(){
-  const rows = (DATA.pendencias_detalhe || []).filter(r => state.supl.selected.has(r.id));
-  if(!rows.length) return;
-  rows.sort((a,b)=> (a.os_label||'').localeCompare(b.os_label||'') || (b.hh||0)-(a.hh||0));
-  const aoa = [['Numero da OS','Item','HH','Valor R$']];
-  rows.forEach(r=>{
-    aoa.push([r.os_label, r.item||'', r.hh, r.valor_rs]);
+  const groups = suplementacaoMergedGroups();
+  const items = [];
+  groups.forEach(g=>g.items.forEach(it=>{
+    if(state.supl.selected.has(it.key)) items.push({os_label:g.os_label, item:it.item, hh:it.hh, rs:it.rs, motivo:it.motivo});
+  }));
+  if(!items.length) return;
+  items.sort((a,b)=> (a.os_label||'').localeCompare(b.os_label||'') || (b.hh||0)-(a.hh||0));
+  const aoa = [['Numero da OS','Item','HH','Valor R$','Motivo']];
+  items.forEach(it=>{
+    aoa.push([it.os_label, it.item||'', it.hh, it.rs, it.motivo||'']);
   });
   downloadWorkbook([{ name: 'Suplementação Pendência', aoa }], 'SuplementacaoPendencia');
 }
@@ -1367,22 +1421,29 @@ document.getElementById('supl-search').addEventListener('input', e=>{
   state.supl.search = e.target.value;
   renderSuplementacaoTable();
 });
+document.getElementById('supl-motivo-filter').addEventListener('change', e=>{
+  state.supl.motivo = e.target.value;
+  renderSuplementacaoTable();
+});
 document.getElementById('supl-select-all').addEventListener('change', e=>{
-  const rows = suplementacaoRows();
-  if(e.target.checked) rows.forEach(r=>state.supl.selected.add(r.id));
-  else rows.forEach(r=>state.supl.selected.delete(r.id));
+  const groups = suplementacaoMergedGroups();
+  const allKeys = [];
+  groups.forEach(g=>g.items.forEach(it=>allKeys.push(it.key)));
+  if(e.target.checked) allKeys.forEach(k=>state.supl.selected.add(k));
+  else allKeys.forEach(k=>state.supl.selected.delete(k));
   renderSuplementacaoTable();
 });
 document.getElementById('supl-tbody').addEventListener('change', e=>{
   if(e.target.classList.contains('supl-select-row')){
-    const id = e.target.dataset.id;
-    if(e.target.checked) state.supl.selected.add(id); else state.supl.selected.delete(id);
+    const key = e.target.dataset.key;
+    if(e.target.checked) state.supl.selected.add(key); else state.supl.selected.delete(key);
     renderSuplementacaoTable();
   } else if(e.target.classList.contains('supl-select-os')){
     const os = Number(e.target.dataset.os);
-    const rows = suplementacaoRows().filter(r=>r.os===os);
-    if(e.target.checked) rows.forEach(r=>state.supl.selected.add(r.id));
-    else rows.forEach(r=>state.supl.selected.delete(r.id));
+    const group = suplementacaoMergedGroups().find(g=>g.os===os);
+    const keys = group ? group.items.map(it=>it.key) : [];
+    if(e.target.checked) keys.forEach(k=>state.supl.selected.add(k));
+    else keys.forEach(k=>state.supl.selected.delete(k));
     renderSuplementacaoTable();
   }
 });
