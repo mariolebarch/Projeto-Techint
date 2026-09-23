@@ -1150,9 +1150,7 @@ function computeOsSummary(r, funcoes){
   // coluna E), então a conversão é feita função a função (com o Saldo
   // Final já calculado por função) e depois somada — não dá pra aplicar
   // uma taxa única ao total da OS quando as funções têm valores/hora
-  // diferentes. Por isso usa o Saldo Final por função (não o total por OS
-  // acima): só HH já atribuído a uma função tem uma taxa conhecida para
-  // converter em R$.
+  // diferentes.
   const funcRows = funcoes.map(f => {
     const sf = (f.consolidado||0) - (f.realizado||0) - (f.pend_hh||0) - (f.prov_hh||0);
     const fTotalRealizado = (f.realizado||0) + (f.pend_hh||0) + (f.prov_hh||0);
@@ -1162,7 +1160,23 @@ function computeOsSummary(r, funcoes){
       totalRealizado: fTotalRealizado, saldoFinal: sf, valorUnitario: f.valor_unitario||0,
     };
   });
-  const saldoFinalRs = funcRows.reduce((a,f) => a + f.saldoFinal * f.valorUnitario, 0);
+  // Pendência/Aprop.+Mob. tem uma parte "sem função reconhecida" que não
+  // aparece em nenhuma linha de funcRows (ver comentário de computeSaldoFinal)
+  // — por isso pendTotal/provTotal (OS inteira) é maior que a soma de
+  // f.pend/f.prov (só o que bateu com função). Sem essa parte, o R$ só
+  // precificava o HH que tinha função reconhecida e podia até fechar
+  // positivo com o HH Saldo Final negativo (o resto do déficit ficava de
+  // fora, sem custo). Pra não perder esse pedaço, ele entra aqui também,
+  // convertido pela taxa média ponderada pelo HH Previsto das funções desta
+  // OS (não tem uma função própria pra saber a taxa exata).
+  const pendMatched = funcRows.reduce((a,f)=>a+f.pend,0);
+  const provMatched = funcRows.reduce((a,f)=>a+f.prov,0);
+  const semFuncaoHh = (pendTotal - pendMatched) + (provTotal - provMatched);
+  const basePrevistoComTaxa = funcRows.reduce((a,f)=>a + (f.valorUnitario ? f.previsto : 0), 0);
+  const taxaMedia = basePrevistoComTaxa > 0
+    ? funcRows.reduce((a,f)=>a + f.previsto * f.valorUnitario, 0) / basePrevistoComTaxa
+    : 0;
+  const saldoFinalRs = funcRows.reduce((a,f) => a + f.saldoFinal * f.valorUnitario, 0) - semFuncaoHh * taxaMedia;
 
   return { hhPrevisto, hhRealizadoBase, saldoHh, provTotal, pendTotal, hhTotalRealizado, saldoFinal, saldoFinalRs, funcRows };
 }
@@ -1242,7 +1256,7 @@ function renderOsDetailPanel(r, funcoes){
         </div>
         <div class="odk odk-wide"><span class="odk-label">HH Total Realizado</span><span class="odk-value">${fmtH(s.hhTotalRealizado)}</span><span class="odk-sub">HH Realizado + HH Pendência + Aprop. + Mob.</span></div>
         <div class="odk odk-dif odk-wide ${sfClass}"><span class="odk-label">HH Saldo Final</span><span class="odk-value odk-value-lg odk-blink">${sfSign}${fmtH(s.saldoFinal)}</span><span class="odk-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
-        <div class="odk odk-dif odk-wide ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value odk-value-lg odk-blink">${sfRsSign}${fmtRs(s.saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E)</span></div>
+        <div class="odk odk-dif odk-wide ${sfRsClass}"><span class="odk-label">Saldo Final (R$)</span><span class="odk-value odk-value-lg odk-blink">${sfRsSign}${fmtRs(s.saldoFinalRs)}</span><span class="odk-sub">valor unitário por função (aba 1, col. E); sem função reconhecida usa taxa média</span></div>
       </div>
     </div>
     <div class="os-detail-body">
