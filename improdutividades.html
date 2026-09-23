@@ -2786,6 +2786,35 @@ function parseWorkbookToBundleImprod(wb){
   };
 }
 
+/* Cache local (localStorage) da última planilha importada neste navegador.
+   Sem isso, uma importação feita sem login no Supabase existe só na
+   memória da aba: ao recarregar a página, sbInit() busca de novo o
+   snapshot do Supabase (o antigo) e a importação "some", pedindo pra
+   reimportar. Com o cache, mesmo sem login, um F5 continua mostrando a
+   última planilha importada NESTE navegador — publicar no Supabase
+   continua sendo o único jeito de outras pessoas/dispositivos verem essa
+   atualização. Falha de cota do localStorage é só ignorada (o painel
+   segue funcionando, apenas sem esse fallback). */
+const IMPROD_CACHE_KEY = 'improd_bundle_cache_v1';
+function saveLocalBundleCache(bundle){
+  try{
+    localStorage.setItem(IMPROD_CACHE_KEY, JSON.stringify({bundle, savedAt: new Date().toISOString()}));
+  }catch(e){ console.warn('Não foi possível salvar o cache local da planilha (cota do navegador?).', e); }
+}
+function loadLocalBundleCache(){
+  try{
+    const raw = localStorage.getItem(IMPROD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function applyBundle(bundle, statusMsg){
+  DATA = normalizeInterferenciaDashes(bundle);
+  state.dates = new Set(DATA.datas || []);
+  renderAll();
+  document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+  if(statusMsg) sbSetStatus('ok', statusMsg);
+}
+
 document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   const file = e.target.files && e.target.files[0];
   if(!file) return;
@@ -2811,6 +2840,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       state.os = new Set(); state.grupo='all'; state.sup='all'; state.poros.expanded = new Set();
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+      saveLocalBundleCache(bundle);
       statusEl.className = 'settings-status ok';
       statusEl.textContent = 'Dados atualizados: ' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros, ' + DATA.rdcs.length.toLocaleString('pt-BR') + ' RDCs, ' + DATA.datas.length + ' datas.';
     }catch(err){
@@ -2836,7 +2866,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
         statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
       }
     } else if(sb){
-      statusEl.textContent += ' (só localmente — faça login no Supabase abaixo para publicar para todos.)';
+      statusEl.textContent += ' (salvo neste navegador — sobrevive a um F5 nesta aba, mas só você vê. Faça login no Supabase abaixo para publicar para todos.)';
     }
     e.target.value = '';
   };
@@ -2918,7 +2948,16 @@ function renderSbAuthBox(){
 }
 
 async function sbInit(){
-  if(!sb){ sbSetStatus('err', 'Biblioteca do Supabase não carregou (bloqueio de rede deste preview?) — usando dados locais.'); return; }
+  // Cache local (localStorage) de uma importação feita sem login no
+  // Supabase — sem checar isso aqui, ela nunca sobrevive a um F5, porque
+  // o fetch do Supabase abaixo (ou a falta de conexão) sempre teria a
+  // palavra final sobre o que fica em DATA.
+  const localCache = loadLocalBundleCache();
+  if(!sb){
+    if(localCache) applyBundle(localCache.bundle);
+    sbSetStatus('err', 'Biblioteca do Supabase não carregou (bloqueio de rede deste preview?) — usando ' + (localCache ? 'sua última importação salva neste navegador.' : 'dados locais.'));
+    return;
+  }
   try{
     const { data: { session } } = await sb.auth.getSession();
     sbSession = session;
@@ -2928,18 +2967,19 @@ async function sbInit(){
   try{
     const { data, error } = await sb.from('improdutividade_snapshots').select('bundle,created_at,source_filename').order('created_at', {ascending:false}).limit(1).maybeSingle();
     if(error) throw error;
-    if(data && data.bundle){
-      DATA = normalizeInterferenciaDashes(data.bundle);
-      state.dates = new Set(DATA.datas || []);
-      renderAll();
-      document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
+    const localIsNewer = localCache && (!data || !data.created_at || new Date(localCache.savedAt) > new Date(data.created_at));
+    if(localIsNewer){
+      applyBundle(localCache.bundle, 'Conectado — usando sua última importação local (mais recente que o snapshot publicado; publique-a para todos verem).');
+    } else if(data && data.bundle){
+      applyBundle(data.bundle);
       const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
       sbSetStatus('ok', 'Conectado — snapshot de ' + when + (data.source_filename ? ' (' + data.source_filename + ')' : '') + '.');
     } else {
       sbSetStatus('ok', 'Conectado ao Supabase — nenhum dado publicado ainda, usando os dados locais.');
     }
   }catch(e){
-    sbSetStatus('err', 'Sem conexão com o Supabase (pode ser bloqueio de rede deste preview) — usando dados locais.');
+    if(localCache) applyBundle(localCache.bundle);
+    sbSetStatus('err', 'Sem conexão com o Supabase (pode ser bloqueio de rede deste preview) — usando ' + (localCache ? 'sua última importação salva neste navegador.' : 'dados locais.'));
   }
 }
 
