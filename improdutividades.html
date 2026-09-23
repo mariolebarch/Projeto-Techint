@@ -460,7 +460,6 @@ body.interf-modal-lock{overflow:hidden;}
 .interf-modal-head{position:relative; background:radial-gradient(circle at 0% 0%, var(--navy-700) 0%, var(--navy) 62%), var(--navy); padding:16px 60px 16px 18px; border-radius:12px 12px 0 0;}
 .interf-modal-eyebrow{font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700;}
 .interf-modal-title{font-family:var(--font-display); font-size:21px; font-weight:800; color:#fff; text-transform:uppercase; margin-top:2px; line-height:1.1;}
-.interf-modal-sub{font-size:12px; color:rgba(255,255,255,.65); margin-top:5px;}
 .interf-modal-close{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:5px; height:30px; padding:0 12px; border-radius:15px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .interf-modal-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
 .interf-modal-total{padding:11px 18px; border-bottom:1px solid var(--border-soft); display:flex; align-items:baseline; gap:9px; background:var(--sand);}
@@ -1344,7 +1343,6 @@ function openInterfDetailModal(tipoLabel, kind){
   });
   const entries = Array.from(grouped.values()).sort((a,b)=> b.hh - a.hh);
   const total = entries.reduce((a,e)=>a+e.hh, 0);
-  const subtitle = kind==='rnc' ? 'Total de HH por Nº RNC (aba Export_BI, col. W)' : 'Total de HH por definição (aba Export_BI, col. X — RESUMO)';
   // Diagnóstico: distingue "não achei nenhuma linha desse tipo" (base sem
   // interferencias_raw — precisa reimportar a planilha) de "achei linhas,
   // mas nenhuma com RNC preenchido" (base ok, só falta preencher na
@@ -1373,7 +1371,6 @@ function openInterfDetailModal(tipoLabel, kind){
       <button type="button" class="interf-modal-close" id="interf-modal-close-btn">&times; Fechar</button>
       <span class="interf-modal-eyebrow">Detalhamento</span>
       <div class="interf-modal-title">${escHtml(tipoLabel)}</div>
-      <div class="interf-modal-sub">${subtitle}</div>
     </div>
     <div class="interf-modal-total"><span class="n">${fmtH(total)}h</span><span class="l">Total &middot; ${entries.length} ${kind==='rnc'?(entries.length===1?'RNC distinto':'RNCs distintos'):(entries.length===1?'definição distinta':'definições distintas')}</span></div>
     <div class="interf-modal-body">${rowsHtml}</div>
@@ -2786,25 +2783,49 @@ function parseWorkbookToBundleImprod(wb){
   };
 }
 
-/* Cache local (localStorage) da última planilha importada neste navegador.
+/* Cache local (IndexedDB) da última planilha importada neste navegador.
    Sem isso, uma importação feita sem login no Supabase existe só na
    memória da aba: ao recarregar a página, sbInit() busca de novo o
    snapshot do Supabase (o antigo) e a importação "some", pedindo pra
    reimportar. Com o cache, mesmo sem login, um F5 continua mostrando a
    última planilha importada NESTE navegador — publicar no Supabase
    continua sendo o único jeito de outras pessoas/dispositivos verem essa
-   atualização. Falha de cota do localStorage é só ignorada (o painel
-   segue funcionando, apenas sem esse fallback). */
-const IMPROD_CACHE_KEY = 'improd_bundle_cache_v1';
-function saveLocalBundleCache(bundle){
-  try{
-    localStorage.setItem(IMPROD_CACHE_KEY, JSON.stringify({bundle, savedAt: new Date().toISOString()}));
-  }catch(e){ console.warn('Não foi possível salvar o cache local da planilha (cota do navegador?).', e); }
+   atualização. Usa IndexedDB em vez de localStorage porque o bundle com
+   interferencias_raw (linha a linha, sem agregação) de uma base real
+   pode passar fácil dos ~5MB que o localStorage costuma permitir por
+   origem — IndexedDB não tem esse teto baixo. Qualquer falha (IndexedDB
+   indisponível, bloqueado, etc.) é só ignorada: o painel segue
+   funcionando, apenas sem esse fallback. */
+const IMPROD_DB_NAME = 'improd_cache', IMPROD_DB_STORE = 'bundles', IMPROD_DB_KEY = 'latest';
+function openImprodDb(){
+  return new Promise((resolve, reject) => {
+    if(typeof indexedDB === 'undefined'){ reject(new Error('IndexedDB indisponível')); return; }
+    const req = indexedDB.open(IMPROD_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(IMPROD_DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
 }
-function loadLocalBundleCache(){
+async function saveLocalBundleCache(bundle){
   try{
-    const raw = localStorage.getItem(IMPROD_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const db = await openImprodDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(IMPROD_DB_STORE, 'readwrite');
+      tx.objectStore(IMPROD_DB_STORE).put({bundle, savedAt: new Date().toISOString()}, IMPROD_DB_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }catch(e){ console.warn('Não foi possível salvar o cache local da planilha (IndexedDB).', e); }
+}
+async function loadLocalBundleCache(){
+  try{
+    const db = await openImprodDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(IMPROD_DB_STORE, 'readonly');
+      const req = tx.objectStore(IMPROD_DB_STORE).get(IMPROD_DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
   }catch(e){ return null; }
 }
 function applyBundle(bundle, statusMsg){
@@ -2840,7 +2861,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       state.os = new Set(); state.grupo='all'; state.sup='all'; state.poros.expanded = new Set();
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
-      saveLocalBundleCache(bundle);
+      await saveLocalBundleCache(bundle);
       statusEl.className = 'settings-status ok';
       statusEl.textContent = 'Dados atualizados: ' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros, ' + DATA.rdcs.length.toLocaleString('pt-BR') + ' RDCs, ' + DATA.datas.length + ' datas.';
     }catch(err){
@@ -2948,11 +2969,11 @@ function renderSbAuthBox(){
 }
 
 async function sbInit(){
-  // Cache local (localStorage) de uma importação feita sem login no
+  // Cache local (IndexedDB) de uma importação feita sem login no
   // Supabase — sem checar isso aqui, ela nunca sobrevive a um F5, porque
   // o fetch do Supabase abaixo (ou a falta de conexão) sempre teria a
   // palavra final sobre o que fica em DATA.
-  const localCache = loadLocalBundleCache();
+  const localCache = await loadLocalBundleCache();
   if(!sb){
     if(localCache) applyBundle(localCache.bundle);
     sbSetStatus('err', 'Biblioteca do Supabase não carregou (bloqueio de rede deste preview?) — usando ' + (localCache ? 'sua última importação salva neste navegador.' : 'dados locais.'));
