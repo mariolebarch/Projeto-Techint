@@ -1326,13 +1326,28 @@ function openInterfDetailModal(tipoLabel, kind){
   entries.sort((a,b)=> String(b.d||'').localeCompare(String(a.d||'')));
   const total = entries.reduce((a,e)=>a+e.hh, 0);
   const subtitle = kind==='rnc' ? 'Nº RNC por ocorrência (aba Export_BI, col. W)' : 'Definição por ocorrência (aba Export_BI, col. X — RESUMO)';
+  // Diagnóstico: distingue "não achei nenhuma linha desse tipo" (base sem
+  // interferencias_raw — precisa reimportar a planilha) de "achei linhas,
+  // mas nenhuma com RNC preenchido" (base ok, só falta preencher na
+  // planilha), em vez de um "0 ocorrências" genérico que parece bug nos
+  // dois casos.
+  let emptyMsg = '';
+  if(!entries.length){
+    if(!(DATA.interferencias_raw||[]).length){
+      emptyMsg = 'A base carregada ainda não tem os dados linha a linha (interferencias_raw) — reimporte a planilha em Configurações → Atualizar dados para habilitar este detalhamento.';
+    } else if(!rows.length){
+      emptyMsg = `Nenhuma ocorrência de "${tipoLabel}" encontrada na base atual para os filtros de data/OS/supervisor selecionados.`;
+    } else {
+      emptyMsg = `${rows.length} ocorrência${rows.length===1?'':'s'} de "${tipoLabel}" encontrada${rows.length===1?'':'s'}, mas nenhuma com Nº RNC preenchido na planilha.`;
+    }
+  }
   const rowsHtml = entries.length ? entries.map(e => `<div class="interf-modal-row">
       <div class="txt">
         <div class="def${e.muted?' muted':''}">${escHtml(e.def)}</div>
         <div class="meta">${e.d ? fmtDateLabel(e.d) : '—'} &middot; OS ${escHtml(e.os||'—')}</div>
       </div>
       <div class="hh">${fmtH(e.hh)}h</div>
-    </div>`).join('') : `<div class="empty-state">Nenhuma ocorrência ${kind==='rnc' ? 'com Nº RNC definido' : ''} para os filtros atuais.</div>`;
+    </div>`).join('') : `<div class="empty-state">${escHtml(emptyMsg)}</div>`;
 
   document.getElementById('interf-modal-frame').innerHTML = `
     <div class="interf-modal-head">
