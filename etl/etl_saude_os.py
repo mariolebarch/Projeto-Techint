@@ -294,15 +294,27 @@ for r in os_list:
     r["pend_total_hh"] = pendencias_por_os.get(r["os"], 0.0)
     r["prov_total_hh"] = prov_total_por_os.get(r["os"], 0.0)
 
+# Funções que aparecem em "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" ou
+# "3 - PENDÊNCIAS" mas não têm nenhuma linha na aba 1 pra aquela OS — HH que
+# já entrava no total da OS acima (Aprop.+Mob./Pendência), só que "invisível"
+# na tabela por função porque não tem função reconhecida na aba 1. Cria uma
+# linha própria pra cada uma (Previsto/Realizado/Saldo = 0, só o HH de
+# pend/prov mesmo) e marca sem_previsto=True pra sinalizar na tela que essa
+# função não estava no previsto.
+for os_val, funcao in set(prov_apropriacao) | set(prov_mobile) | set(pendencias_por_func):
+    bucket = funcoes_por_os.setdefault(str(os_val), {})
+    if funcao not in bucket:
+        bucket[funcao] = {"consolidado": 0.0, "realizado": 0.0, "saldo": 0.0, "vl_realizado": 0.0, "vl_saldo": 0.0, "sem_previsto": True}
+
 # achata em listas ordenadas por saldo desc, pronto para exibição
 for key, bucket in funcoes_por_os.items():
     os_int = int(key)
     items = []
     for funcao, vals in bucket.items():
-        if not (vals["consolidado"] or vals["realizado"] or vals["saldo"]):
-            continue
         prov = prov_apropriacao.get((os_int, funcao), 0.0) + prov_mobile.get((os_int, funcao), 0.0)
         pend = pendencias_por_func.get((os_int, funcao), 0.0)
+        if not (vals["consolidado"] or vals["realizado"] or vals["saldo"] or prov or pend):
+            continue
         item = {"funcao": funcao, **vals}
         if prov:
             item["prov_hh"] = prov

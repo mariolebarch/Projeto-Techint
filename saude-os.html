@@ -451,6 +451,7 @@ table.os-detail-func-table tbody tr:first-child td{border-top:none;}
 table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
+.odf-flag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--warning); background:var(--warning-soft); border-radius:4px; padding:1px 6px; width:fit-content; cursor:help;}
 .os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .os-detail-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
 .os-detail-close svg{width:12px; height:12px; flex:none;}
@@ -1159,20 +1160,20 @@ function computeOsSummary(r, funcoes){
       funcao: f.funcao, previsto: f.consolidado||0, realizado: f.realizado||0,
       saldo: f.saldo||0, pend: f.pend_hh||0, prov: f.prov_hh||0,
       totalRealizado: fTotalRealizado, saldoFinal: sf, valorUnitario: f.valor_unitario||0,
+      semPrevisto: !!f.sem_previsto,
     };
   });
-  // Pendência/Aprop.+Mob. tem uma parte "sem função reconhecida" que não
-  // aparece em nenhuma linha de funcRows (ver comentário de computeSaldoFinal)
-  // — por isso pendTotal/provTotal (OS inteira) é maior que a soma de
-  // f.pend/f.prov (só o que bateu com função). Sem essa parte, o R$ só
-  // precificava o HH que tinha função reconhecida e podia até fechar
-  // positivo com o HH Saldo Final negativo (o resto do déficit ficava de
-  // fora, sem custo). Pra não perder esse pedaço, ele entra aqui também,
-  // convertido pela taxa média ponderada pelo HH Previsto das funções desta
-  // OS (não tem uma função própria pra saber a taxa exata).
-  const pendMatched = funcRows.reduce((a,f)=>a+f.pend,0);
-  const provMatched = funcRows.reduce((a,f)=>a+f.prov,0);
-  const semFuncaoHh = (pendTotal - pendMatched) + (provTotal - provMatched);
+  // Pendência/Aprop.+Mob. tem uma parte sem uma função com taxa conhecida
+  // (aba 1) — seja porque a função nem apareceu lá (linha "sem_previsto",
+  // ver comentário de computeSaldoFinal) ou porque bateu com uma função sem
+  // valor unitário cadastrado. Sem essa parte, o R$ só precificava o HH que
+  // tinha taxa conhecida e podia até fechar positivo com o HH Saldo Final
+  // negativo (o resto do déficit ficava de fora, sem custo). Pra não perder
+  // esse pedaço, ele entra aqui também, convertido pela taxa média ponderada
+  // pelo HH Previsto das funções desta OS que têm taxa (não tem uma função
+  // própria pra saber a taxa exata).
+  const pendProvComTaxa = funcRows.reduce((a,f)=> a + (f.valorUnitario ? f.pend+f.prov : 0), 0);
+  const semFuncaoHh = Math.max(0, (pendTotal + provTotal) - pendProvComTaxa);
   const basePrevistoComTaxa = funcRows.reduce((a,f)=>a + (f.valorUnitario ? f.previsto : 0), 0);
   const taxaMedia = basePrevistoComTaxa > 0
     ? funcRows.reduce((a,f)=>a + f.previsto * f.valorUnitario, 0) / basePrevistoComTaxa
@@ -1203,7 +1204,7 @@ function renderOsDetailPanel(r, funcoes){
     const sfCls = f.saldoFinal >= 0 ? 'good' : 'critical';
     const sfSgn = f.saldoFinal > 0 ? '+' : '';
     return `<tr>
-      <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span></td>
+      <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span>${f.semPrevisto ? `<span class="odf-flag" title="Função não encontrada na aba 1 (Previsto) — HH veio de Aprop./Mobile/Pendências">Sem previsto</span>` : ''}</td>
       <td class="num-col">${fmtH(f.previsto)}</td>
       <td class="num-col">${fmtH(f.realizado)}</td>
       <td class="num-col">${fmtH(f.saldo)}</td>
@@ -1576,7 +1577,7 @@ function exportOsResumoXlsx(r, funcoes){
   ];
   const funcAoa = [
     ['Função', 'HH Previsto', 'HH Realizado', 'HH Saldo', 'HH Pendência', 'Aprop. + Mob. (HH)', 'HH Total Realizado', 'HH Saldo Final'],
-    ...s.funcRows.map(f => [f.funcao, f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal]),
+    ...s.funcRows.map(f => [f.funcao + (f.semPrevisto ? ' (sem previsto)' : ''), f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal]),
   ];
   downloadWorkbook([
     { name: 'Resumo', aoa: resumoAoa },
@@ -2335,6 +2336,20 @@ function parseWorkbookToBundleSaudeOs(wb){
     r.prov_total_hh = provTotalPorOs[r.os] || 0;
   });
 
+  // Funções que aparecem em Aprop./Mobile/Pendências mas não têm nenhuma
+  // linha na aba 1 pra aquela OS — HH que já entrava no total da OS acima
+  // (pend_total_hh/prov_total_hh), só que "invisível" na tabela por função
+  // porque não tem função reconhecida na aba 1. Cria uma linha própria pra
+  // cada uma (Previsto/Realizado/Saldo = 0) e marca sem_previsto=true pra
+  // sinalizar na tela que essa função não estava no previsto.
+  [...Object.keys(provApropriacao), ...Object.keys(provMobile), ...Object.keys(pendenciasPorFunc)].forEach(k=>{
+    const idx = k.indexOf('|');
+    const osKey = k.slice(0, idx), funcao = k.slice(idx+1);
+    if(!funcoesPorOs[osKey]) funcoesPorOs[osKey] = {};
+    const bucket = funcoesPorOs[osKey];
+    if(!bucket[funcao]) bucket[funcao] = {consolidado:0, realizado:0, saldo:0, vl_realizado:0, vl_saldo:0, sem_previsto:true};
+  });
+
   Object.keys(funcoesPorOs).forEach(key=>{
     const bucket = funcoesPorOs[key];
     funcoesPorOs[key] = Object.entries(bucket)
@@ -2347,7 +2362,7 @@ function parseWorkbookToBundleSaudeOs(wb){
         if(pend) item.pend_hh = pend;
         return item;
       })
-      .filter(x=>x.consolidado||x.realizado||x.saldo)
+      .filter(x=>x.consolidado||x.realizado||x.saldo||x.prov_hh||x.pend_hh)
       .sort((a,b)=>b.saldo-a.saldo);
   });
 
