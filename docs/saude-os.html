@@ -1289,10 +1289,10 @@ function renderDetalheTable(){
     const sfSgn = sf > 0 ? '+' : '';
     return `<tr class="os-row${open?' expanded':''}" data-os="${r.os==null?'':r.os}">
       <td class="mono-tag">${escHtml(r.os_label)}<span class="expand-hint">▸ ${funcoes.length ? funcoes.length+' função(ões)' : 'resumo'}</span></td>
-      <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'')}</td>
-      <td>${escHtml(r.lider||'')}</td>
-      <td>${escHtml(r.fiscal||'')}</td>
-      <td>${escHtml(r.sit||'')}</td>
+      <td title="${escHtml(r.pep||'')}">${escHtml(r.pep||'—')}</td>
+      <td>${escHtml(r.lider||'—')}</td>
+      <td>${escHtml(r.fiscal||'—')}</td>
+      <td>${escHtml(r.sit||'—')}</td>
       <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(sf)}</span></td>
     </tr>`;
   }).join('');
