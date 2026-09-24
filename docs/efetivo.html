@@ -269,7 +269,7 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
    só visível enquanto sobrar conteúdo pra rolar (classes via JS abaixo). */
 .table-scroll::after{content:""; position:absolute; top:0; right:0; bottom:0; width:22px; background:linear-gradient(to right, transparent, var(--paper)); pointer-events:none; opacity:0; transition:opacity .15s ease;}
 .table-scroll.has-hscroll:not(.scrolled-end)::after{opacity:1;}
-table{border-collapse:collapse; width:100%; font-size:13.5px;}
+table{border-collapse:separate; border-spacing:0; width:100%; font-size:13.5px;}
 thead th{position:sticky; top:0; z-index:3; background:var(--table-accent); color:#fff; text-align:left; padding:9px 12px; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; cursor:pointer; user-select:none;}
 thead th.num-col, td.num-col{text-align:right;}
 thead th:hover{filter:brightness(1.12);}
