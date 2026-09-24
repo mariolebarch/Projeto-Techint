@@ -451,7 +451,7 @@ table.os-detail-func-table tbody tr:first-child td{border-top:none;}
 table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
-.odf-flag{font-size:12px; font-weight:600; color:var(--critical); cursor:help;}
+.odf-flag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--critical); background:var(--critical-soft); border-radius:4px; padding:1px 6px; width:fit-content; cursor:help;}
 .os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .os-detail-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
 .os-detail-close svg{width:12px; height:12px; flex:none;}
@@ -1204,7 +1204,7 @@ function renderOsDetailPanel(r, funcoes){
     const sfCls = f.saldoFinal >= 0 ? 'good' : 'critical';
     const sfSgn = f.saldoFinal > 0 ? '+' : '';
     return `<tr>
-      <td class="odf-name"><span class="n">${escHtml(f.funcao)}${f.semPrevisto ? ` <span class="odf-flag" title="Função não encontrada na aba 1 (Previsto) — HH veio de Aprop./Mobile/Pendências">- Sem previsto</span>` : ''}</span></td>
+      <td class="odf-name"><span class="n">${escHtml(f.funcao)}</span>${f.semPrevisto ? `<span class="odf-flag" title="Função não encontrada na aba 1 (Previsto) — HH veio de Aprop./Mobile/Pendências">Sem previsto</span>` : ''}</td>
       <td class="num-col">${fmtH(f.previsto)}</td>
       <td class="num-col">${fmtH(f.realizado)}</td>
       <td class="num-col">${fmtH(f.saldo)}</td>
