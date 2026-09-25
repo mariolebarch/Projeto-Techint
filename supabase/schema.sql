@@ -121,3 +121,15 @@ create policy "saude_os_snapshots_insert_public"
   for insert
   to anon, authenticated
   with check (true);
+
+
+-- Prazo de gravação — o painel de Improdutividades publica um bundle grande
+-- (a base linha a linha "interferencias_raw", dezenas de milhares de
+-- registros, junto com o resto), e o statement_timeout padrão do Supabase
+-- para os papéis anon/authenticated é curto demais pra isso numa rede mais
+-- lenta — o Postgres cancela a gravação no meio ("canceling statement due
+-- to statement timeout") mesmo com o dado correto e a política de RLS OK.
+-- Isso aumenta o prazo pros dois papéis usados pelo painel (afeta todas as
+-- tabelas do projeto, não só as de snapshot).
+alter role anon set statement_timeout = '120s';
+alter role authenticated set statement_timeout = '120s';
