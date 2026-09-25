@@ -31,12 +31,14 @@ histórico, de forma independente:
    projeto Supabase `dqomnopaigdikkesbbvj` (URL e chave `anon` estão no
    próprio arquivo — isso é seguro, ver `supabase/README.md`), cada um numa
    tabela própria (`painel_snapshots` para o Efetivo, `improdutividade_snapshots`
-   para o Improdutividades). Ao abrir o painel, ele tenta carregar
-   automaticamente o snapshot mais recente do banco; se não conseguir (rede
-   bloqueada, banco vazio), cai para os dados locais/embutidos sem quebrar.
-   Fazendo login (Authentication → Users no Supabase) pela engrenagem, uma
-   nova importação de planilha também é publicada no banco para todo mundo
-   que abrir o link depois.
+   para o Improdutividades, `saude_os_snapshots` para Saúde das OS's). Ao
+   abrir o painel, ele tenta carregar automaticamente o snapshot mais
+   recente do banco; se não conseguir (rede bloqueada, banco vazio), cai
+   para os dados locais/embutidos sem quebrar. Toda importação de planilha
+   pela engrenagem já é publicada automaticamente no banco para todo mundo
+   que abrir o link depois — não precisa estar logado no Supabase para
+   isso; login é opcional e só registra quem publicou (coluna
+   `imported_by`).
 
 ## Estrutura
 
@@ -85,10 +87,11 @@ importe a planilha pela engrenagem.
 ## Supabase (dados centralizados)
 
 Projeto: `dqomnopaigdikkesbbvj`. Ver `supabase/README.md` para o passo a
-passo (rodar `supabase/schema.sql`, que cria as duas tabelas de snapshot, e
-criar usuários autorizados a importar). Cada painel só lê automaticamente;
-para publicar uma planilha nova para todo mundo, é preciso estar logado
-(painel → engrenagem → "Entrar para publicar dados").
+passo (rodar `supabase/schema.sql`, que cria as três tabelas de snapshot).
+Cada painel lê automaticamente o snapshot mais recente, e qualquer
+importação bem-sucedida pela engrenagem já publica para todo mundo — não
+precisa estar logado. Login (painel → engrenagem → "Entrar para publicar
+dados") é opcional e só registra quem publicou cada snapshot.
 
 Importante: dentro do preview do Artifact (claude.ai/code/artifact/...) a
 conexão com o Supabase pode ser bloqueada pelo sandbox da plataforma — o

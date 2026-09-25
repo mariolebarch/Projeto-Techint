@@ -13,20 +13,23 @@ usada pelo painel).
 ## 2. Rodar o schema
 
 No projeto, abra **SQL Editor** → cole o conteúdo de
-[`schema.sql`](./schema.sql) → **Run**. Isso cria as duas tabelas de
-snapshot — `painel_snapshots` (painel Efetivo) e `improdutividade_snapshots`
-(Painel de Improdutividades) — com as mesmas políticas de acesso (leitura
-pública, escrita só para usuários autenticados). Se o projeto já tinha
-`painel_snapshots` de antes, rodar o script de novo é seguro: os `create
-table if not exists` só criam o que ainda falta.
+[`schema.sql`](./schema.sql) → **Run**. Isso cria as três tabelas de
+snapshot — `painel_snapshots` (painel Efetivo), `improdutividade_snapshots`
+(Painel de Improdutividades) e `saude_os_snapshots` (Saúde das OS's) — com
+as mesmas políticas de acesso: leitura e escrita públicas (qualquer pessoa
+com o link do painel pode importar uma planilha e publicar para todo
+mundo, sem precisar de login). Se o projeto já tinha essas tabelas de
+antes com a política antiga (escrita só para usuários autenticados), rode
+o script de novo — os `drop policy if exists` + `create policy` trocam a
+política sem perder nenhum dado já salvo.
 
-## 3. Criar pelo menos um usuário para importar dados
+## 3. Login (opcional)
 
-Em **Authentication → Users**, crie um usuário (e-mail/senha) para cada
-pessoa que vai ter permissão de importar planilhas novas — normalmente você
-mesmo. Sem estar autenticado como esse usuário, a inserção de um novo
-snapshot é bloqueada pela política de RLS (isso é proposital: a chave
-pública do painel não pode ter permissão de escrita).
+Não é mais obrigatório: qualquer um que abrir o painel e importar uma
+planilha já publica para todo mundo. Login (**Authentication → Users**,
+e-mail/senha) só serve hoje para registrar quem publicou cada snapshot
+(coluna `imported_by`) — sem login, essa coluna fica vazia, mas a
+publicação funciona normalmente.
 
 ## 4. Pegar a URL e a chave anon (pública)
 

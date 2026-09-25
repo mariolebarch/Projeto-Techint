@@ -2875,11 +2875,11 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       return;
     }
 
-    if(sb && sbSession){
+    if(sb){
       statusEl.textContent += ' Publicando no Supabase…';
       try{
         const { error: insErr } = await sb.from('improdutividade_snapshots').insert({
-          bundle, source_filename: file.name, imported_by: sbSession.user.email,
+          bundle, source_filename: file.name, imported_by: (sbSession && sbSession.user && sbSession.user.email) || null,
         });
         if(insErr) throw insErr;
         statusEl.className = 'settings-status ok';
@@ -2887,11 +2887,8 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
         sbSetStatus('ok', 'Conectado — snapshot publicado agora (' + file.name + ').');
       }catch(insErr){
         statusEl.className = 'settings-status error';
-        statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr);
+        statusEl.textContent = 'Dados atualizados localmente, mas falhou ao publicar no Supabase: ' + (insErr && insErr.message ? insErr.message : insErr) + ' — tente de novo; se persistir, pode ser bloqueio de rede até o Supabase neste dispositivo/rede.';
       }
-    } else if(sb){
-      statusEl.className = 'settings-status warn';
-      statusEl.textContent = '⚠️ Dados atualizados, mas NÃO publicados — só este navegador está vendo essa base agora (' + DATA.interferencias.length.toLocaleString('pt-BR') + ' registros). Para todo mundo ver (inclusive celular e outros computadores), faça login no Supabase abaixo ("Entrar para publicar dados") e importe a planilha de novo.';
     }
     e.target.value = '';
   };
