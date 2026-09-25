@@ -694,7 +694,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   </header>
   <div class="masthead-accent"></div>
   <div class="global-filters">
-    <div class="field"><label>OS</label><input class="search-input" id="os-search-global" placeholder="buscar nº OS&hellip;" style="min-width:130px;"></div>
+    <div class="field"><label>OS</label><input class="search-input" id="os-search-global" placeholder="buscar OS ou título&hellip;" style="min-width:150px;"></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <div class="field"><label>Situa&ccedil;&atilde;o</label><div class="msel" id="sit-msel-global"></div></div>
     <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
@@ -737,13 +737,13 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
       <div class="card-head">
         <h3>Detalhamento por OS</h3>
         <div class="filters">
-          <div class="field"><label>Buscar</label><input class="search-input" id="detalhe-search" placeholder="OS, PEP ou Líder&hellip;"></div>
+          <div class="field"><label>Buscar</label><input class="search-input" id="detalhe-search" placeholder="OS, Título ou Líder&hellip;"></div>
         </div>
       </div>
       <div class="table-scroll" style="max-height:640px; overflow-y:auto;">
         <table id="detalhe-table">
           <thead><tr>
-            <th data-sort="os_label">OS</th><th data-sort="pep">PEP / Descrição</th><th data-sort="lider">Líder</th><th data-sort="fiscal">Fiscal</th><th data-sort="sit">Situação</th>
+            <th data-sort="os_label">OS</th><th data-sort="pep">Título da OS</th><th data-sort="lider">Líder</th><th data-sort="fiscal">Fiscal</th><th data-sort="sit">Situação</th>
             <th class="num-col" data-sort="saldo_final">Saldo Final</th>
           </tr></thead>
           <tbody id="detalhe-tbody"></tbody>
@@ -1560,7 +1560,7 @@ function exportOsResumoXlsx(r, funcoes){
   const resumoAoa = [
     ['Resumo da OS'],
     ['OS', r.os_label],
-    ['PEP / Descrição', r.pep || ''],
+    ['Título da OS', r.pep || ''],
     ['Líder', r.lider || ''],
     ['Fiscal', r.fiscal || ''],
     ['Situação', r.sit || ''],
@@ -1726,7 +1726,7 @@ function exportFiltersSummarySheet(){
 }
 function exportResumoSheet(){
   const rows = filteredOS();
-  const aoa = [['OS','Contrato','PEP/Descrição','Líder','Fiscal','Situação',
+  const aoa = [['OS','Contrato','Título da OS','Líder','Fiscal','Situação',
     'HH Previsto','HH Realizado','HH Saldo','Valor Previsto','Valor Realizado','Valor Saldo',
     '% Consumido','Saldo Geral (HH)','Saldo Geral (%)','Saldo Geral (R$)']];
   rows.forEach(r=>{
@@ -1752,7 +1752,7 @@ function exportPendFadSheet(){
 }
 function exportBaseCompletaSheet(){
   const rows = filteredOS();
-  const aoa = [['OS','Contrato','PEP/Descrição','Líder','Fiscal','Situação (simplificada)','Situação',
+  const aoa = [['OS','Contrato','Título da OS','Líder','Fiscal','Situação (simplificada)','Situação',
     'HH Previsto','HH Realizado','HH Saldo','Valor Previsto','Valor Realizado','Valor Saldo','HH Consolidado',
     'Apropriação mês atual (HH)','Pendências compacto (HH)','Consumo Total (HH)','Saldo Final (HH)','% Consumido','HH 70%',
     'FAD Em elaboração (HH)','FAD Em elaboração (R$)','FAD Aguardando revisão (HH)','FAD Aguardando revisão (R$)',
