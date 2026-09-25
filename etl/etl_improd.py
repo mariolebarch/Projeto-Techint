@@ -195,10 +195,23 @@ grupos = sorted(set(g["gi"] for g in interferencias if g["gi"]))
 supervisores = sorted(set(g["sup"] for g in interferencias if g["sup"]))
 situacoes = sorted(set(rc["sit"] for rc in rdcs if rc["sit"]))
 
+INTERF_RAW_KEYS = ["registro", "tipoRegistro", "rdc", "os", "atividade", "gi", "enc", "recurso",
+                   "matricula", "d", "hIni", "dFim", "hFim", "dur", "plan", "real", "hAtiv",
+                   "obs", "it", "rnc", "resumo", "resp", "sup"]
+
+def collapse_interferencias_raw(rows):
+    # Formato colunar (uma lista de chaves + uma lista de linhas de valores,
+    # em vez de um dict repetindo as 23 chaves em cada uma das dezenas de
+    # milhares de linhas) — o painel expande de volta pra array de objetos
+    # ao carregar (ver expandInterferenciasRaw em improdutividades.html).
+    # Reduz bastante o tamanho do bundle publicado no Supabase, que tinha
+    # timeout de gravação com o formato anterior nessa base grande.
+    return {"keys": INTERF_RAW_KEYS, "rows": [[r.get(k) for k in INTERF_RAW_KEYS] for r in rows]}
+
 bundle = {
     "meta": {"empresa": "TECHINT ENGENHARIA E CONSTRUCAO SA"},
     "interferencias": interferencias,
-    "interferencias_raw": interferencias_raw,
+    "interferencias_raw": collapse_interferencias_raw(interferencias_raw),
     "rdcs": rdcs,
     "interferencia_tipos": interferencia_list,
     "datas": datas,

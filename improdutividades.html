@@ -726,7 +726,31 @@ body.interf-modal-lock{overflow:hidden;}
 function isDashPlaceholder(v){
   return typeof v === 'string' && /^-+$/.test(v.trim());
 }
+// interferencias_raw é grande (dezenas de milhares de linhas) — publicado/
+// transmitido em formato colunar ({keys, rows}, sem repetir o nome de cada
+// campo em toda linha) pra caber no prazo de gravação do Supabase; assim
+// que carregado (import local, cache do IndexedDB ou snapshot do Supabase),
+// vira de volta um array de objetos pra todo o resto do código continuar
+// igual. Bundles publicados antes dessa mudança ainda vêm como array de
+// objetos — expandInterferenciasRaw reconhece os dois formatos.
+const INTERF_RAW_KEYS = ['registro','tipoRegistro','rdc','os','atividade','gi','enc','recurso','matricula','d','hIni','dFim','hFim','dur','plan','real','hAtiv','obs','it','rnc','resumo','resp','sup'];
+function collapseInterferenciasRaw(rows){
+  return { keys: INTERF_RAW_KEYS, rows: (rows||[]).map(r => INTERF_RAW_KEYS.map(k => r[k] === undefined ? null : r[k])) };
+}
+function expandInterferenciasRaw(raw){
+  if(Array.isArray(raw)) return raw;
+  if(!raw || !Array.isArray(raw.rows) || !Array.isArray(raw.keys)) return [];
+  const keys = raw.keys;
+  return raw.rows.map(vals => {
+    const obj = {};
+    keys.forEach((k,i)=>{ obj[k] = vals[i]; });
+    return obj;
+  });
+}
 function normalizeInterferenciaDashes(bundle){
+  if(bundle && bundle.interferencias_raw !== undefined){
+    bundle.interferencias_raw = expandInterferenciasRaw(bundle.interferencias_raw);
+  }
   if(bundle && Array.isArray(bundle.interferencias)){
     bundle.interferencias.forEach(r=>{
       if(isDashPlaceholder(r.gi)) r.gi = null;
@@ -2878,8 +2902,9 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
     if(sb){
       statusEl.textContent += ' Publicando no Supabase…';
       try{
+        const bundleForSupabase = { ...bundle, interferencias_raw: collapseInterferenciasRaw(bundle.interferencias_raw) };
         const { error: insErr } = await sb.from('improdutividade_snapshots').insert({
-          bundle, source_filename: file.name, imported_by: (sbSession && sbSession.user && sbSession.user.email) || null,
+          bundle: bundleForSupabase, source_filename: file.name, imported_by: (sbSession && sbSession.user && sbSession.user.email) || null,
         });
         if(insErr) throw insErr;
         statusEl.className = 'settings-status ok';
