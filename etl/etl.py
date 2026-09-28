@@ -148,9 +148,9 @@ for os_val, s, e in blocks:
     if os_val is None:
         continue
     header_row = s
-    titulo = clean(ws_es.cell(row=header_row, column=3).value)
-    status_os = clean(ws_es.cell(row=header_row, column=4).value)
-    disciplina = clean(ws_es.cell(row=header_row, column=5).value)
+    titulo = clean(ws_es.cell(row=header_row, column=6).value)
+    status_os = clean(ws_es.cell(row=header_row, column=7).value)
+    disciplina = clean(ws_es.cell(row=header_row, column=8).value)
     # Bloco "PCI" na Emp Semanal representa um empilhamento único e conjunto
     # para as 4 OS do contrato PCI (não é discriminado por OS individual) —
     # fica sob a chave especial "PCI", como já ocorre com "Apoio".
@@ -159,7 +159,7 @@ for os_val, s, e in blocks:
         os_meta[str(os_key)] = {"titulo": titulo, "status": status_os, "disciplina": disciplina, "contrato": contrato_of(os_key)}
 
     for r in range(s+1, e+1):
-        cargo_raw = clean(ws_es.cell(row=r, column=5).value)
+        cargo_raw = clean(ws_es.cell(row=r, column=8).value)
         if not cargo_raw:
             continue
         n = norm(cargo_raw)

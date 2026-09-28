@@ -2911,9 +2911,9 @@ function parseWorkbookToBundle(wb){
   blocks.forEach(([osVal, s, e])=>{
     if(osVal===null || osVal===undefined) return;
     const headerRow = s;
-    const titulo = cleanStr(cellVal(wsEs,headerRow,3));
-    const statusOs = cleanStr(cellVal(wsEs,headerRow,4));
-    const disciplina = cleanStr(cellVal(wsEs,headerRow,5));
+    const titulo = cleanStr(cellVal(wsEs,headerRow,6));
+    const statusOs = cleanStr(cellVal(wsEs,headerRow,7));
+    const disciplina = cleanStr(cellVal(wsEs,headerRow,8));
     // Bloco "PCI" na Emp Semanal representa um empilhamento único e conjunto
     // para as 4 OS do contrato PCI (não é discriminado por OS individual) —
     // fica sob a chave especial "PCI", como já ocorre com "Apoio".
@@ -2923,7 +2923,7 @@ function parseWorkbookToBundle(wb){
     });
 
     for(let r=s+1;r<=e;r++){
-      const cargoRaw = cleanStr(cellVal(wsEs,r,5));
+      const cargoRaw = cleanStr(cellVal(wsEs,r,8));
       if(!cargoRaw) continue;
       const n = normStr(cargoRaw);
       let cargoCorrigido, via;
