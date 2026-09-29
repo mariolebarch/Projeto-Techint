@@ -1397,7 +1397,12 @@ function alignOvTables(){
   const rowCount = document.querySelectorAll('#eq-list .bar-row.eq-row').length;
   const availableH = eqList.getBoundingClientRect().height;
   const fitRowH = rowCount>0 ? availableH/rowCount : naturalRowH;
-  const rowH = Math.min(Math.max(naturalRowH, fitRowH), naturalRowH*3);
+  // Preenche só parte da folga (não o espaço todo) pra não afastar demais
+  // os nomes quando há poucos supervisores/encarregados em relação às
+  // linhas da tabela de OS ao lado — fica mais denso que antes, mas sem
+  // voltar a deixar uma sobra grande em branco no fim do card.
+  const target = naturalRowH + Math.max(0, fitRowH-naturalRowH)*0.45;
+  const rowH = Math.min(target, naturalRowH*1.8);
   eqList.style.setProperty('--bar-row-h', rowH + 'px');
   const diff = tableRow.getBoundingClientRect().top - barRow.getBoundingClientRect().top;
   if(diff > 0){
