@@ -422,6 +422,18 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 .donut-legend-row .txt .n{font-weight:600; font-size:13.5px;}
 .donut-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
 
+/* HH badge — total de HH apontado (headcount presente x jornada do dia),
+   destacado ao lado do gráfico de rosca. */
+.hh-badge{flex:none; width:172px; background:linear-gradient(135deg, var(--navy) 0%, var(--steel-strong) 100%); border-radius:14px; padding:16px 18px; position:relative; overflow:hidden; box-shadow:0 8px 22px rgba(0,43,92,.28); display:flex; flex-direction:column; gap:3px;}
+.hh-badge::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--green);}
+.hh-badge-icon{width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; margin-bottom:6px;}
+.hh-badge-icon svg{width:15px; height:15px; stroke:#fff;}
+.hh-badge-value{font-family:var(--font-display); font-size:32px; font-weight:800; color:#fff; line-height:1; letter-spacing:.01em;}
+.hh-badge-unit{font-size:17px; margin-left:2px; opacity:.85;}
+.hh-badge-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.88); margin-top:4px;}
+.hh-badge-sub{font-size:10px; color:rgba(255,255,255,.55);}
+@media (max-width:520px){.hh-badge{width:100%;}}
+
 /* Colab. por OS — dynamic accordion + data bars */
 .colab-acc-wrap{display:flex; flex-direction:column; gap:10px;}
 .colab-acc{border:1px solid var(--border-soft); border-radius:9px; overflow:hidden; background:var(--paper);}
@@ -904,6 +916,15 @@ function isWeekendOrHoliday(iso){
   if(dow===0 || dow===6) return true;
   return brHolidaysForYear(d.getFullYear()).has(iso);
 }
+/* Jornada padrão: segunda a quinta 9h/dia; sexta, sábado, domingo e
+   feriados 8h/dia — usado para converter presença (headcount por dia) em
+   HH apontado no card "Apontamentos por Contrato". */
+function shiftHoursFor(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dow = d.getDay();
+  if(dow>=1 && dow<=4 && !brHolidaysForYear(d.getFullYear()).has(iso)) return 9;
+  return 8;
+}
 function isoWeekOf(iso){
   const d = new Date(iso+'T00:00:00Z');
   const dayNum = (d.getUTCDay()+6)%7;
@@ -1270,10 +1291,13 @@ function renderContratoChart(ef){
   const contratos = ['MOA','PCI'];
   const stats = contratos.map(c=>{
     const rows = ef.filter(r=>contratoOfOs(String(r.os))===c);
-    const presentes = rows.filter(r=>r.presente).length;
-    return {c, total: rows.length, presentes, ausentes: rows.length-presentes};
+    const presentRows = rows.filter(r=>r.presente);
+    const presentes = presentRows.length;
+    const hh = presentRows.reduce((a,r)=>a+shiftHoursFor(r.data),0);
+    return {c, total: rows.length, presentes, ausentes: rows.length-presentes, hh};
   });
   const grand = stats.reduce((a,s)=>a+s.presentes,0);
+  const grandHh = stats.reduce((a,s)=>a+s.hh,0);
   const colorStyle = c => c==='MOA' ? 'var(--navy)' : 'var(--pci-chart)';
 
   const r=46, cx=60, cy=60, sw=18;
@@ -1303,11 +1327,20 @@ function renderContratoChart(ef){
   const legend = stats.map(s=>{
     return `<div class="donut-legend-row">
       <span class="sw" style="background:${colorStyle(s.c)}"></span>
-      <span class="txt"><span class="n">${s.c}</span><span class="d">${fmtInt(s.presentes)} presentes</span></span>
+      <span class="txt"><span class="n">${s.c}</span><span class="d">${fmtInt(s.presentes)} presentes &middot; ${fmtInt(s.hh)}h</span></span>
     </div>`;
   }).join('');
 
-  box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div></div>`;
+  const hhBadge = `<div class="hh-badge">
+    <div class="hh-badge-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
+    </div>
+    <span class="hh-badge-value">${fmtInt(grandHh)}<span class="hh-badge-unit">h</span></span>
+    <span class="hh-badge-label">HH apontado no período</span>
+    <span class="hh-badge-sub">9h seg&ndash;qui &middot; 8h sex, fds e feriados</span>
+  </div>`;
+
+  box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div>${grand===0 ? '' : hhBadge}</div>`;
 }
 
 function renderOsColabTable(ef){
