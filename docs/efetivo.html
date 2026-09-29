@@ -2386,20 +2386,24 @@ function wireScurveHover(cfg){
 
 /* ---------- Ausências & Absenteísmo ---------- */
 function computeAbsenteeism(ef, field){
+  // Conta pessoa-dia (uma linha = um dia escalado de uma pessoa), não
+  // matrícula distinta — com várias datas selecionadas, contar matrícula
+  // distinta faria "faltas" virar "esteve ausente em algum dia do
+  // período", inflando o % conforme mais dias entram no filtro. Pessoa-dia
+  // dá a taxa média real e bate com um único dia selecionado.
   const map = new Map();
   ef.forEach(r=>{
     const key = r[field] || '—';
-    if(!map.has(key)) map.set(key, {escalados:new Set(), faltas:new Set(), pessoas:[]});
+    if(!map.has(key)) map.set(key, {escalados:0, faltas:0, pessoas:[]});
     const rec = map.get(key);
-    const matr = r.matr_usm || r.matr_tct || r.nome;
-    rec.escalados.add(matr);
+    rec.escalados++;
     // Férias não conta como falta — o absenteísmo mede quem está de fato
     // ausente, não quem está de licença planejada.
-    if(!r.presente && r.status!=='Férias'){ rec.faltas.add(matr); rec.pessoas.push(r); }
+    if(!r.presente && r.status!=='Férias'){ rec.faltas++; rec.pessoas.push(r); }
   });
   return Array.from(map.entries()).map(([key,rec])=>({
-    key, escalados:rec.escalados.size, faltas:rec.faltas.size,
-    pct: rec.escalados.size? rec.faltas.size/rec.escalados.size : 0,
+    key, escalados:rec.escalados, faltas:rec.faltas,
+    pct: rec.escalados? rec.faltas/rec.escalados : 0,
     pessoas: rec.pessoas,
   })).sort((a,b)=>b.pct-a.pct || b.faltas-a.faltas);
 }
@@ -2436,21 +2440,31 @@ function renderAbsenteeRow(tbody, item, groupLabel){
 
 function renderAusencias(){
   const ef = efetivoForDates().filter(r=>!isWeekendOrHoliday(r.data));
-  const totalEsc = new Set(ef.map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
-  const totalFalt = new Set(ef.filter(r=>!r.presente && r.status!=='Férias').map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
-  const totalFerias = new Set(ef.filter(r=>!r.presente && r.status==='Férias').map(r=>r.matr_usm||r.matr_tct||r.nome)).size;
-  const pctGeral = totalEsc? totalFalt/totalEsc : 0;
+  // Com mais de uma data selecionada, cada pessoa aparece em várias linhas
+  // (uma por dia escalado) — contar por matrícula distinta faz "ausências"
+  // virar "esteve ausente em ALGUM dia do período", que cresce muito mais
+  // rápido que o total de contratados e infla o % conforme mais dias são
+  // selecionados. Em vez disso, soma pessoa-dia (uma linha = um dia
+  // escalado de uma pessoa) tanto no numerador quanto no denominador, o que
+  // dá a taxa média real do período — e bate com um único dia selecionado,
+  // já que aí "pessoa-dia" e "pessoa distinta" coincidem.
+  const numDays = new Set(ef.map(r=>r.data)).size || 1;
+  const escaladoDias = ef.length;
+  const faltaDias = ef.filter(r=>!r.presente && r.status!=='Férias').length;
+  const feriasDias = ef.filter(r=>!r.presente && r.status==='Férias').length;
+  const totalEsc = Math.round(escaladoDias/numDays);
+  const pctGeral = escaladoDias? faltaDias/escaladoDias : 0;
+  const pctFerias = escaladoDias? feriasDias/escaladoDias : 0;
 
   const byCargo = computeAbsenteeism(ef, 'cargo');
   const byDisc = computeAbsenteeism(ef, 'disciplina');
 
-  const pctFerias = totalEsc? totalFerias/totalEsc : 0;
   document.getElementById('ab-stats').innerHTML = `
-    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados</span></div>
-    <div class="s"><span class="v num">${totalFalt}</span><span class="k">Ausências</span></div>
+    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados${numDays>1?' (média/dia)':''}</span></div>
+    <div class="s"><span class="v num">${faltaDias}</span><span class="k">Ausências</span></div>
     <div class="s"><span class="v num" style="color:var(--critical)">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>
     <div class="s"><span class="v num" style="color:var(--warning)">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>
-    <div class="s"><span class="v num">${totalFerias}</span><span class="k">Férias</span></div>`;
+    <div class="s"><span class="v num">${feriasDias}</span><span class="k">Férias</span></div>`;
 
   const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
   byCargo.forEach(item=>renderAbsenteeRow(cargoBody, item));
