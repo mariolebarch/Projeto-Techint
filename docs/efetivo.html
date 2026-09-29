@@ -2491,18 +2491,25 @@ function renderAusencias(){
   const faltaDias = ef.filter(r=>!r.presente && r.status!=='Férias').length;
   const feriasDias = ef.filter(r=>!r.presente && r.status==='Férias').length;
   const totalEsc = Math.round(escaladoDias/numDays);
+  // Ausências e Férias também viram média por dia quando mais de uma data
+  // está selecionada — mostrar a soma bruta do período (ex.: 513 ausências
+  // em várias semanas) não é uma leitura útil por si só; a média diária dá
+  // a mesma régua do "Contratados (média/dia)" ao lado.
+  const avgFalta = Math.round(faltaDias/numDays);
+  const avgFerias = Math.round(feriasDias/numDays);
   const pctGeral = escaladoDias? faltaDias/escaladoDias : 0;
   const pctFerias = escaladoDias? feriasDias/escaladoDias : 0;
+  const suf = numDays>1 ? ' (média/dia)' : '';
 
   const byCargo = computeAbsenteeism(ef, 'cargo');
   const byDisc = computeAbsenteeism(ef, 'disciplina');
 
   document.getElementById('ab-stats').innerHTML = `
-    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados${numDays>1?' (média/dia)':''}</span></div>
-    <div class="s"><span class="v num">${faltaDias}</span><span class="k">Ausências</span></div>
+    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados${suf}</span></div>
+    <div class="s"><span class="v num">${avgFerias}</span><span class="k">Férias${suf}</span></div>
+    <div class="s"><span class="v num">${avgFalta}</span><span class="k">Ausências${suf}</span></div>
     <div class="s"><span class="v num" style="color:var(--critical)">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>
-    <div class="s"><span class="v num" style="color:var(--warning)">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>
-    <div class="s"><span class="v num">${feriasDias}</span><span class="k">Férias</span></div>`;
+    <div class="s"><span class="v num" style="color:var(--warning)">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>`;
 
   const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
   byCargo.forEach(item=>renderAbsenteeRow(cargoBody, item));
