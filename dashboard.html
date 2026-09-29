@@ -1599,7 +1599,14 @@ function renderConfrontoControls(){
 
   buildOsMultiSelect('hm-os-msel', osOptions, state.hm.os, ()=>renderPlanejamento(), 'Todas as OS');
 
-  const discs = Array.from(new Set(visibleOs.map(k=>DATA.os_meta[k].disciplina).filter(Boolean))).sort();
+  // Disciplina por CARGO/função (buildCargoDiscMap), não o rótulo da OS em
+  // os_meta — esse rótulo pode vir combinado ("Mecânica / Elétrica /
+  // Andaime") quando a OS é multidisciplinar, o que fazia o filtro por
+  // "Andaime" sozinho não achar nenhuma dessas OS's. Filtrando por função
+  // dá pra isolar só o empilhamento de uma disciplina mesmo dentro de uma
+  // OS que mistura várias.
+  const cargoDisc = buildCargoDiscMap();
+  const discs = Array.from(new Set(Array.from(cargoDisc.values()).filter(Boolean))).sort();
   populateSelect(document.getElementById('cf-disc'), discs.map(d=>({value:d,label:d})), 'Todas as disciplinas', state.cf.disc);
 }
 
@@ -1659,8 +1666,9 @@ function exportApontSheet(){
 }
 function exportConfrontoSheet(){
   const f = state.cf;
+  const cargoDisc = buildCargoDiscMap();
   let rows = buildConfrontoMulti();
-  if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
+  if(f.disc!=='all') rows = rows.filter(r=>(cargoDisc.get(r.cargo)||'Sem disciplina')===f.disc);
   const byOs = new Map();
   rows.forEach(r=>{
     if(!byOs.has(r.os)) byOs.set(r.os, {planejado:0, apontado:0});
@@ -1673,7 +1681,7 @@ function exportConfrontoSheet(){
   rows = rows.slice().sort((a,b)=>osSortVal(a.os)-osSortVal(b.os) || a.cargo.localeCompare(b.cargo));
   const aoa = [['OS','Contrato','Título','Disciplina','Cargo','Planejado','Apontado','Diferença','Situação (cargo)','Situação (OS)']];
   rows.forEach(r=>{
-    aoa.push([osLabel(r.os), r.contrato||'', r.titulo||'', r.disciplina||'', r.cargo, r.planejado, r.apontado, r.diferenca, STATUS_LABEL[r.status]||'', STATUS_LABEL[statusByOs.get(r.os)]||'']);
+    aoa.push([osLabel(r.os), r.contrato||'', r.titulo||'', cargoDisc.get(r.cargo)||'Sem disciplina', r.cargo, r.planejado, r.apontado, r.diferenca, STATUS_LABEL[r.status]||'', STATUS_LABEL[statusByOs.get(r.os)]||'']);
   });
   return {name:'Confronto OS x Funcao', aoa};
 }
@@ -1966,8 +1974,9 @@ function downloadWorkbook(sheets, filenamePrefix){
 
 function renderConfrontoTable(){
   const f = state.cf;
+  const cargoDisc = buildCargoDiscMap();
   let rows = buildConfrontoMulti();
-  if(f.disc!=='all') rows = rows.filter(r=>r.disciplina===f.disc);
+  if(f.disc!=='all') rows = rows.filter(r=>(cargoDisc.get(r.cargo)||'Sem disciplina')===f.disc);
 
   const thead = document.getElementById('cf-thead');
   const tbody = document.getElementById('cf-tbody');
@@ -2002,7 +2011,6 @@ function renderConfrontoTable(){
     </tr>`;
   tbody.innerHTML = '';
   document.getElementById('cf-empty').style.display = osRows.length? 'none':'block';
-  const cargoDisc = buildCargoDiscMap();
   osRows.forEach(o=>{
     const localMax = Math.max(1, o.planejado, o.apontado);
     const diffStr = (o.diferenca>0?'+':'')+o.diferenca;
