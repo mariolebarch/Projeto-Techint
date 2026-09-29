@@ -213,6 +213,7 @@ button.settings-item:hover{background:var(--sand);}
 .kpi-split-item{display:flex; flex-direction:column; gap:2px;}
 .kpi-split-value{font-family:var(--font-mono); font-size:22px; font-weight:600; line-height:1; color:var(--text-primary);}
 .kpi-split-label{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600;}
+.kpi-split-pct{font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary);}
 
 .callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
 .callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
@@ -1218,7 +1219,8 @@ function renderKPIs(){
   const feriasCount = ausentesRows.filter(r=>r.status==='Férias').length;
   const ausenciaCount = ausentesRows.length - feriasCount;
   const pct = total? presentes/total : 0;
-  const pctAusentes = total? ausentesRows.length/total : 0;
+  const pctAusencia = total? ausenciaCount/total : 0;
+  const pctFeriasSplit = total? feriasCount/total : 0;
 
   const rows = buildConfrontoMulti();
 
@@ -1226,8 +1228,10 @@ function renderKPIs(){
     {label:'Contratados', value:fmtInt(total), sub:datesLabel(), cls:''},
     {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
     {label:'Ausentes', cls: ausenciaCount>total*0.15?'critical':(ausenciaCount>0?'warning':'good'),
-      split:[{value:fmtInt(ausenciaCount), label:'Ausência'}, {value:fmtInt(feriasCount), label:'Férias'}],
-      sub: fmtPct(pctAusentes)+' do efetivo &middot; '+(ausenciaCount>total*0.15?'atenção à cobertura':'dentro do esperado')},
+      split:[
+        {value:fmtInt(ausenciaCount), label:'Ausência', pct:fmtPct1(pctAusencia)},
+        {value:fmtInt(feriasCount), label:'Férias', pct:fmtPct1(pctFeriasSplit)},
+      ]},
   ];
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = '';
@@ -1236,8 +1240,7 @@ function renderKPIs(){
     el.className = 'kpi '+k.cls;
     if(k.split){
       el.innerHTML = `<span class="kpi-label">${k.label}</span>
-        <div class="kpi-split">${k.split.map(s=>`<div class="kpi-split-item"><span class="kpi-split-value">${s.value}</span><span class="kpi-split-label">${s.label}</span></div>`).join('')}</div>
-        <span class="kpi-sub">${k.sub}</span>`;
+        <div class="kpi-split">${k.split.map(s=>`<div class="kpi-split-item"><span class="kpi-split-value">${s.value}</span><span class="kpi-split-label">${s.label}</span><span class="kpi-split-pct">${s.pct}</span></div>`).join('')}</div>`;
     } else {
       el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
     }
