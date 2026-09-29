@@ -690,14 +690,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
         <h3>Confronto OS &times; Função</h3>
         <div class="filters">
           <div class="field"><label>Disciplina</label><select id="cf-disc"></select></div>
-          <div class="field"><label>Situação</label><select id="cf-status">
-            <option value="all">Todas</option>
-            <option value="good">OK</option>
-            <option value="warning">Divergência leve</option>
-            <option value="critical">Divergência</option>
-            <option value="info">Fora do plano</option>
-            <option value="pci">Contrato PCI</option>
-          </select></div>
           <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="cf-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
         </div>
       </div>
@@ -869,7 +861,7 @@ const state = {
   contrato: 'all',
   osGlobal: new Set(),
   supervisorGlobal: new Set(),
-  cf: {disc:'all', status:'all', expanded:new Set()},
+  cf: {disc:'all', expanded:new Set()},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
   apont: {expanded:new Set(), search:''},
@@ -1681,7 +1673,6 @@ function exportConfrontoSheet(){
   });
   const statusByOs = new Map();
   byOs.forEach((o,os)=>statusByOs.set(os, aggregateStatus(os, o.planejado, o.apontado, o.apontado-o.planejado)));
-  if(f.status!=='all') rows = rows.filter(r=>statusByOs.get(r.os)===f.status);
   rows = rows.slice().sort((a,b)=>osSortVal(a.os)-osSortVal(b.os) || a.cargo.localeCompare(b.cargo));
   const aoa = [['OS','Contrato','Título','Disciplina','Cargo','Planejado','Apontado','Diferença','Situação (cargo)','Situação (OS)']];
   rows.forEach(r=>{
@@ -1996,7 +1987,6 @@ function renderConfrontoTable(){
     const diferenca = o.apontado - o.planejado;
     return Object.assign(o, {diferenca, status: aggregateStatus(o.os, o.planejado, o.apontado, diferenca)});
   });
-  if(f.status!=='all') osRows = osRows.filter(o=>o.status===f.status);
   osRows.sort((a,b)=>osSortVal(a.os)-osSortVal(b.os));
 
   const validOs = new Set(osRows.map(o=>o.os));
@@ -2802,7 +2792,6 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 });
 
 document.getElementById('cf-disc').addEventListener('change', e=>{state.cf.disc=e.target.value; renderConfrontoTable();});
-document.getElementById('cf-status').addEventListener('change', e=>{state.cf.status=e.target.value; renderConfrontoTable();});
 document.getElementById('global-clear-btn').addEventListener('click', ()=>{
   state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
   state.contrato = 'all';
@@ -2833,8 +2822,7 @@ document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ sta
 
 /* ---------- Limpar filtros (por aba) ---------- */
 document.getElementById('cf-clear-btn').addEventListener('click', ()=>{
-  state.cf.disc = 'all'; state.cf.status = 'all'; state.cf.expanded.clear();
-  document.getElementById('cf-status').value = 'all';
+  state.cf.disc = 'all'; state.cf.expanded.clear();
   renderConfrontoControls();
   renderConfrontoTable();
 });
@@ -3244,7 +3232,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       DATA = bundle;
       state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       state.contrato = 'all';
-      state.cf.disc='all'; state.cf.status='all'; state.cf.expanded = new Set();
+      state.cf.disc='all'; state.cf.expanded = new Set();
       state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
       state.eq.search='';
       state.apont.search='';
