@@ -1334,7 +1334,7 @@ function renderContratoChart(ef){
       <svg class="hh-badge-clock" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
       ${fmtInt(grandHh)}<span class="hh-badge-unit">h</span>
     </span>
-    <span class="hh-badge-label">HH apontado no período</span>
+    <span class="hh-badge-label">HH Estimado</span>
   </div>`;
 
   box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div>${grand===0 ? '' : hhBadge}</div>`;
