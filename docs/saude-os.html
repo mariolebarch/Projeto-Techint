@@ -213,8 +213,12 @@ button.settings-item:hover{background:var(--sand);}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
 .ov-right-col{display:flex; flex-direction:column; gap:16px;}
-.kpi-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;}
+.kpi-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;}
 @media (max-width:640px){.kpi-grid{grid-template-columns:minmax(0,1fr);}}
+.two-col{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:stretch; margin-top:16px;}
+@media (max-width:900px){.two-col{grid-template-columns:minmax(0,1fr);}}
+.concentracao-stat{font-size:13.5px; color:var(--text-secondary); margin:2px 0 14px;}
+.concentracao-stat .conc-pct{font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--steel-strong);}
 .kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
 .kpi::before{content:"";position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--steel);}
 .kpi.good::before{background:var(--good);} .kpi.warning::before{background:var(--warning);} .kpi.critical::before{background:var(--critical);}
@@ -383,6 +387,11 @@ tbody tr:hover td{background:var(--border-soft);}
 .bar-fill.plan{background:var(--slate); opacity:.55;}
 .bar-val{width:64px; text-align:right; font-family:var(--font-mono); font-size:12px; flex:none;}
 .bar-val.wide{width:150px;}
+@media (max-width:480px){
+  .bar-row{flex-wrap:wrap;}
+  .bar-row .label{width:100%; white-space:normal;}
+  .bar-val, .bar-val.wide{width:auto;}
+}
 
 .andamento-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; background:var(--sand); border:1px solid var(--border-soft);}
 .andamento-seg{height:100%; min-width:3px; transition:width .2s;}
@@ -741,6 +750,12 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-head"><h3>Concentração de HH por OS</h3><span class="card-note">Onde o orçamento do portfólio está concentrado &mdash; risco de dependência de poucas OS's</span></div>
+      <p class="concentracao-stat" id="concentracao-stat"></p>
+      <div id="concentracao-list"></div>
+    </div>
+
     <div class="two-col">
       <div class="card">
         <div class="card-head"><h3>OS's em Andamento</h3><span class="card-note">Distribuição por faixa de consumo do HH previsto &mdash; visão gerencial</span></div>
@@ -1010,63 +1025,78 @@ function renderKPIs(){
   const sum = k => rows.reduce((a,r)=>a+(r[k]||0), 0);
   const hhPrev = sum('hh_previsto'), hhReal = sum('hh_realizado'), hhSaldo = sum('hh_saldo');
   const pctCons = hhPrev>0 ? hhReal/hhPrev : 0;
+  // R$ Estourado: soma do valor (R$) já gasto ALÉM do previsto nas OS's com
+  // saldo negativo — dimensão financeira que não aparece em nenhum outro
+  // lugar do Panorama Geral (diferente do antigo "Saldo Geral (R$)", que foi
+  // removido por ignorar os filtros; este soma só as OS's filtradas).
+  const rsEstourado = rows.reduce((a,r)=> a + (r.vl_saldo<0 ? -r.vl_saldo : 0), 0);
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
     <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
     <div class="kpi"><span class="kpi-label">HH Realizado</span><span class="kpi-value">${fmtInt(hhReal)}</span><span class="kpi-sub">${fmtPct(pctCons)} consumido</span></div>
     <div class="kpi ${hhSaldo<0?'critical':'good'}"><span class="kpi-label">HH Saldo</span><span class="kpi-value">${fmtInt(hhSaldo)}</span><span class="kpi-sub">Previsto &minus; realizado</span></div>
+    <div class="kpi ${rsEstourado>0?'critical':'good'}"><span class="kpi-label">R$ Estourado</span><span class="kpi-value" style="font-size:19px;">${fmtRs(rsEstourado)}</span><span class="kpi-sub">Soma do saldo (R$) negativo</span></div>
   `;
 }
 
-/* Anel de progresso circular completo, em painel escuro estilo "cockpit":
-   mostra o % de HH Previsto já consumido pelas OS's filtradas, com marcas
-   de escala a cada 10%, brilho (glow) no arco e pulsação quando crítico
-   ou estourado. */
+/* Anel de progresso em meia-lua (semicírculo), em painel escuro estilo
+   "cockpit": mostra o % de HH Previsto já consumido pelas OS's filtradas
+   (ponderado pelo HH de cada uma), com marcas de escala a cada 10%, brilho
+   (glow) no arco e pulsação quando crítico ou estourado. O HH Previsto e o
+   Saldo Final já aparecem no kpi-grid ao lado, então aqui embaixo do anel
+   mostra a média SIMPLES (não ponderada) de consumo por OS — uma leitura
+   complementar, não repetida: contrasta o % geral do portfólio (que as
+   maiores OS's pesam mais) com o comportamento típico de uma OS qualquer. */
 function renderGauge(){
   const rows = filteredOS();
   const hhPrev = rows.reduce((a,r)=>a+(r.hh_previsto||0), 0);
   const hhReal = rows.reduce((a,r)=>a+(r.hh_realizado||0), 0);
-  const hhSaldo = hhPrev - hhReal;
   const pct = hhPrev>0 ? hhReal/hhPrev : 0;
   const pctClamped = Math.max(0, Math.min(1, pct));
   const over = pct>1;
   const critical = over || pctClamped>=0.9;
 
-  const cx=110, cy=110, r=86, sw=14;
-  const circ = 2*Math.PI*r;
-  const dashOn = circ*pctClamped;
-  const dashOff = Math.max(0, circ-dashOn);
+  const cx=110, cy=108, r=86, sw=14;
+  const angleAt = p => Math.PI*(1-p);
+  const pt = (p,rad) => { const a=angleAt(p); return [cx+rad*Math.cos(a), cy-rad*Math.sin(a)]; };
+  const [x0,y0] = pt(0,r);
+  const [xMid,yMid] = pt(pctClamped,r);
+  const [x1,y1] = pt(1,r);
   const ringColor = critical ? 'var(--critical)' : (pctClamped>=0.7 ? 'var(--warning)' : 'var(--good)');
+  const trackArc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  const usedArc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${xMid.toFixed(1)},${yMid.toFixed(1)}`;
 
   const ticks = [];
-  for(let i=0;i<10;i++){
-    const a = (Math.PI*2)*(i/10) - Math.PI/2;
-    const inner = r - sw/2 - 5, outer = r - sw/2 + 1;
-    const x1 = cx+inner*Math.cos(a), y1 = cy+inner*Math.sin(a);
-    const x2 = cx+outer*Math.cos(a), y2 = cy+outer*Math.sin(a);
-    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="rgba(255,255,255,.2)" stroke-width="2"/>`);
+  for(let i=0;i<=10;i++){
+    const p = i/10;
+    const [tx1,ty1] = pt(p, r - sw/2 - 5);
+    const [tx2,ty2] = pt(p, r - sw/2 + 1);
+    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="rgba(255,255,255,.2)" stroke-width="2"/>`);
   }
+
+  const comPrevisto = rows.filter(r=>r.hh_previsto>0);
+  const mediaPorOs = comPrevisto.length
+    ? comPrevisto.reduce((a,r)=>a+Math.min(2, r.hh_realizado/r.hh_previsto),0)/comPrevisto.length
+    : 0;
 
   const box = document.getElementById('ov-gauge');
   box.innerHTML = `
     <div class="gauge-panel${critical?' gauge-panel-critical':''}">
-      <svg viewBox="0 0 220 220" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido">
+      <svg viewBox="0 0 220 132" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido">
         <defs>
           <filter id="gaugeGlow" x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="4.5" result="blur"/>
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         </defs>
-        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}"/>
+        <path d="${trackArc}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}" stroke-linecap="round"/>
         ${ticks.join('')}
-        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ringColor}" stroke-width="${sw}" stroke-linecap="round"
-          stroke-dasharray="${dashOn.toFixed(1)} ${dashOff.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})" filter="url(#gaugeGlow)"/>
-        <text x="${cx}" y="${cy-4}" text-anchor="middle" font-family="var(--font-mono)" font-size="28" font-weight="700" fill="${critical?'#ff6b64':'#ffffff'}">${fmtPct(pct)}</text>
-        <text x="${cx}" y="${cy+18}" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" letter-spacing="2" fill="rgba(255,255,255,.5)">CONSUMIDO</text>
+        <path d="${usedArc}" fill="none" stroke="${ringColor}" stroke-width="${sw}" stroke-linecap="round" filter="url(#gaugeGlow)"/>
+        <text x="${cx}" y="${cy-30}" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="700" fill="${critical?'#ff6b64':'#ffffff'}">${fmtPct(pct)}</text>
+        <text x="${cx}" y="${cy-12}" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" letter-spacing="2" fill="rgba(255,255,255,.5)">CONSUMIDO (PORTFÓLIO)</text>
       </svg>
       <div class="gauge-readouts">
-        <div class="gauge-readout"><span class="gv">${fmtInt(hhPrev)}</span><span class="gk">HH Previsto</span></div>
-        <div class="gauge-readout"><span class="gv" style="color:${hhSaldo<0?'#ff6b64':'#6be36b'};">${fmtInt(hhSaldo)}</span><span class="gk">Saldo Final</span></div>
+        <div class="gauge-readout"><span class="gv">${fmtPct(mediaPorOs)}</span><span class="gk">Média simples por OS</span></div>
       </div>
     </div>
   `;
@@ -1090,6 +1120,39 @@ function classifyAndamento(r){
   if(pct<0.9) return 'atencao';
   return 'critico';
 }
+/* Concentração (Pareto): quanto do HH Previsto do filtro atual está
+   concentrado nas maiores OS's — mostra risco de dependência de poucas
+   OS's grandes, uma leitura que nenhum outro card do painel dá hoje. */
+function renderConcentracao(){
+  const statEl = document.getElementById('concentracao-stat');
+  const box = document.getElementById('concentracao-list');
+  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && r.hh_previsto>0);
+  if(rows.length===0){
+    statEl.innerHTML = '';
+    box.innerHTML = '<div class="empty-state">Nenhuma OS com HH Previsto para os filtros atuais.</div>';
+    return;
+  }
+  const totalPrev = rows.reduce((a,r)=>a+r.hh_previsto,0);
+  const sorted = rows.slice().sort((a,b)=>b.hh_previsto-a.hh_previsto);
+  const topN = sorted.slice(0, Math.min(5, sorted.length));
+  const topSum = topN.reduce((a,r)=>a+r.hh_previsto,0);
+  const topPct = totalPrev? topSum/totalPrev : 0;
+  const maxHh = topN[0].hh_previsto;
+
+  statEl.innerHTML = `<span class="conc-pct">${fmtPct(topPct)}</span> do HH Previsto do filtro está concentrado nas <strong>${topN.length} maiores OS's</strong> (de ${sorted.length} no total)`;
+
+  box.innerHTML = topN.map(r=>{
+    const share = totalPrev? r.hh_previsto/totalPrev : 0;
+    const barPct = maxHh? Math.max(2, r.hh_previsto/maxHh*100) : 2;
+    const label = r.os_label + (r.pep ? (' — '+r.pep) : '');
+    return `<div class="bar-row">
+      <span class="label" title="${escHtml(label)}">${escHtml(label)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--steel);"></span></span>
+      <span class="bar-val wide">${fmtInt(r.hh_previsto)}h &middot; ${fmtPct(share)}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderAndamentoChart(){
   const box = document.getElementById('andamento-chart');
   const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && r.hh_previsto>0);
@@ -1761,6 +1824,7 @@ function renderAll(){
   renderGlobalFilters();
   renderKPIs();
   renderGauge();
+  renderConcentracao();
   renderAndamentoChart();
   renderSuplementarBars();
   renderDetalheControls();
