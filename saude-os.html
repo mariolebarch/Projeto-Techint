@@ -325,7 +325,7 @@ tbody tr:hover td{background:var(--border-soft);}
 .stat-strip .s .v{font-family:var(--font-mono); font-size:19px; font-weight:600;}
 .stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
 
-.ov-panorama{display:flex; gap:32px; align-items:center; flex-wrap:wrap;}
+.ov-panorama{display:flex; gap:32px; align-items:flex-start; flex-wrap:wrap;}
 .ov-panorama .kpi-grid{flex:1; min-width:340px;}
 .ov-panorama-donut{flex:none; min-width:280px;}
 @media (max-width:760px){.ov-panorama{flex-direction:column; align-items:stretch;}}
@@ -333,6 +333,18 @@ tbody tr:hover td{background:var(--border-soft);}
   .ov-panorama .kpi-grid{min-width:0;}
   .ov-panorama-donut{min-width:0; width:100%;}
 }
+
+.gauge-panel{background:radial-gradient(circle at 50% 28%, #163356 0%, #0a1a2e 65%, #060f1c 100%); border-radius:16px; padding:16px 18px 14px; position:relative; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(255,255,255,.07), 0 10px 26px rgba(0,0,0,.3);}
+.gauge-panel::before{content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); pointer-events:none;}
+.gauge-panel-critical{animation:gaugePulse 1.7s ease-in-out infinite;}
+@keyframes gaugePulse{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(255,255,255,.07), 0 10px 26px rgba(0,0,0,.3);}
+  50%{box-shadow:inset 0 0 0 1px rgba(255,107,100,.55), 0 10px 30px rgba(255,107,100,.3);}
+}
+.gauge-readouts{display:flex; justify-content:center; gap:26px; margin-top:2px; position:relative;}
+.gauge-readout{display:flex; flex-direction:column; align-items:center; gap:2px;}
+.gauge-readout .gv{font-family:var(--font-mono); font-size:17px; font-weight:700; color:#fff;}
+.gauge-readout .gk{font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.45);}
 
 .sev-bar-row{display:flex; align-items:center; gap:10px; padding:7px 0;}
 .sev-bar-row .rank{width:18px; flex:none; font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted); text-align:right;}
@@ -370,6 +382,16 @@ tbody tr:hover td{background:var(--border-soft);}
 .bar-fill{height:100%; background:var(--steel); border-radius:4px;}
 .bar-fill.plan{background:var(--slate); opacity:.55;}
 .bar-val{width:64px; text-align:right; font-family:var(--font-mono); font-size:12px; flex:none;}
+.bar-val.wide{width:150px;}
+
+.andamento-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; background:var(--sand); border:1px solid var(--border-soft);}
+.andamento-seg{height:100%; min-width:3px; transition:width .2s;}
+.andamento-legend{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px;}
+.andamento-legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);}
+.andamento-legend-item .dot{width:9px; height:9px; border-radius:50%; flex:none;}
+.andamento-legend-item .lbl{font-weight:600; color:var(--text-primary);}
+.andamento-legend-item .sub{color:var(--text-muted); font-size:11px;}
+.andamento-legend-item .cnt{font-family:var(--font-mono); font-weight:700; color:var(--text-primary); margin-left:2px;}
 
 .mono-tag{font-family:var(--font-mono); font-size:12px; background:var(--steel-soft); color:var(--steel-strong); padding:1px 7px; border-radius:5px;}
 .ov-table-name{font-weight:600;}
@@ -715,18 +737,18 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
       <div class="card-head"><h3>Panorama Geral</h3><span class="card-note">Consolidado das OS's nos filtros atuais</span></div>
       <div class="ov-panorama">
         <div class="kpi-grid" id="kpi-grid"></div>
-        <div class="ov-panorama-donut" id="ov-gauge"></div>
+        <div class="ov-panorama-donut ov-gauge-tech" id="ov-gauge"></div>
       </div>
     </div>
 
     <div class="two-col">
       <div class="card">
-        <div class="card-head"><h3>Situação das OS's</h3><span class="card-note">HH Saldo por situação, considerando os filtros atuais</span></div>
-        <div id="sit-bars"></div>
+        <div class="card-head"><h3>OS's em Andamento</h3><span class="card-note">Distribuição por faixa de consumo do HH previsto &mdash; visão gerencial</span></div>
+        <div id="andamento-chart"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>OS's com menor saldo</h3><span class="card-note">As 15 OS's com menor Saldo Final (HH) &mdash; maior risco de estouro</span></div>
-        <div id="risco-bars"></div>
+        <div class="card-head"><h3>OS's a Suplementar</h3><span class="card-note">Em execução com saldo se esgotando &mdash; maior urgência de suplementação</span></div>
+        <div id="suplementar-bars"></div>
       </div>
     </div>
   </section>
@@ -945,22 +967,6 @@ function renderGlobalFilters(){
   });
 }
 
-/* ---------- Barra horizontal genérica (usa .bar-row/.bar-track/.bar-fill já estilizados) ---------- */
-function renderBarList(box, entries, opts){
-  opts = opts || {};
-  const max = Math.max(1, ...entries.map(e=>Math.abs(e.v)));
-  box.innerHTML = entries.map(e=>{
-    const pct = Math.min(100, Math.abs(e.v)/max*100);
-    const critical = opts.negativeCritical && e.v<0;
-    const color = critical ? 'var(--critical)' : (opts.color || 'var(--steel)');
-    return `<div class="bar-row">
-      <span class="label" title="${escHtml(e.label)}">${escHtml(e.label)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${pct}%; background:${color};"></span></span>
-      <span class="bar-val">${opts.fmt ? opts.fmt(e.v) : fmtH(e.v)}</span>
-    </div>`;
-  }).join('') || '<div class="empty-state">Nenhum dado para os filtros atuais.</div>';
-}
-
 /* ---------- Avisos ---------- */
 function renderAlerts(){
   const box = document.getElementById('alerts-list');
@@ -1002,27 +1008,20 @@ function renderAlerts(){
 function renderKPIs(){
   const rows = filteredOS();
   const sum = k => rows.reduce((a,r)=>a+(r[k]||0), 0);
-  // HH Previsto/Realizado/Saldo somam corretamente linha a linha (conferido contra a
-  // linha "Total Geral" da planilha). Saldo Geral, porém, é um total à parte, calculado
-  // pela própria planilha com uma lógica que NÃO bate com a soma das OS's individuais
-  // (ex.: soma das linhas dá ~1,69M HH contra ~50,7 mil HH no total oficial da aba) —
-  // por isso usamos sempre o valor oficial de DATA.totais, sem somar os filtrados.
   const hhPrev = sum('hh_previsto'), hhReal = sum('hh_realizado'), hhSaldo = sum('hh_saldo');
   const pctCons = hhPrev>0 ? hhReal/hhPrev : 0;
-  const t = DATA.totais || {};
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
     <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
     <div class="kpi"><span class="kpi-label">HH Realizado</span><span class="kpi-value">${fmtInt(hhReal)}</span><span class="kpi-sub">${fmtPct(pctCons)} consumido</span></div>
     <div class="kpi ${hhSaldo<0?'critical':'good'}"><span class="kpi-label">HH Saldo</span><span class="kpi-value">${fmtInt(hhSaldo)}</span><span class="kpi-sub">Previsto &minus; realizado</span></div>
-    <div class="kpi ${(t.saldo_geral_hh||0)<0?'critical':'good'}"><span class="kpi-label">Saldo Geral (HH)</span><span class="kpi-value">${fmtInt(t.saldo_geral_hh)}</span><span class="kpi-sub">Total do relatório &middot; não considera os filtros</span></div>
-    <div class="kpi ${(t.saldo_geral_rs||0)<0?'critical':'good'}"><span class="kpi-label">Saldo Geral (R$)</span><span class="kpi-value" style="font-size:19px;">${fmtRs(t.saldo_geral_rs)}</span><span class="kpi-sub">Total do relatório &middot; não considera os filtros</span></div>
   `;
 }
 
-/* Ponteiro semicircular: mostra o % de HH Previsto já consumido pelas OS's
-   filtradas — arco azul (consumido) + arco verde (saldo restante), agulha
-   na fronteira entre os dois. Vira totalmente vermelho se ultrapassar 100%. */
+/* Anel de progresso circular completo, em painel escuro estilo "cockpit":
+   mostra o % de HH Previsto já consumido pelas OS's filtradas, com marcas
+   de escala a cada 10%, brilho (glow) no arco e pulsação quando crítico
+   ou estourado. */
 function renderGauge(){
   const rows = filteredOS();
   const hhPrev = rows.reduce((a,r)=>a+(r.hh_previsto||0), 0);
@@ -1031,62 +1030,119 @@ function renderGauge(){
   const pct = hhPrev>0 ? hhReal/hhPrev : 0;
   const pctClamped = Math.max(0, Math.min(1, pct));
   const over = pct>1;
+  const critical = over || pctClamped>=0.9;
 
-  const cx=100, cy=100, r=82;
-  const angleAt = p => Math.PI * (1 - p);
-  const pt = p => { const a=angleAt(p); return [cx+r*Math.cos(a), cy-r*Math.sin(a)]; };
-  const [x0,y0] = pt(0);
-  const [xMid,yMid] = pt(pctClamped);
-  const [x1,y1] = pt(1);
+  const cx=110, cy=110, r=86, sw=14;
+  const circ = 2*Math.PI*r;
+  const dashOn = circ*pctClamped;
+  const dashOff = Math.max(0, circ-dashOn);
+  const ringColor = critical ? 'var(--critical)' : (pctClamped>=0.7 ? 'var(--warning)' : 'var(--good)');
 
-  const usedColor = over ? 'var(--critical)' : 'var(--steel)';
-  const remainColor = over ? 'var(--critical)' : 'var(--good)';
-  const usedArc = `M${x0},${y0} A${r},${r} 0 0 1 ${xMid},${yMid}`;
-  const remainArc = pctClamped<1 ? `M${xMid},${yMid} A${r},${r} 0 0 1 ${x1},${y1}` : '';
-
-  const needleLen = r - 14;
-  const needleAngle = angleAt(pctClamped);
-  const nx = cx + needleLen*Math.cos(needleAngle), ny = cy - needleLen*Math.sin(needleAngle);
+  const ticks = [];
+  for(let i=0;i<10;i++){
+    const a = (Math.PI*2)*(i/10) - Math.PI/2;
+    const inner = r - sw/2 - 5, outer = r - sw/2 + 1;
+    const x1 = cx+inner*Math.cos(a), y1 = cy+inner*Math.sin(a);
+    const x2 = cx+outer*Math.cos(a), y2 = cy+outer*Math.sin(a);
+    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="rgba(255,255,255,.2)" stroke-width="2"/>`);
+  }
 
   const box = document.getElementById('ov-gauge');
   box.innerHTML = `
-    <svg viewBox="0 0 200 128" style="width:100%; height:auto; display:block;" role="img" aria-label="Ponteiro de percentual consumido">
-      <path d="M${x0},${y0} A${r},${r} 0 0 1 ${x1},${y1}" fill="none" stroke="var(--border-soft)" stroke-width="14" stroke-linecap="round"/>
-      <path d="${usedArc}" fill="none" stroke="${usedColor}" stroke-width="14" stroke-linecap="round"/>
-      ${remainArc ? `<path d="${remainArc}" fill="none" stroke="${remainColor}" stroke-width="14" stroke-linecap="round"/>` : ''}
-      <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--text-primary)" stroke-width="2.5" stroke-linecap="round"/>
-      <circle cx="${cx}" cy="${cy}" r="5.5" fill="var(--text-primary)"/>
-      <text x="${cx}" y="${cy-16}" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="700" fill="${over?'var(--critical)':'var(--text-primary)'}">${fmtPct(pct)}</text>
-    </svg>
-    <div style="text-align:center; margin-top:-8px;">
-      <div class="num" style="font-size:14px; color:var(--text-secondary);">${fmtInt(hhReal)}h consumidas${over ? ' — acima do previsto' : ''}</div>
-    </div>
-    <div class="stat-strip" style="justify-content:center; margin-top:10px;">
-      <div class="s"><span class="v num">${fmtInt(hhPrev)}</span><span class="k">HH Previsto</span></div>
-      <div class="s"><span class="v num" style="color:${hhSaldo<0?'var(--critical)':'var(--good)'};">${fmtInt(hhSaldo)}</span><span class="k">Saldo Final</span></div>
+    <div class="gauge-panel${critical?' gauge-panel-critical':''}">
+      <svg viewBox="0 0 220 220" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido">
+        <defs>
+          <filter id="gaugeGlow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="4.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}"/>
+        ${ticks.join('')}
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${ringColor}" stroke-width="${sw}" stroke-linecap="round"
+          stroke-dasharray="${dashOn.toFixed(1)} ${dashOff.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})" filter="url(#gaugeGlow)"/>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" font-family="var(--font-mono)" font-size="28" font-weight="700" fill="${critical?'#ff6b64':'#ffffff'}">${fmtPct(pct)}</text>
+        <text x="${cx}" y="${cy+18}" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" letter-spacing="2" fill="rgba(255,255,255,.5)">CONSUMIDO</text>
+      </svg>
+      <div class="gauge-readouts">
+        <div class="gauge-readout"><span class="gv">${fmtInt(hhPrev)}</span><span class="gk">HH Previsto</span></div>
+        <div class="gauge-readout"><span class="gv" style="color:${hhSaldo<0?'#ff6b64':'#6be36b'};">${fmtInt(hhSaldo)}</span><span class="gk">Saldo Final</span></div>
+      </div>
     </div>
   `;
 }
 
-function renderSitBars(){
-  const rows = filteredOS();
-  const byS = new Map();
-  rows.forEach(r=>{
-    const key = r.sit || 'Sem situação';
-    if(!byS.has(key)) byS.set(key, 0);
-    byS.set(key, byS.get(key) + (r.hh_saldo||0));
-  });
-  const entries = Array.from(byS.entries()).map(([k,v])=>({label:k, v})).sort((a,b)=>b.v-a.v);
-  renderBarList(document.getElementById('sit-bars'), entries, {color:'var(--steel)'});
+/* Classifica cada OS por faixa de consumo do HH previsto — visão gerencial
+   de quantas OS's estão saudáveis vs. em risco, sem depender do texto livre
+   de "Situação" que varia de relatório pra relatório. */
+const ANDAMENTO_BUCKETS = [
+  {key:'confortavel', label:'Confortável', sub:'&lt; 70% consumido', color:'var(--good)'},
+  {key:'atencao', label:'Atenção', sub:'70–90% consumido', color:'var(--warning)'},
+  {key:'critico', label:'Crítico', sub:'90–100% consumido', color:'var(--critical)'},
+  {key:'estourado', label:'Estourado', sub:'saldo negativo', color:'var(--steel-strong)'},
+  {key:'naoIniciado', label:'Não iniciada', sub:'sem HH realizado', color:'var(--border)'},
+];
+function classifyAndamento(r){
+  if(r.saldo_final_hh<0) return 'estourado';
+  if((r.hh_realizado||0)<=0) return 'naoIniciado';
+  const pct = r.hh_realizado/r.hh_previsto;
+  if(pct<0.7) return 'confortavel';
+  if(pct<0.9) return 'atencao';
+  return 'critico';
+}
+function renderAndamentoChart(){
+  const box = document.getElementById('andamento-chart');
+  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && r.hh_previsto>0);
+  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS com HH Previsto para os filtros atuais.</div>'; return; }
+
+  const counts = {}; ANDAMENTO_BUCKETS.forEach(b=>counts[b.key]=0);
+  rows.forEach(r=>counts[classifyAndamento(r)]++);
+  const total = rows.length;
+  const emAndamento = total - counts.naoIniciado;
+  const emRisco = counts.atencao + counts.critico + counts.estourado;
+
+  const active = ANDAMENTO_BUCKETS.filter(b=>counts[b.key]>0);
+  const segHtml = active.map(b=>
+    `<span class="andamento-seg" style="width:${(counts[b.key]/total*100).toFixed(2)}%; background:${b.color};" title="${b.label}: ${counts[b.key]} OS's"></span>`
+  ).join('');
+  const legendHtml = active.map(b=>
+    `<div class="andamento-legend-item"><span class="dot" style="background:${b.color};"></span><span class="lbl">${b.label}</span><span class="sub">${b.sub}</span><span class="cnt">${counts[b.key]}</span></div>`
+  ).join('');
+
+  box.innerHTML = `
+    <div class="andamento-bar">${segHtml}</div>
+    <div class="andamento-legend">${legendHtml}</div>
+    <div class="stat-strip" style="justify-content:center; margin-top:14px;">
+      <div class="s"><span class="v num">${fmtInt(emAndamento)}</span><span class="k">OS's em andamento</span></div>
+      <div class="s"><span class="v num" style="color:${emRisco>0?'var(--critical)':'var(--good)'};">${fmtInt(emRisco)}</span><span class="k">Em risco (atenção+)</span></div>
+      <div class="s"><span class="v num" style="color:${counts.estourado>0?'var(--critical)':'var(--good)'};">${fmtInt(counts.estourado)}</span><span class="k">Estouradas</span></div>
+    </div>
+  `;
 }
 
-function renderRiscoBars(){
-  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && r.saldo_final_hh<0);
-  const entries = rows.slice().sort((a,b)=>a.saldo_final_hh-b.saldo_final_hh).slice(0,15)
-    .map(r=>({label:(r.os_label||'')+(r.pep?(' — '+r.pep):''), v:r.saldo_final_hh}));
-  const box = document.getElementById('risco-bars');
-  if(entries.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS com Saldo Final negativo para os filtros atuais.</div>'; return; }
-  renderBarList(box, entries, {negativeCritical:true, color:'var(--good)'});
+/* OS's que já estão em execução (HH realizado > 0) e ainda não estouraram
+   o previsto, mas o saldo restante já está abaixo de 15% do HH previsto —
+   candidatas a suplementação antes de virarem estouro. */
+const SUPLEMENTAR_THRESHOLD = 0.15;
+function renderSuplementarBars(){
+  const box = document.getElementById('suplementar-bars');
+  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA'
+    && r.hh_previsto>0 && (r.hh_realizado||0)>0 && r.saldo_final_hh>0
+    && (r.saldo_final_hh/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD);
+  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS em execução com saldo abaixo de 15% do previsto.</div>'; return; }
+  const entries = rows.slice()
+    .sort((a,b)=>(a.saldo_final_hh/a.hh_previsto)-(b.saldo_final_hh/b.hh_previsto))
+    .slice(0,15)
+    .map(r=>({label:(r.os_label||'')+(r.pep?(' — '+r.pep):''), pctRestante:r.saldo_final_hh/r.hh_previsto, saldo:r.saldo_final_hh}));
+  box.innerHTML = entries.map(e=>{
+    // Barra representa urgência (quanto MENOS sobra, maior a barra) — não o % restante em si.
+    const urgencia = Math.max(2, (1 - e.pctRestante/SUPLEMENTAR_THRESHOLD)*100);
+    return `<div class="bar-row">
+      <span class="label" title="${escHtml(e.label)}">${escHtml(e.label)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${urgencia}%; background:var(--critical);"></span></span>
+      <span class="bar-val wide">${fmtPct(e.pctRestante)} restante &middot; ${fmtH(e.saldo)}h</span>
+    </div>`;
+  }).join('');
 }
 
 /* ---------- Detalhamento por OS ---------- */
@@ -1705,8 +1761,8 @@ function renderAll(){
   renderGlobalFilters();
   renderKPIs();
   renderGauge();
-  renderSitBars();
-  renderRiscoBars();
+  renderAndamentoChart();
+  renderSuplementarBars();
   renderDetalheControls();
   renderDetalheTable();
   renderSuplementacaoTable();
