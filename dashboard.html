@@ -199,6 +199,8 @@ button.settings-item:hover{background:var(--sand);}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
 .ov-right-col{display:flex; flex-direction:column; gap:16px;}
+.ov-right-col .ov-eq-card{flex:1; min-height:0; display:flex; flex-direction:column;}
+.ov-right-col .ov-eq-card .eq-list{flex:1; min-height:120px; max-height:none;}
 .kpi-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;}
 @media (max-width:640px){.kpi-grid{grid-template-columns:minmax(0,1fr);}}
 .kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
@@ -243,16 +245,24 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
 .msel-actions button:hover{text-decoration:underline;}
 .msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
-#date-msel-global .msel-panel{width:300px;}
+#date-msel-global .msel-panel{width:300px; max-height:none; overflow-y:visible;}
+.date-nav{display:flex; align-items:center; gap:5px;}
+.date-step-btn{width:30px; height:30px; flex:none; border-radius:50%; border:1px solid var(--border); background:var(--paper); color:var(--steel-strong); font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, border-color .15s;}
+.date-step-btn:hover:not(:disabled){background:var(--steel-soft); border-color:var(--steel);}
+.date-step-btn:disabled{opacity:.35; cursor:default;}
 .msel-calendar{padding:2px 2px 6px;}
-.msel-cal-month-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:8px 4px 4px;}
-.msel-cal-grid{display:grid; grid-template-columns:24px repeat(7,1fr); gap:3px; padding:0 2px;}
+.msel-cal-nav{display:flex; align-items:center; justify-content:space-between; padding:6px 2px 2px;}
+.msel-cal-nav-btn{width:26px; height:26px; flex:none; border-radius:7px; border:none; background:var(--sand); color:var(--steel-strong); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+.msel-cal-nav-btn:hover:not(:disabled){background:var(--steel-soft);}
+.msel-cal-nav-btn:disabled{opacity:.3; cursor:default;}
+.msel-cal-month-label{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-primary); font-weight:700;}
+.msel-cal-grid{display:grid; grid-template-columns:28px repeat(7,1fr); gap:4px; padding:6px 2px 0;}
 .msel-cal-corner{background:transparent;}
 .msel-cal-dow{font-size:9.5px; color:var(--text-muted); text-align:center; font-family:var(--font-mono); font-weight:700; padding:2px 0;}
-.msel-cal-week-btn{border:none; background:var(--sand); color:var(--text-secondary); border-radius:6px; font-size:9.5px; font-family:var(--font-mono); font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; aspect-ratio:1; padding:0;}
+.msel-cal-week-btn{border:none; background:var(--sand); color:var(--text-secondary); border-radius:7px; font-size:9.5px; font-family:var(--font-mono); font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; aspect-ratio:1; padding:0;}
 .msel-cal-week-btn:hover{background:var(--steel-soft); color:var(--steel-strong);}
 .msel-cal-week-btn.active{background:var(--steel); color:var(--text-on-accent);}
-.msel-cal-day{border:none; background:var(--sand); color:var(--text-secondary); font-size:11.5px; font-family:var(--font-mono); border-radius:6px; cursor:pointer; aspect-ratio:1; display:flex; align-items:center; justify-content:center; padding:0;}
+.msel-cal-day{border:none; background:var(--sand); color:var(--text-secondary); font-size:13px; font-family:var(--font-mono); border-radius:7px; cursor:pointer; aspect-ratio:1; display:flex; align-items:center; justify-content:center; padding:0;}
 .msel-cal-day:hover:not(.disabled){background:var(--steel-soft); color:var(--steel-strong);}
 .msel-cal-day.empty{visibility:hidden; cursor:default;}
 .msel-cal-day.selected{background:var(--green-dark); color:#fff; font-weight:700;}
@@ -378,7 +388,9 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .person-chip .m{font-family:var(--font-mono); color:var(--text-muted); font-size:10.5px;}
 
 .stat-strip{display:flex; gap:22px; flex-wrap:wrap; margin-bottom:14px;}
+#ab-stats{justify-content:center; gap:36px; text-align:center;}
 .stat-strip .s{display:flex; flex-direction:column; gap:2px;}
+#ab-stats .s{align-items:center;}
 .stat-strip .s .v{font-family:var(--font-mono); font-size:19px; font-weight:600;}
 .stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
 
@@ -567,7 +579,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
               <label class="export-check-row"><input type="checkbox" class="export-check" value="apont" checked><span>Apontamento Detalhado</span></label>
               <label class="export-check-row"><input type="checkbox" class="export-check" value="confronto" checked><span>Confronto OS &times; Função</span></label>
               <label class="export-check-row"><input type="checkbox" class="export-check" value="planejamento" checked><span>Planejamento Semanal</span></label>
-              <label class="export-check-row"><input type="checkbox" class="export-check" value="ausencias" checked><span>Ausências &amp; Absenteísmo</span></label>
+              <label class="export-check-row"><input type="checkbox" class="export-check" value="ausencias" checked><span>Absenteísmo e Férias</span></label>
             </div>
             <button class="export-download-btn" id="export-download-btn" type="button">Baixar Excel (.xlsx)</button>
             <div class="export-status" id="export-status" hidden></div>
@@ -591,7 +603,11 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   </header>
   <div class="masthead-accent"></div>
   <div class="global-filters">
-    <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
+    <div class="field"><label>Data</label><div class="date-nav">
+      <button type="button" class="date-step-btn" id="date-prev-btn" title="Dia anterior" aria-label="Dia anterior">&lsaquo;</button>
+      <div class="msel" id="date-msel-global"></div>
+      <button type="button" class="date-step-btn" id="date-next-btn" title="Próximo dia" aria-label="Próximo dia">&rsaquo;</button>
+    </div></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
     <div class="field"><label>Supervisor</label><div class="msel" id="supervisor-msel-global"></div></div>
@@ -605,7 +621,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <button class="tabbtn" data-tab="confronto" aria-selected="false">Confronto Diário</button>
     <button class="tabbtn" data-tab="apont" aria-selected="false">Apontamento detalhado</button>
     <button class="tabbtn" data-tab="planejamento" aria-selected="false">Planejamento Semanal</button>
-    <button class="tabbtn" data-tab="ausencias" aria-selected="false">Ausências &amp; Absenteísmo</button>
+    <button class="tabbtn" data-tab="ausencias" aria-selected="false">Absenteísmo e Férias</button>
   </nav>
 
   <!-- ================= VISÃO GERAL ================= -->
@@ -619,16 +635,14 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       </div>
       <div class="ov-right-col">
         <div class="kpi-grid" id="kpi-grid"></div>
-        <div class="card">
+        <div class="card ov-eq-card">
           <div class="card-head">
             <h3>Colaboradores por Supervisor / Encarregado &times; OS</h3>
-            <button class="small-btn" id="ov-clear-btn" type="button">Limpar filtros</button>
             <div class="filters">
               <div class="field"><label>Agrupar por</label><div class="date-toggle" id="eq-mode"></div></div>
               <div class="field"><label>Buscar nome</label><input class="search-input" id="eq-search" placeholder="ex: Gilson"></div>
             </div>
           </div>
-          <p class="card-note" style="margin-bottom:10px;">Contagem de presentes por OS na data e contrato selecionados. Ordenado pelo total de pessoas. Dê dois cliques num nome para detalhar por OS.</p>
           <div id="eq-list" class="eq-list"></div>
           <div class="empty-state" id="eq-empty" style="display:none;">Nenhum registro para os filtros selecionados.</div>
         </div>
@@ -645,7 +659,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
           <div class="field"><label>Buscar encarregado</label><input class="search-input" id="apont-search" placeholder="ex: Antonio"></div>
         </div>
       </div>
-      <p class="card-note" style="margin-bottom:10px;">Supervisor, encarregado, cargo e OS &middot; dois cliques numa linha para ver as pessoas</p>
       <div class="table-scroll" style="max-height:600px; overflow-y:auto;">
         <table>
           <thead><tr><th>Supervisor</th><th>Encarregado</th><th>Cargo</th><th class="num-col">Pessoas</th><th>OS</th></tr></thead>
@@ -674,7 +687,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
           <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="cf-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
         </div>
       </div>
-      <p class="card-note" style="margin-bottom:10px;">Dê dois cliques em uma linha de OS para ver o detalhamento por função.</p>
       <div class="stat-strip" id="cf-stats"></div>
       <div class="table-scroll">
         <table id="cf-table">
@@ -728,7 +740,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <!-- ================= AUSÊNCIAS & ABSENTEÍSMO ================= -->
   <section class="view" id="view-ausencias">
     <div class="card">
-      <div class="card-head"><h3>Absenteísmo do dia</h3><span class="card-note">Sábados, domingos e feriados não entram no cálculo</span></div>
+      <div class="card-head"><h3>Absenteísmo</h3><span class="card-note">Sábados, domingos e feriados não entram no cálculo</span></div>
       <div class="stat-strip" id="ab-stats"></div>
     </div>
     <div class="two-col">
@@ -966,10 +978,35 @@ function buildConfrontoMulti(){ return buildConfrontoFrom(efetivoForDates(), pla
 const STATUS_LABEL = {good:'OK', warning:'Divergência leve', critical:'Divergência', info:'Fora do plano', pci:'Contrato PCI'};
 
 /* ---------- global filter controls ---------- */
+/* Data de referência pra navegação dia a dia: a mais recente já
+   selecionada, ou a última disponível se nada estiver selecionado. */
+function dateNavRef(){
+  if(state.dates.size) return Array.from(state.dates).sort().pop();
+  return DATA.datas_apontamento[DATA.datas_apontamento.length-1] || null;
+}
+function stepDate(delta){
+  const dates = DATA.datas_apontamento;
+  if(!dates.length) return;
+  const ref = dateNavRef();
+  let idx = dates.indexOf(ref);
+  if(idx===-1) idx = delta>0 ? -1 : dates.length;
+  idx = Math.max(0, Math.min(dates.length-1, idx+delta));
+  state.dates.clear();
+  state.dates.add(dates[idx]);
+  buildDateMultiSelect();
+  renderAll();
+}
+function updateDateStepButtons(){
+  const dates = DATA.datas_apontamento;
+  const ref = dateNavRef();
+  const idx = dates.indexOf(ref);
+  document.getElementById('date-prev-btn').disabled = !dates.length || idx<=0;
+  document.getElementById('date-next-btn').disabled = !dates.length || idx===-1 || idx>=dates.length-1;
+}
 function buildDateMultiSelect(){
+  updateDateStepButtons();
   const container = document.getElementById('date-msel-global');
   const wasOpen = container.classList.contains('open');
-  const prevScroll = container.querySelector('.msel-panel')?.scrollTop || 0;
   container.innerHTML = '';
   container.className = 'msel' + (wasOpen ? ' open' : '');
 
@@ -1002,10 +1039,20 @@ function buildDateMultiSelect(){
     weekMap.get(key).dates.push(d);
   });
 
-  /* Calendário clicável: cada dia é um botão que alterna a seleção; o
-     número da semana funciona como um botão próprio que seleciona/desmarca
-     todos os dias daquela semana de uma vez (substitui a antiga fileira de
-     botões "S33 S34 ..." separada da lista). */
+  // Um mês por vez, com setas pra navegar — evita empilhar todos os meses
+  // e ter que rolar a lista pra achar uma data, ainda mais numa base com
+  // muitos meses de histórico.
+  const monthKeys = Array.from(new Set(DATA.datas_apontamento.map(d=>d.slice(0,7)))).sort();
+  const refMonth = (dateNavRef()||DATA.datas_apontamento[DATA.datas_apontamento.length-1]).slice(0,7);
+  let monthIdx = Math.max(0, monthKeys.indexOf(refMonth));
+
+  const calNav = document.createElement('div'); calNav.className = 'msel-cal-nav';
+  const prevMBtn = document.createElement('button'); prevMBtn.type='button'; prevMBtn.className='msel-cal-nav-btn'; prevMBtn.innerHTML='&lsaquo;'; prevMBtn.setAttribute('aria-label','Mês anterior');
+  const monthLabelEl = document.createElement('div'); monthLabelEl.className = 'msel-cal-month-label';
+  const nextMBtn = document.createElement('button'); nextMBtn.type='button'; nextMBtn.className='msel-cal-nav-btn'; nextMBtn.innerHTML='&rsaquo;'; nextMBtn.setAttribute('aria-label','Próximo mês');
+  calNav.appendChild(prevMBtn); calNav.appendChild(monthLabelEl); calNav.appendChild(nextMBtn);
+  panel.appendChild(calNav);
+
   const cal = document.createElement('div'); cal.className = 'msel-calendar';
   panel.appendChild(cal);
 
@@ -1013,77 +1060,72 @@ function buildDateMultiSelect(){
   const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
 
-  function refreshCalendar(){
-    cal.querySelectorAll('.msel-cal-day[data-date]').forEach(cell=>{
-      cell.classList.toggle('selected', state.dates.has(cell.dataset.date));
-    });
-    cal.querySelectorAll('.msel-cal-week-btn').forEach(wbtn=>{
-      const wkDates = JSON.parse(wbtn.dataset.dates);
-      wbtn.classList.toggle('active', wkDates.every(d=>state.dates.has(d)));
-    });
-  }
+  function renderMonth(){
+    const monthKey = monthKeys[monthIdx];
+    const [y,m] = monthKey.split('-').map(Number);
+    monthLabelEl.textContent = MONTH_NAMES[m-1] + ' ' + y;
+    prevMBtn.disabled = monthIdx<=0;
+    nextMBtn.disabled = monthIdx>=monthKeys.length-1;
 
-  let curMonth = null, grid = null;
-  Array.from(weekMap.values()).sort((a,b)=> a.year-b.year || a.week-b.week).forEach(w=>{
-    const monthKey = w.dates[0].slice(0,7);
-    if(monthKey !== curMonth){
-      curMonth = monthKey;
-      const [y,m] = monthKey.split('-').map(Number);
-      const monthLabel = document.createElement('div'); monthLabel.className='msel-cal-month-label';
-      monthLabel.textContent = MONTH_NAMES[m-1] + ' ' + y;
-      cal.appendChild(monthLabel);
-      grid = document.createElement('div'); grid.className = 'msel-cal-grid';
-      const corner = document.createElement('div'); corner.className = 'msel-cal-corner';
-      grid.appendChild(corner);
-      DOW.forEach(l=>{ const el = document.createElement('div'); el.className='msel-cal-dow'; el.textContent=l; grid.appendChild(el); });
-      cal.appendChild(grid);
-    }
+    cal.innerHTML = '';
+    const grid = document.createElement('div'); grid.className = 'msel-cal-grid';
+    const corner = document.createElement('div'); corner.className = 'msel-cal-corner';
+    grid.appendChild(corner);
+    DOW.forEach(l=>{ const el = document.createElement('div'); el.className='msel-cal-dow'; el.textContent=l; grid.appendChild(el); });
+    cal.appendChild(grid);
 
-    const wbtn = document.createElement('button');
-    wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.dates.has(d))?' active':''); wbtn.textContent = 'S'+w.week;
-    wbtn.title = 'Semana '+w.week+' · clique para selecionar/desmarcar todos os dias';
-    wbtn.dataset.dates = JSON.stringify(w.dates);
-    wbtn.addEventListener('click', ()=>{
-      const allSel = w.dates.every(d=>state.dates.has(d));
-      w.dates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
-      updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
-    });
-    grid.appendChild(wbtn);
-
-    const byDow = new Map();
-    w.dates.forEach(d=>byDow.set(isoDow(d), d));
-    for(let i=0;i<7;i++){
-      const d = byDow.get(i);
-      const cell = document.createElement('button');
-      cell.type = 'button';
-      if(!d){
-        cell.className = 'msel-cal-day empty'; cell.disabled = true;
-      } else {
-        cell.className = 'msel-cal-day' + (state.dates.has(d)?' selected':'');
-        cell.dataset.date = d;
-        cell.textContent = String(Number(d.slice(8,10)));
-        cell.title = fmtDateLabelFull(d);
-        cell.addEventListener('click', ()=>{
-          if(state.dates.has(d)) state.dates.delete(d); else state.dates.add(d);
-          updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    Array.from(weekMap.values())
+      .filter(w=>w.dates.some(d=>d.slice(0,7)===monthKey))
+      .sort((a,b)=> a.year-b.year || a.week-b.week)
+      .forEach(w=>{
+        const wbtn = document.createElement('button');
+        wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.dates.has(d))?' active':''); wbtn.textContent = 'S'+w.week;
+        wbtn.title = 'Semana '+w.week+' · clique para selecionar/desmarcar todos os dias';
+        wbtn.addEventListener('click', ()=>{
+          const allSel = w.dates.every(d=>state.dates.has(d));
+          w.dates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
+          updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
         });
-      }
-      grid.appendChild(cell);
-    }
-  });
+        grid.appendChild(wbtn);
 
+        const byDow = new Map();
+        w.dates.forEach(d=>byDow.set(isoDow(d), d));
+        for(let i=0;i<7;i++){
+          const d = byDow.get(i);
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          if(!d || d.slice(0,7)!==monthKey){
+            cell.className = 'msel-cal-day empty'; cell.disabled = true;
+          } else {
+            cell.className = 'msel-cal-day' + (state.dates.has(d)?' selected':'');
+            cell.dataset.date = d;
+            cell.textContent = String(Number(d.slice(8,10)));
+            cell.title = fmtDateLabelFull(d);
+            cell.addEventListener('click', ()=>{
+              if(state.dates.has(d)) state.dates.delete(d); else state.dates.add(d);
+              updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
+            });
+          }
+          grid.appendChild(cell);
+        }
+      });
+  }
+  renderMonth();
   updateBtnLabel();
-  panel.scrollTop = prevScroll;
+
+  prevMBtn.addEventListener('click', ()=>{ if(monthIdx>0){ monthIdx--; renderMonth(); } });
+  nextMBtn.addEventListener('click', ()=>{ if(monthIdx<monthKeys.length-1){ monthIdx++; renderMonth(); } });
 
   actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
     DATA.datas_apontamento.forEach(d=>state.dates.add(d));
-    updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
   });
   actions.querySelector('[data-act="last"]').addEventListener('click', ()=>{
     state.dates.clear();
     const last = DATA.datas_apontamento[DATA.datas_apontamento.length-1];
     if(last) state.dates.add(last);
-    updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    monthIdx = monthKeys.length-1;
+    updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
   });
 
   btn.addEventListener('click', (e)=>{
@@ -1092,6 +1134,8 @@ function buildDateMultiSelect(){
     container.classList.toggle('open');
   });
 }
+document.getElementById('date-prev-btn').addEventListener('click', ()=>stepDate(-1));
+document.getElementById('date-next-btn').addEventListener('click', ()=>stepDate(1));
 
 function renderGlobalFilters(){
   buildDateMultiSelect();
@@ -2367,11 +2411,13 @@ function renderAusencias(){
   const byCargo = computeAbsenteeism(ef, 'cargo');
   const byDisc = computeAbsenteeism(ef, 'disciplina');
 
+  const pctFerias = totalEsc? totalFerias/totalEsc : 0;
   document.getElementById('ab-stats').innerHTML = `
-    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Escalados (matrículas distintas)</span></div>
-    <div class="s"><span class="v num">${totalFalt}</span><span class="k">Faltas (matrículas distintas)</span></div>
-    <div class="s"><span class="v num">${totalFerias}</span><span class="k">Férias (matrículas distintas)</span></div>
-    <div class="s"><span class="v num" style="color:var(--${pctStatus(pctGeral)})">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>`;
+    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados</span></div>
+    <div class="s"><span class="v num">${totalFalt}</span><span class="k">Ausências</span></div>
+    <div class="s"><span class="v num" style="color:var(--critical)">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>
+    <div class="s"><span class="v num" style="color:var(--warning)">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>
+    <div class="s"><span class="v num">${totalFerias}</span><span class="k">Férias</span></div>`;
 
   const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
   byCargo.forEach(item=>renderAbsenteeRow(cargoBody, item));
@@ -2690,12 +2736,6 @@ document.getElementById('hm-search').addEventListener('input', e=>{state.hm.sear
 document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ state.hm.scurve = !state.hm.scurve; renderScurve(); });
 
 /* ---------- Limpar filtros (por aba) ---------- */
-document.getElementById('ov-clear-btn').addEventListener('click', ()=>{
-  state.eq.mode = 'supervisor'; state.eq.search = ''; state.eq.expanded = new Set();
-  document.getElementById('eq-search').value = '';
-  document.querySelectorAll('#eq-mode button').forEach((b,i)=>b.classList.toggle('active', i===0));
-  renderEquipes();
-});
 document.getElementById('cf-clear-btn').addEventListener('click', ()=>{
   state.cf.disc = 'all'; state.cf.status = 'all'; state.cf.expanded.clear();
   document.getElementById('cf-status').value = 'all';

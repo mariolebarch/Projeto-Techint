@@ -247,8 +247,16 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
 .msel-actions button:hover{text-decoration:underline;}
 .msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
-#date-msel-global .msel-panel{width:300px;}
+#date-msel-global .msel-panel{width:300px; max-height:none; overflow-y:visible;}
+.date-nav{display:flex; align-items:center; gap:5px;}
+.date-step-btn{width:30px; height:30px; flex:none; border-radius:50%; border:1px solid var(--border); background:var(--paper); color:var(--steel-strong); font-size:17px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s, border-color .15s;}
+.date-step-btn:hover:not(:disabled){background:var(--steel-soft); border-color:var(--steel);}
+.date-step-btn:disabled{opacity:.35; cursor:default;}
 .msel-calendar{padding:2px 2px 6px;}
+.msel-cal-nav{display:flex; align-items:center; justify-content:space-between; padding:6px 2px 2px;}
+.msel-cal-nav-btn{width:26px; height:26px; flex:none; border-radius:7px; border:none; background:var(--sand); color:var(--steel-strong); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+.msel-cal-nav-btn:hover:not(:disabled){background:var(--steel-soft);}
+.msel-cal-nav-btn:disabled{opacity:.3; cursor:default;}
 .msel-cal-month-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:8px 4px 4px;}
 .msel-cal-grid{display:grid; grid-template-columns:24px repeat(7,1fr); gap:3px; padding:0 2px;}
 .msel-cal-corner{background:transparent;}
@@ -595,7 +603,11 @@ body.interf-modal-lock{overflow:hidden;}
   </header>
   <div class="masthead-accent"></div>
   <div class="global-filters">
-    <div class="field"><label>Data</label><div class="msel" id="date-msel-global"></div></div>
+    <div class="field"><label>Data</label><div class="date-nav">
+      <button type="button" class="date-step-btn" id="date-prev-btn" title="Dia anterior" aria-label="Dia anterior">&lsaquo;</button>
+      <div class="msel" id="date-msel-global"></div>
+      <button type="button" class="date-step-btn" id="date-next-btn" title="Próximo dia" aria-label="Próximo dia">&rsaquo;</button>
+    </div></div>
     <div class="field"><label>OS</label><div class="msel" id="os-msel-global"></div></div>
     <div class="field"><label>Supervisor</label><select id="sup-select-global"></select></div>
     <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
@@ -842,10 +854,37 @@ function slaExced(plan, real, it){
 }
 
 /* ---------- global filter controls ---------- */
+/* Data de referência pra navegação dia a dia: a mais recente já
+   selecionada, ou a última disponível se nada estiver selecionado (o que,
+   aqui, significa "todas as datas" — ver passCommon). */
+function dateNavRef(){
+  if(state.dates.size) return Array.from(state.dates).sort().pop();
+  const dates = DATA.datas || [];
+  return dates[dates.length-1] || null;
+}
+function stepDate(delta){
+  const dates = DATA.datas || [];
+  if(!dates.length) return;
+  const ref = dateNavRef();
+  let idx = dates.indexOf(ref);
+  if(idx===-1) idx = delta>0 ? -1 : dates.length;
+  idx = Math.max(0, Math.min(dates.length-1, idx+delta));
+  state.dates.clear();
+  state.dates.add(dates[idx]);
+  buildDateMultiSelect();
+  renderAll();
+}
+function updateDateStepButtons(){
+  const dates = DATA.datas || [];
+  const ref = dateNavRef();
+  const idx = dates.indexOf(ref);
+  document.getElementById('date-prev-btn').disabled = !dates.length || idx<=0;
+  document.getElementById('date-next-btn').disabled = !dates.length || idx===-1 || idx>=dates.length-1;
+}
 function buildDateMultiSelect(){
+  updateDateStepButtons();
   const container = document.getElementById('date-msel-global');
   const wasOpen = container.classList.contains('open');
-  const prevScroll = container.querySelector('.msel-panel')?.scrollTop || 0;
   container.innerHTML = '';
   container.className = 'msel' + (wasOpen ? ' open' : '');
 
@@ -878,10 +917,20 @@ function buildDateMultiSelect(){
     weekMap.get(key).dates.push(d);
   });
 
-  /* Calendário clicável: cada dia é um botão que alterna a seleção; o
-     número da semana funciona como um botão próprio que seleciona/desmarca
-     todos os dias daquela semana de uma vez (substitui a antiga fileira de
-     botões "S33 S34 ..." separada da lista). */
+  // Um mês por vez, com setas pra navegar — evita empilhar todos os meses
+  // e ter que rolar a lista pra achar uma data, ainda mais numa base com
+  // muitos meses de histórico.
+  const monthKeys = Array.from(new Set(DATA.datas.map(d=>d.slice(0,7)))).sort();
+  const refMonth = (dateNavRef()||DATA.datas[DATA.datas.length-1]).slice(0,7);
+  let monthIdx = Math.max(0, monthKeys.indexOf(refMonth));
+
+  const calNav = document.createElement('div'); calNav.className = 'msel-cal-nav';
+  const prevMBtn = document.createElement('button'); prevMBtn.type='button'; prevMBtn.className='msel-cal-nav-btn'; prevMBtn.innerHTML='&lsaquo;'; prevMBtn.setAttribute('aria-label','Mês anterior');
+  const monthLabelEl = document.createElement('div'); monthLabelEl.className = 'msel-cal-month-label';
+  const nextMBtn = document.createElement('button'); nextMBtn.type='button'; nextMBtn.className='msel-cal-nav-btn'; nextMBtn.innerHTML='&rsaquo;'; nextMBtn.setAttribute('aria-label','Próximo mês');
+  calNav.appendChild(prevMBtn); calNav.appendChild(monthLabelEl); calNav.appendChild(nextMBtn);
+  panel.appendChild(calNav);
+
   const cal = document.createElement('div'); cal.className = 'msel-calendar';
   panel.appendChild(cal);
 
@@ -889,75 +938,69 @@ function buildDateMultiSelect(){
   const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
 
-  function refreshCalendar(){
-    cal.querySelectorAll('.msel-cal-day[data-date]').forEach(cell=>{
-      cell.classList.toggle('selected', state.dates.has(cell.dataset.date));
-    });
-    cal.querySelectorAll('.msel-cal-week-btn').forEach(wbtn=>{
-      const wkDates = JSON.parse(wbtn.dataset.dates);
-      wbtn.classList.toggle('active', wkDates.every(d=>state.dates.has(d)));
-    });
-  }
+  function renderMonth(){
+    const monthKey = monthKeys[monthIdx];
+    const [y,m] = monthKey.split('-').map(Number);
+    monthLabelEl.textContent = MONTH_NAMES[m-1] + ' ' + y;
+    prevMBtn.disabled = monthIdx<=0;
+    nextMBtn.disabled = monthIdx>=monthKeys.length-1;
 
-  let curMonth = null, grid = null;
-  Array.from(weekMap.values()).sort((a,b)=> a.year-b.year || a.week-b.week).forEach(w=>{
-    const monthKey = w.dates[0].slice(0,7);
-    if(monthKey !== curMonth){
-      curMonth = monthKey;
-      const [y,m] = monthKey.split('-').map(Number);
-      const monthLabel = document.createElement('div'); monthLabel.className='msel-cal-month-label';
-      monthLabel.textContent = MONTH_NAMES[m-1] + ' ' + y;
-      cal.appendChild(monthLabel);
-      grid = document.createElement('div'); grid.className = 'msel-cal-grid';
-      const corner = document.createElement('div'); corner.className = 'msel-cal-corner';
-      grid.appendChild(corner);
-      DOW.forEach(l=>{ const el = document.createElement('div'); el.className='msel-cal-dow'; el.textContent=l; grid.appendChild(el); });
-      cal.appendChild(grid);
-    }
+    cal.innerHTML = '';
+    const grid = document.createElement('div'); grid.className = 'msel-cal-grid';
+    const corner = document.createElement('div'); corner.className = 'msel-cal-corner';
+    grid.appendChild(corner);
+    DOW.forEach(l=>{ const el = document.createElement('div'); el.className='msel-cal-dow'; el.textContent=l; grid.appendChild(el); });
+    cal.appendChild(grid);
 
-    const wbtn = document.createElement('button');
-    wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.dates.has(d))?' active':''); wbtn.textContent = 'S'+w.week;
-    wbtn.title = 'Semana '+w.week+' · clique para selecionar/desmarcar todos os dias';
-    wbtn.dataset.dates = JSON.stringify(w.dates);
-    wbtn.addEventListener('click', ()=>{
-      const allSel = w.dates.every(d=>state.dates.has(d));
-      w.dates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
-      updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
-    });
-    grid.appendChild(wbtn);
-
-    const byDow = new Map();
-    w.dates.forEach(d=>byDow.set(isoDow(d), d));
-    for(let i=0;i<7;i++){
-      const d = byDow.get(i);
-      const cell = document.createElement('button');
-      cell.type = 'button';
-      if(!d){
-        cell.className = 'msel-cal-day empty'; cell.disabled = true;
-      } else {
-        cell.className = 'msel-cal-day' + (state.dates.has(d)?' selected':'');
-        cell.dataset.date = d;
-        cell.textContent = String(Number(d.slice(8,10)));
-        cell.title = fmtDateLabelFull(d);
-        cell.addEventListener('click', ()=>{
-          if(state.dates.has(d)) state.dates.delete(d); else state.dates.add(d);
-          updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    Array.from(weekMap.values())
+      .filter(w=>w.dates.some(d=>d.slice(0,7)===monthKey))
+      .sort((a,b)=> a.year-b.year || a.week-b.week)
+      .forEach(w=>{
+        const wbtn = document.createElement('button');
+        wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.dates.has(d))?' active':''); wbtn.textContent = 'S'+w.week;
+        wbtn.title = 'Semana '+w.week+' · clique para selecionar/desmarcar todos os dias';
+        wbtn.addEventListener('click', ()=>{
+          const allSel = w.dates.every(d=>state.dates.has(d));
+          w.dates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
+          updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
         });
-      }
-      grid.appendChild(cell);
-    }
-  });
+        grid.appendChild(wbtn);
 
+        const byDow = new Map();
+        w.dates.forEach(d=>byDow.set(isoDow(d), d));
+        for(let i=0;i<7;i++){
+          const d = byDow.get(i);
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          if(!d || d.slice(0,7)!==monthKey){
+            cell.className = 'msel-cal-day empty'; cell.disabled = true;
+          } else {
+            cell.className = 'msel-cal-day' + (state.dates.has(d)?' selected':'');
+            cell.dataset.date = d;
+            cell.textContent = String(Number(d.slice(8,10)));
+            cell.title = fmtDateLabelFull(d);
+            cell.addEventListener('click', ()=>{
+              if(state.dates.has(d)) state.dates.delete(d); else state.dates.add(d);
+              updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
+            });
+          }
+          grid.appendChild(cell);
+        }
+      });
+  }
+  renderMonth();
   updateBtnLabel();
-  panel.scrollTop = prevScroll;
+
+  prevMBtn.addEventListener('click', ()=>{ if(monthIdx>0){ monthIdx--; renderMonth(); } });
+  nextMBtn.addEventListener('click', ()=>{ if(monthIdx<monthKeys.length-1){ monthIdx++; renderMonth(); } });
 
   actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
     DATA.datas.forEach(d=>state.dates.add(d));
-    updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
   });
   actions.querySelector('[data-act="none"]').addEventListener('click', ()=>{
     state.dates.clear();
-    updateBtnLabel(); refreshCalendar(); setTimeout(renderAll, 0);
+    updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
   });
 
   btn.addEventListener('click', (e)=>{
@@ -966,6 +1009,8 @@ function buildDateMultiSelect(){
     container.classList.toggle('open');
   });
 }
+document.getElementById('date-prev-btn').addEventListener('click', ()=>stepDate(-1));
+document.getElementById('date-next-btn').addEventListener('click', ()=>stepDate(1));
 
 function buildOsMultiSelect(){
   const container = document.getElementById('os-msel-global');
