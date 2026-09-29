@@ -257,7 +257,9 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-cal-nav-btn{width:26px; height:26px; flex:none; border-radius:7px; border:none; background:var(--sand); color:var(--steel-strong); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
 .msel-cal-nav-btn:hover:not(:disabled){background:var(--steel-soft);}
 .msel-cal-nav-btn:disabled{opacity:.3; cursor:default;}
-.msel-cal-month-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:8px 4px 4px;}
+.msel-cal-month-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:3px 8px; border:none; background:none; cursor:pointer; border-radius:6px; font-family:inherit;}
+.msel-cal-month-label:hover{background:var(--steel-soft); color:var(--steel-strong);}
+.msel-cal-month-label.active{background:var(--green-dark); color:#fff;}
 .msel-cal-grid{display:grid; grid-template-columns:24px repeat(7,1fr); gap:3px; padding:0 2px;}
 .msel-cal-corner{background:transparent;}
 .msel-cal-dow{font-size:9.5px; color:var(--text-muted); text-align:center; font-family:var(--font-mono); font-weight:700; padding:2px 0;}
@@ -926,7 +928,7 @@ function buildDateMultiSelect(){
 
   const calNav = document.createElement('div'); calNav.className = 'msel-cal-nav';
   const prevMBtn = document.createElement('button'); prevMBtn.type='button'; prevMBtn.className='msel-cal-nav-btn'; prevMBtn.innerHTML='&lsaquo;'; prevMBtn.setAttribute('aria-label','Mês anterior');
-  const monthLabelEl = document.createElement('div'); monthLabelEl.className = 'msel-cal-month-label';
+  const monthLabelEl = document.createElement('button'); monthLabelEl.type='button'; monthLabelEl.className = 'msel-cal-month-label'; monthLabelEl.title = 'Clique para selecionar/desmarcar o mês inteiro';
   const nextMBtn = document.createElement('button'); nextMBtn.type='button'; nextMBtn.className='msel-cal-nav-btn'; nextMBtn.innerHTML='&rsaquo;'; nextMBtn.setAttribute('aria-label','Próximo mês');
   calNav.appendChild(prevMBtn); calNav.appendChild(monthLabelEl); calNav.appendChild(nextMBtn);
   panel.appendChild(calNav);
@@ -938,10 +940,14 @@ function buildDateMultiSelect(){
   const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
 
+  function datesOfMonth(monthKey){ return DATA.datas.filter(d=>d.slice(0,7)===monthKey); }
+
   function renderMonth(){
     const monthKey = monthKeys[monthIdx];
     const [y,m] = monthKey.split('-').map(Number);
     monthLabelEl.textContent = MONTH_NAMES[m-1] + ' ' + y;
+    const monthDates = datesOfMonth(monthKey);
+    monthLabelEl.classList.toggle('active', monthDates.length>0 && monthDates.every(d=>state.dates.has(d)));
     prevMBtn.disabled = monthIdx<=0;
     nextMBtn.disabled = monthIdx>=monthKeys.length-1;
 
@@ -959,7 +965,8 @@ function buildDateMultiSelect(){
         const wbtn = document.createElement('button');
         wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.dates.has(d))?' active':''); wbtn.textContent = 'S'+w.week;
         wbtn.title = 'Semana '+w.week+' · clique para selecionar/desmarcar todos os dias';
-        wbtn.addEventListener('click', ()=>{
+        wbtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
           const allSel = w.dates.every(d=>state.dates.has(d));
           w.dates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
           updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
@@ -979,7 +986,8 @@ function buildDateMultiSelect(){
             cell.dataset.date = d;
             cell.textContent = String(Number(d.slice(8,10)));
             cell.title = fmtDateLabelFull(d);
-            cell.addEventListener('click', ()=>{
+            cell.addEventListener('click', (e)=>{
+              e.stopPropagation();
               if(state.dates.has(d)) state.dates.delete(d); else state.dates.add(d);
               updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
             });
@@ -991,8 +999,16 @@ function buildDateMultiSelect(){
   renderMonth();
   updateBtnLabel();
 
-  prevMBtn.addEventListener('click', ()=>{ if(monthIdx>0){ monthIdx--; renderMonth(); } });
-  nextMBtn.addEventListener('click', ()=>{ if(monthIdx<monthKeys.length-1){ monthIdx++; renderMonth(); } });
+  prevMBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(monthIdx>0){ monthIdx--; renderMonth(); } });
+  nextMBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(monthIdx<monthKeys.length-1){ monthIdx++; renderMonth(); } });
+  monthLabelEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const monthDates = datesOfMonth(monthKeys[monthIdx]);
+    if(monthDates.length===0) return;
+    const allSel = monthDates.every(d=>state.dates.has(d));
+    monthDates.forEach(d=> allSel ? state.dates.delete(d) : state.dates.add(d));
+    updateBtnLabel(); updateDateStepButtons(); renderMonth(); setTimeout(renderAll, 0);
+  });
 
   actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
     DATA.datas.forEach(d=>state.dates.add(d));
