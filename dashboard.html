@@ -426,12 +426,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
    destacado ao lado do gráfico de rosca. */
 .hh-badge{flex:none; width:172px; background:linear-gradient(135deg, var(--navy) 0%, var(--steel-strong) 100%); border-radius:14px; padding:16px 18px; position:relative; overflow:hidden; box-shadow:0 8px 22px rgba(0,43,92,.28); display:flex; flex-direction:column; gap:3px;}
 .hh-badge::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--green);}
-.hh-badge-icon{width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; margin-bottom:6px;}
-.hh-badge-icon svg{width:15px; height:15px; stroke:#fff;}
-.hh-badge-value{font-family:var(--font-display); font-size:32px; font-weight:800; color:#fff; line-height:1; letter-spacing:.01em;}
+.hh-badge-value{display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:32px; font-weight:800; color:#fff; line-height:1; letter-spacing:.01em;}
+.hh-badge-clock{width:22px; height:22px; flex:none; stroke:var(--green);}
 .hh-badge-unit{font-size:17px; margin-left:2px; opacity:.85;}
 .hh-badge-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.88); margin-top:4px;}
-.hh-badge-sub{font-size:10px; color:rgba(255,255,255,.55);}
 @media (max-width:520px){.hh-badge{width:100%;}}
 
 /* Colab. por OS — dynamic accordion + data bars */
@@ -1332,12 +1330,11 @@ function renderContratoChart(ef){
   }).join('');
 
   const hhBadge = `<div class="hh-badge">
-    <div class="hh-badge-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
-    </div>
-    <span class="hh-badge-value">${fmtInt(grandHh)}<span class="hh-badge-unit">h</span></span>
+    <span class="hh-badge-value">
+      <svg class="hh-badge-clock" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
+      ${fmtInt(grandHh)}<span class="hh-badge-unit">h</span>
+    </span>
     <span class="hh-badge-label">HH apontado no período</span>
-    <span class="hh-badge-sub">9h seg&ndash;qui &middot; 8h sex, fds e feriados</span>
   </div>`;
 
   box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div>${grand===0 ? '' : hhBadge}</div>`;
