@@ -352,8 +352,9 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .eq-list .eq-detail-row{padding:4px 0;}
 .eq-list .eq-detail-row .label{width:200px; padding-left:20px; position:relative; color:var(--text-secondary); font-size:12px;}
 .eq-list .eq-detail-row .label::before{content:"↳"; position:absolute; left:4px; color:var(--text-muted);}
-.eq-group-header{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-strong); font-weight:700; padding:12px 0 4px; border-top:1px solid var(--border-soft); margin-top:6px;}
+.eq-group-header{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-strong); font-weight:700; padding:12px 0 4px; border-top:1px solid var(--border-soft); margin-top:6px;}
 .eq-group-header:first-child{border-top:none; margin-top:0; padding-top:2px;}
+.eq-group-total{font-family:var(--font-mono); color:var(--text-secondary); font-weight:700; flex:none;}
 .eq-list .eq-detail-row .bar-fill{opacity:.7;}
 
 .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
@@ -2144,15 +2145,12 @@ function renderEquipes(){
       if(!groups.has(sup)) groups.set(sup, []);
       groups.get(sup).push(n);
     });
-    const groupOrder = Array.from(groups.keys()).sort((a,b)=>{
-      const ta = groups.get(a).reduce((s,n)=>s+totalOf(n),0);
-      const tb = groups.get(b).reduce((s,n)=>s+totalOf(n),0);
-      return tb-ta;
-    });
+    const groupTotal = sup => groups.get(sup).reduce((s,n)=>s+totalOf(n),0);
+    const groupOrder = Array.from(groups.keys()).sort((a,b)=> groupTotal(b)-groupTotal(a));
     groupOrder.forEach(sup=>{
       const header = document.createElement('div');
       header.className = 'eq-group-header';
-      header.textContent = sup;
+      header.innerHTML = `<span>${escHtml(sup)}</span><span class="eq-group-total">${groupTotal(sup)}</span>`;
       box.appendChild(header);
       groups.get(sup).forEach(renderNameRow);
     });
