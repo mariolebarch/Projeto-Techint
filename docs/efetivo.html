@@ -352,6 +352,8 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .eq-list .eq-detail-row{padding:4px 0;}
 .eq-list .eq-detail-row .label{width:200px; padding-left:20px; position:relative; color:var(--text-secondary); font-size:12px;}
 .eq-list .eq-detail-row .label::before{content:"↳"; position:absolute; left:4px; color:var(--text-muted);}
+.eq-group-header{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-strong); font-weight:700; padding:12px 0 4px; border-top:1px solid var(--border-soft); margin-top:6px;}
+.eq-group-header:first-child{border-top:none; margin-top:0; padding-top:2px;}
 .eq-list .eq-detail-row .bar-fill{opacity:.7;}
 
 .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
@@ -2070,31 +2072,40 @@ function renderEquipes(){
   const search = state.eq.search.toLowerCase();
 
   const byName = new Map();
+  // No modo "Encarregado", guarda também o supervisor mais frequente de
+  // cada encarregado (majority vote, pra não quebrar se algum registro
+  // tiver o supervisor errado/vazio), pra poder agrupar a lista por
+  // supervisor em vez de uma lista plana só ordenada por total.
+  const supOfEnc = new Map();
   ef.forEach(r=>{
     const name = r[field] || '(sem responsável)';
     const os = String(r.os);
     if(!byName.has(name)) byName.set(name, {});
     const rec = byName.get(name);
     rec[os] = (rec[os]||0)+1;
+    if(field==='encarregado'){
+      const sup = r.supervisor || '(sem supervisor)';
+      if(!supOfEnc.has(name)) supOfEnc.set(name, new Map());
+      const m = supOfEnc.get(name);
+      m.set(sup, (m.get(sup)||0)+1);
+    }
   });
 
   let names = Array.from(byName.keys());
   if(search) names = names.filter(n=>n.toLowerCase().includes(search));
-  names.sort((a,b)=>{
-    const ta = Object.values(byName.get(a)).reduce((x,y)=>x+y,0);
-    const tb = Object.values(byName.get(b)).reduce((x,y)=>x+y,0);
-    return tb-ta;
-  });
+  const totalOf = n => Object.values(byName.get(n)).reduce((x,y)=>x+y,0);
+  names.sort((a,b)=> totalOf(b)-totalOf(a));
 
   const box = document.getElementById('eq-list');
   document.getElementById('eq-empty').style.display = names.length? 'none':'block';
   box.innerHTML = '';
   if(names.length===0){ alignOvTables(); return; }
 
-  const max = Math.max(1, ...names.map(n=>Object.values(byName.get(n)).reduce((a,b)=>a+b,0)));
-  names.forEach(n=>{
+  const max = Math.max(1, ...names.map(totalOf));
+
+  function renderNameRow(n){
     const rec = byName.get(n);
-    const total = Object.values(rec).reduce((a,b)=>a+b,0);
+    const total = totalOf(n);
     const osEntries = Object.entries(rec).sort((a,b)=>osSortVal(a[0])-osSortVal(b[0]));
     const osBreakdown = osEntries.map(([os,v])=>'OS '+osLabel(os)+': '+v).join(' · ');
     const expanded = state.eq.expanded.has(n);
@@ -2122,7 +2133,32 @@ function renderEquipes(){
         box.appendChild(dRow);
       });
     }
-  });
+  }
+
+  if(field==='encarregado'){
+    const groups = new Map();
+    names.forEach(n=>{
+      const votes = supOfEnc.get(n);
+      let sup = '(sem supervisor)', topN = -1;
+      if(votes) votes.forEach((cnt,s)=>{ if(cnt>topN){ topN=cnt; sup=s; } });
+      if(!groups.has(sup)) groups.set(sup, []);
+      groups.get(sup).push(n);
+    });
+    const groupOrder = Array.from(groups.keys()).sort((a,b)=>{
+      const ta = groups.get(a).reduce((s,n)=>s+totalOf(n),0);
+      const tb = groups.get(b).reduce((s,n)=>s+totalOf(n),0);
+      return tb-ta;
+    });
+    groupOrder.forEach(sup=>{
+      const header = document.createElement('div');
+      header.className = 'eq-group-header';
+      header.textContent = sup;
+      box.appendChild(header);
+      groups.get(sup).forEach(renderNameRow);
+    });
+  } else {
+    names.forEach(renderNameRow);
+  }
   alignOvTables();
 }
 
@@ -2681,7 +2717,11 @@ function renderApont(){
     groups.get(key).pessoas.push(r);
   });
   const search = state.apont.search.toLowerCase();
-  let entries = Array.from(groups.values()).sort((a,b)=>b.pessoas.length-a.pessoas.length);
+  // Ordena por nome do supervisor primeiro (e por tamanho do grupo dentro de
+  // cada um) — antes era só por tamanho do grupo, o que espalhava as linhas
+  // de um mesmo supervisor pela tabela em vez de deixá-las juntas e em
+  // ordem alfabética, dificultando achar um supervisor específico.
+  let entries = Array.from(groups.values()).sort((a,b)=> a.sup.localeCompare(b.sup, 'pt-BR') || b.pessoas.length-a.pessoas.length);
   if(search) entries = entries.filter(e=>e.enc.toLowerCase().includes(search));
   const validKeys = new Set(entries.map(e=>e.sup+'||'+e.enc+'||'+e.os));
   Array.from(state.apont.expanded).forEach(k=>{ if(!validKeys.has(k)) state.apont.expanded.delete(k); });
