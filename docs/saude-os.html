@@ -1056,23 +1056,49 @@ function renderGauge(){
   const over = pct>1;
   const critical = over || pctClamped>=0.9;
 
-  const cx=110, cy=108, r=86, sw=14;
+  const cx=110, cy=112, r=78, sw=16;
   const angleAt = p => Math.PI*(1-p);
   const pt = (p,rad) => { const a=angleAt(p); return [cx+rad*Math.cos(a), cy-rad*Math.sin(a)]; };
-  const [x0,y0] = pt(0,r);
-  const [xMid,yMid] = pt(pctClamped,r);
-  const [x1,y1] = pt(1,r);
-  const ringColor = critical ? 'var(--critical)' : (pctClamped>=0.7 ? 'var(--warning)' : 'var(--good)');
-  const trackArc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
-  const usedArc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 0 1 ${xMid.toFixed(1)},${yMid.toFixed(1)}`;
+
+  // Escala fixa estilo velocímetro (0 a 100%), com zonas coloridas sempre
+  // visíveis (não é mais um arco de progresso que só preenche até o valor)
+  // — o ponteiro é que indica a leitura atual, igual num velocímetro real.
+  const zones = [
+    {from:0, to:.2, color:'#2e7bc4'},
+    {from:.2, to:.4, color:'#1f9e93'},
+    {from:.4, to:.6, color:'#6fa834'},
+    {from:.6, to:.8, color:'#d19b1f'},
+    {from:.8, to:1, color:'#c81a21'},
+  ];
+  const zoneArcs = zones.map(z=>{
+    const [zx0,zy0] = pt(z.from,r), [zx1,zy1] = pt(z.to,r);
+    return `<path d="M${zx0.toFixed(1)},${zy0.toFixed(1)} A${r},${r} 0 0 1 ${zx1.toFixed(1)},${zy1.toFixed(1)}" fill="none" stroke="${z.color}" stroke-width="${sw}"/>`;
+  }).join('');
 
   const ticks = [];
   for(let i=0;i<=10;i++){
     const p = i/10;
-    const [tx1,ty1] = pt(p, r - sw/2 - 5);
-    const [tx2,ty2] = pt(p, r - sw/2 + 1);
-    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="rgba(255,255,255,.2)" stroke-width="2"/>`);
+    const major = i%2===0;
+    const [tx1,ty1] = pt(p, r - sw/2 - (major?9:4));
+    const [tx2,ty2] = pt(p, r - sw/2 + 2);
+    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="${major?'#ffffff':'rgba(255,255,255,.55)'}" stroke-width="${major?2:1.3}"/>`);
+    if(major){
+      const [lx,ly] = pt(p, r + sw/2 + 13);
+      ticks.push(`<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="rgba(255,255,255,.85)">${i*10}</text>`);
+    }
   }
+
+  // Ponteiro: aponta pra leitura atual sobre a escala fixa; fica branco em
+  // condição normal e crítico (vermelho) quando estourado/acima de 90%, já
+  // que as zonas de fundo não mudam de cor conforme o valor.
+  const needleAngle = angleAt(pctClamped);
+  const needleLen = r - sw/2 - 6;
+  const tipX = cx + needleLen*Math.cos(needleAngle), tipY = cy - needleLen*Math.sin(needleAngle);
+  const baseA1 = needleAngle + Math.PI/2, baseA2 = needleAngle - Math.PI/2;
+  const baseW = 4.5;
+  const b1x = cx + baseW*Math.cos(baseA1), b1y = cy - baseW*Math.sin(baseA1);
+  const b2x = cx + baseW*Math.cos(baseA2), b2y = cy - baseW*Math.sin(baseA2);
+  const needleColor = critical ? '#ff6b64' : '#ffffff';
 
   const comPrevisto = rows.filter(r=>r.hh_previsto>0);
   const mediaPorOs = comPrevisto.length
@@ -1082,20 +1108,15 @@ function renderGauge(){
   const box = document.getElementById('ov-gauge');
   box.innerHTML = `
     <div class="gauge-panel${critical?' gauge-panel-critical':''}">
-      <svg viewBox="0 0 220 132" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido">
-        <defs>
-          <filter id="gaugeGlow" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="4.5" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <path d="${trackArc}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="${sw}" stroke-linecap="round"/>
+      <svg viewBox="0 0 220 170" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido, estilo velocímetro">
+        ${zoneArcs}
         ${ticks.join('')}
-        <path d="${usedArc}" fill="none" stroke="${ringColor}" stroke-width="${sw}" stroke-linecap="round" filter="url(#gaugeGlow)"/>
-        <text x="${cx}" y="${cy-30}" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="700" fill="${critical?'#ff6b64':'#ffffff'}">${fmtPct(pct)}</text>
-        <text x="${cx}" y="${cy-12}" text-anchor="middle" font-family="var(--font-mono)" font-size="9.5" letter-spacing="2" fill="rgba(255,255,255,.5)">CONSUMIDO (PORTFÓLIO)</text>
+        <polygon points="${tipX.toFixed(1)},${tipY.toFixed(1)} ${b1x.toFixed(1)},${b1y.toFixed(1)} ${b2x.toFixed(1)},${b2y.toFixed(1)}" fill="${needleColor}" stroke="rgba(0,0,0,.25)" stroke-width="0.5"/>
+        <circle cx="${cx}" cy="${cy}" r="10" fill="#0a1a2e" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+        <circle cx="${cx}" cy="${cy}" r="4" fill="${needleColor}"/>
       </svg>
       <div class="gauge-readouts">
+        <div class="gauge-readout"><span class="gv" style="${critical?'color:#ff6b64;':''}">${fmtPct(pct)}</span><span class="gk">Consumido (portfólio)</span></div>
         <div class="gauge-readout"><span class="gv">${fmtPct(mediaPorOs)}</span><span class="gk">Média simples por OS</span></div>
       </div>
     </div>
