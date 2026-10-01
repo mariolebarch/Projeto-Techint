@@ -987,9 +987,9 @@ function renderAlerts(){
   box.innerHTML = '';
   const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA');
 
-  const negativas = rows.filter(r=>r.saldo_final_hh<0);
+  const negativas = rows.filter(r=>saldoFinalForOs(r)<0);
   if(negativas.length>0){
-    const totalNeg = negativas.reduce((a,r)=>a+r.saldo_final_hh,0);
+    const totalNeg = negativas.reduce((a,r)=>a+saldoFinalForOs(r),0);
     const el = document.createElement('div');
     el.className = 'callout critical';
     el.innerHTML = `<span class="glyph">!</span><div><h4>${fmtInt(negativas.length)} OS's com Saldo Final negativo</h4><p>Juntas, consumiram ${fmtH(Math.abs(totalNeg))}h além do previsto. Veja "Detalhamento por OS" — clique no cabeçalho HH Saldo para ordenar e identificá-las.</p></div>`;
@@ -1134,7 +1134,13 @@ const ANDAMENTO_BUCKETS = [
   {key:'naoIniciado', label:'Não iniciada', sub:'sem HH realizado', color:'var(--border)'},
 ];
 function classifyAndamento(r){
-  if(r.saldo_final_hh<0) return 'estourado';
+  // Usa saldoFinalForOs (mesmo cálculo função a função do Detalhamento por
+  // OS — HH Previsto/Realizado consolidados por função, menos Pendência e
+  // Aprop.+Mob.), não o r.saldo_final_hh bruto importado da aba RESUMO
+  // GERAL: os dois podiam divergir (ex.: uma OS aparecer "estourada" no
+  // Detalhamento por OS mas "OK" aqui), porque vêm de fontes/cálculos
+  // diferentes. Usando o mesmo cálculo dos dois lados, nunca mais diverge.
+  if(saldoFinalForOs(r)<0) return 'estourado';
   if((r.hh_realizado||0)<=0) return 'naoIniciado';
   const pct = r.hh_realizado/r.hh_previsto;
   if(pct<0.7) return 'confortavel';
@@ -1210,14 +1216,15 @@ function renderAndamentoChart(){
 const SUPLEMENTAR_THRESHOLD = 0.15;
 function renderSuplementarBars(){
   const box = document.getElementById('suplementar-bars');
+  // saldoFinalForOs(r), não r.saldo_final_hh — mesmo motivo de classifyAndamento.
   const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA'
-    && r.hh_previsto>0 && (r.hh_realizado||0)>0 && r.saldo_final_hh>0
-    && (r.saldo_final_hh/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD);
+    && r.hh_previsto>0 && (r.hh_realizado||0)>0 && saldoFinalForOs(r)>0
+    && (saldoFinalForOs(r)/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD);
   if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS em execução com saldo abaixo de 15% do previsto.</div>'; return; }
   const entries = rows.slice()
-    .sort((a,b)=>(a.saldo_final_hh/a.hh_previsto)-(b.saldo_final_hh/b.hh_previsto))
+    .sort((a,b)=>(saldoFinalForOs(a)/a.hh_previsto)-(saldoFinalForOs(b)/b.hh_previsto))
     .slice(0,15)
-    .map(r=>({label:(r.os_label||'')+(r.pep?(' — '+r.pep):''), pctRestante:r.saldo_final_hh/r.hh_previsto, saldo:r.saldo_final_hh}));
+    .map(r=>({label:(r.os_label||'')+(r.pep?(' — '+r.pep):''), pctRestante:saldoFinalForOs(r)/r.hh_previsto, saldo:saldoFinalForOs(r)}));
   box.innerHTML = entries.map(e=>{
     // Barra representa urgência (quanto MENOS sobra, maior a barra) — não o % restante em si.
     const urgencia = Math.max(2, (1 - e.pctRestante/SUPLEMENTAR_THRESHOLD)*100);
