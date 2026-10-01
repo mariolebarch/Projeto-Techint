@@ -120,6 +120,8 @@ button{font-family:inherit;}
 .eyebrow{font-family:var(--font-mono); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:600;}
 .masthead h1{font-size:clamp(24px,3.2vw,34px); line-height:1.08; color:#fff; text-transform:uppercase;}
 .masthead-sub{color:var(--text-secondary); font-size:14px; max-width:60ch;}
+.masthead-actions-col{display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+.masthead-updated{font-size:11px; color:rgba(255,255,255,.55); white-space:nowrap;}
 .masthead-actions{display:flex; align-items:center; gap:10px;}
 .action-wrap{position:relative; display:flex;}
 .hub-link-btn{display:flex; align-items:center; gap:7px; height:44px; padding:0 18px; border-radius:22px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.08); color:#fff; text-decoration:none; font-size:13.5px; font-weight:600; white-space:nowrap;}
@@ -666,7 +668,9 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <h1>Sa&uacute;de das OS's</h1>
       </div>
     </div>
-    <div class="masthead-actions">
+    <div class="masthead-actions-col">
+      <span class="masthead-updated" id="masthead-updated" hidden></span>
+      <div class="masthead-actions">
       <a class="hub-link-btn" href="index.html" title="Ir para outro painel">&#8646; Trocar de painel</a>
       <div class="action-wrap">
         <button class="gear-btn alert-btn" id="alerts-btn" type="button" title="Avisos" aria-label="Avisos" aria-haspopup="true" aria-expanded="false">
@@ -720,6 +724,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
           </div>
         </div>
       </div>
+    </div>
     </div>
   </header>
   <div class="masthead-accent"></div>
@@ -882,6 +887,15 @@ function fmtDateLabelFull(iso){
   const d = new Date(iso+'T00:00:00');
   const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' — '+dias[d.getDay()];
+}
+/* Data+hora de um timestamp completo (ex.: created_at do Supabase) no
+   fuso local de quem está vendo o painel — usado no aviso de "atualizado
+   em" do cabeçalho. */
+function fmtDateTimeLabel(ts){
+  const d = new Date(ts);
+  const date = d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
+  const time = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  return date+' às '+time;
 }
 
 /* ---------- Estado & filtros globais ---------- */
@@ -2734,6 +2748,11 @@ async function sbInit(){
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
       const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
       sbSetStatus('ok', 'Conectado — snapshot de ' + when + (data.source_filename ? ' (' + data.source_filename + ')' : '') + '.');
+      const updEl = document.getElementById('masthead-updated');
+      if(updEl){
+        updEl.textContent = 'Base atualizada em ' + fmtDateTimeLabel(data.created_at);
+        updEl.hidden = false;
+      }
     } else {
       sbSetStatus('ok', 'Conectado ao Supabase — nenhum dado publicado ainda, usando os dados locais.');
     }
