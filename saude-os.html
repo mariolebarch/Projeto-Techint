@@ -1041,8 +1041,13 @@ function renderKPIs(){
   // R$ Estourado: soma do valor (R$) já gasto ALÉM do previsto nas OS's com
   // saldo negativo — dimensão financeira que não aparece em nenhum outro
   // lugar do Panorama Geral (diferente do antigo "Saldo Geral (R$)", que foi
-  // removido por ignorar os filtros; este soma só as OS's filtradas).
-  const rsEstourado = rows.reduce((a,r)=> a + (r.vl_saldo<0 ? -r.vl_saldo : 0), 0);
+  // removido por ignorar os filtros; este soma só as OS's filtradas). Usa
+  // saldoFinalRsForOs (mesmo cálculo função a função do Resumo da OS/
+  // Detalhamento por OS, que conta Pendência + Aprop.+Mob.), não r.vl_saldo
+  // bruto (Previsto - Realizado) — mesmo motivo de saldoFinalForOs/
+  // classifyAndamento: o bruto pode ficar positivo mesmo quando a OS já
+  // estourou ao contar pendência/projeção.
+  const rsEstourado = rows.reduce((a,r)=> { const sf = saldoFinalRsForOs(r); return a + (sf<0 ? -sf : 0); }, 0);
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
     <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
@@ -1293,6 +1298,9 @@ function computeSaldoFinal(r, funcoes){
 }
 function saldoFinalForOs(r){
   return computeSaldoFinal(r, funcoesForOs(r.os));
+}
+function saldoFinalRsForOs(r){
+  return computeOsSummary(r, funcoesForOs(r.os)).saldoFinalRs;
 }
 function computeOsSummary(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
