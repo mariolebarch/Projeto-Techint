@@ -1036,8 +1036,15 @@ function renderAlerts(){
 function renderKPIs(){
   const rows = filteredOS();
   const sum = k => rows.reduce((a,r)=>a+(r[k]||0), 0);
-  const hhPrev = sum('hh_previsto'), hhReal = sum('hh_realizado'), hhSaldo = sum('hh_saldo');
+  const hhPrev = sum('hh_previsto'), hhReal = sum('hh_realizado');
   const pctCons = hhPrev>0 ? hhReal/hhPrev : 0;
+  // HH Saldo Final: mesmo cálculo função a função do Resumo da OS/
+  // Detalhamento por OS (saldoFinalForOs — HH Previsto - HH Realizado -
+  // Pendência - Aprop.+Mob.), não a soma do r.hh_saldo bruto (Previsto -
+  // Realizado) usada antes aqui — o bruto podia aparecer positivo na Visão
+  // Geral para uma OS que o Resumo da OS já mostrava com Saldo Final
+  // negativo (ex.: OS 44128), por ignorar Pendência/Projeção.
+  const hhSaldoFinal = rows.reduce((a,r)=>a+saldoFinalForOs(r), 0);
   // R$ Estourado: soma do valor (R$) já gasto ALÉM do previsto nas OS's com
   // saldo negativo — dimensão financeira que não aparece em nenhum outro
   // lugar do Panorama Geral (diferente do antigo "Saldo Geral (R$)", que foi
@@ -1052,7 +1059,7 @@ function renderKPIs(){
   grid.innerHTML = `
     <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
     <div class="kpi"><span class="kpi-label">HH Realizado</span><span class="kpi-value">${fmtInt(hhReal)}</span><span class="kpi-sub">${fmtPct(pctCons)} consumido</span></div>
-    <div class="kpi ${hhSaldo<0?'critical':'good'}"><span class="kpi-label">HH Saldo</span><span class="kpi-value">${fmtInt(hhSaldo)}</span><span class="kpi-sub">Previsto &minus; realizado</span></div>
+    <div class="kpi ${hhSaldoFinal<0?'critical':'good'}"><span class="kpi-label">HH Saldo Final</span><span class="kpi-value">${fmtInt(hhSaldoFinal)}</span><span class="kpi-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
     <div class="kpi ${rsEstourado>0?'critical':'good'}"><span class="kpi-label">R$ Estourado</span><span class="kpi-value" style="font-size:19px;">${fmtRs(rsEstourado)}</span><span class="kpi-sub">Soma do saldo (R$) negativo</span></div>
   `;
 }
