@@ -1571,11 +1571,14 @@ function buildSuplMotivoMultiSelect(){
     container.classList.toggle('open');
   });
 }
-/* Linhas por OS x Item, somando HH e Valor R$ de todas as ocorrências
-   daquele mesmo item na OS — a pedido do usuário, pra não repetir o
-   mesmo item (ex. "779 - ENCARREGADO DE ELÉTRICA HN") em várias linhas.
-   Quando as ocorrências mescladas têm motivos diferentes, junta todos
-   (";") em vez de descartar informação. */
+/* Linhas por OS x Item x Motivo, somando HH e Valor R$ só das ocorrências
+   com EXATAMENTE a mesma nomenclatura de item e o mesmo motivo — reflete
+   fielmente a aba "3 - PENDÊNCIAS" (cada combinação item/motivo vira uma
+   linha própria, sem juntar motivos diferentes em uma linha só). Antes a
+   mesclagem era só por item (ignorando o motivo) e concatenava os motivos
+   diferentes (";"), o que somava valores de registros distintos do banco
+   numa única linha agregada — causando divergência na hora de conferir a
+   exportação contra o banco de dados linha a linha. */
 function suplementacaoMergedGroups(){
   const rows = suplementacaoRows();
   const byOs = new Map();
@@ -1584,18 +1587,17 @@ function suplementacaoMergedGroups(){
     const g = byOs.get(r.os);
     g.hh += r.hh||0;
     g.rs += r.valor_rs||0;
-    const itemKey = r.item || '—';
-    if(!g.itemsMap.has(itemKey)) g.itemsMap.set(itemKey, {key: r.os+'||'+itemKey, item:itemKey, hh:0, rs:0, motivos:new Set()});
+    const item = r.item || '—';
+    const motivo = r.motivo || '';
+    const itemKey = item + '||' + motivo;
+    if(!g.itemsMap.has(itemKey)) g.itemsMap.set(itemKey, {key: r.os+'||'+itemKey, item, motivo, hh:0, rs:0});
     const it = g.itemsMap.get(itemKey);
     it.hh += r.hh||0;
     it.rs += r.valor_rs||0;
-    if(r.motivo) it.motivos.add(r.motivo);
   });
   return Array.from(byOs.values()).map(g=>({
     os: g.os, os_label: g.os_label, hh: g.hh, rs: g.rs,
-    items: Array.from(g.itemsMap.values())
-      .map(it=>({key:it.key, item:it.item, hh:it.hh, rs:it.rs, motivo:Array.from(it.motivos).join('; ')}))
-      .sort((a,b)=>(b.hh||0)-(a.hh||0)),
+    items: Array.from(g.itemsMap.values()).sort((a,b)=>(b.hh||0)-(a.hh||0)),
   })).sort((a,b)=> b.hh - a.hh);
 }
 function updateSuplementacaoExportButton(){
