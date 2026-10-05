@@ -426,16 +426,20 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .cf-hero-hh{flex:1; min-width:300px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding-left:22px;}
 .cf-hero-hh-icon{width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; flex:none;}
 .cf-hero-hh-icon svg{width:17px; height:17px; stroke:var(--green);}
-/* Barra de progresso (% de HH previsto já realizado), com glow na cor do
-   status (good/warning/critical) e a porcentagem ao lado — mesmas três
-   cores dos chips desta tela. */
-.cf-hero-hh-bar-wrap{display:flex; flex-direction:column; gap:5px; min-width:112px; flex:none;}
-.cf-hero-hh-bar{width:112px; height:9px; border-radius:5px; background:rgba(255,255,255,.18); overflow:hidden; position:relative;}
+/* Barra de progresso (% de HH previsto já realizado): percentual grande e
+   centralizado acima, barra com glow na cor do status abaixo — mesmas
+   três cores dos chips desta tela. */
+.cf-hero-hh-bar-wrap{display:flex; flex-direction:column; align-items:center; gap:6px; min-width:120px; flex:none;}
+.cf-hero-hh-bar-pct{font-family:var(--font-mono); font-size:18px; font-weight:700; letter-spacing:-.01em; line-height:1;}
+.cf-hero-hh-bar-pct.good{color:#8ed45a;}
+.cf-hero-hh-bar-pct.warning{color:#f0c64c;}
+.cf-hero-hh-bar-pct.critical, .cf-hero-hh-bar-pct.info{color:#f0564f;}
+.cf-hero-hh-bar{width:120px; height:8px; border-radius:5px; background:rgba(255,255,255,.18); overflow:hidden; position:relative;}
 .cf-hero-hh-bar .fill{position:absolute; top:0; bottom:0; left:0; border-radius:5px;}
 .cf-hero-hh-bar.good .fill{background:#8ed45a; box-shadow:0 0 9px rgba(143,212,90,.65);}
 .cf-hero-hh-bar.warning .fill{background:#f0c64c; box-shadow:0 0 9px rgba(240,198,76,.65);}
 .cf-hero-hh-bar.critical .fill, .cf-hero-hh-bar.info .fill{background:#f0564f; box-shadow:0 0 9px rgba(240,86,79,.65);}
-.cf-hero-hh-bar-pct{font-family:var(--font-mono); font-size:12px; font-weight:700; color:#fff; letter-spacing:-.01em;}
+.cf-hero-hh-bar-label{font-size:8.5px; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.55); font-weight:600;}
 .cf-hero-hh-head{display:flex; flex-direction:column; gap:2px; flex:1; min-width:180px;}
 .cf-hero-hh-title{display:flex; align-items:center; gap:5px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.62); font-weight:700;}
 .cf-hero-hh-nums{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;}
@@ -453,9 +457,9 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
   .cf-hero-stats{min-width:0; width:100%; justify-content:space-between;}
   .cf-hero-stat{margin-right:0; padding-right:14px;}
   .cf-hero-divider{display:none;}
-  .cf-hero-hh{min-width:0; padding-left:0; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.14);}
-  .cf-hero-hh-bar-wrap{min-width:0; flex:1;}
-  .cf-hero-hh-bar{width:100%;}
+  .cf-hero-hh{min-width:0; padding-left:0; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.14); justify-content:center;}
+  .cf-hero-hh-bar-wrap{min-width:0; flex-basis:100%; margin-top:6px;}
+  .cf-hero-hh-bar{width:70%;}
 }
 
 .ov-table-name{font-weight:600;}
@@ -463,12 +467,19 @@ tr.cf-os-row, tr.ov-colab-os-row{cursor:pointer;}
 tr.cf-os-row td:first-child{position:relative;}
 tr.cf-os-row.expanded td{background:var(--steel-soft);}
 tr.cf-os-row .expand-hint, tr.ov-colab-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+/* Detalhamento por disciplina/cargo (linhas expandidas de uma OS): header
+   de disciplina com marcador verde + "espinha" vertical ligando o grupo
+   aos cargos abaixo, no lugar do antigo "↳" — deixa a hierarquia OS →
+   disciplina → cargo mais clara à primeira vista. */
+tr.cf-disc-group-row td{background:var(--paper); color:var(--steel-strong); font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:10px 12px 7px; border-top:2px solid var(--border-soft);}
+tr.cf-disc-group-row:first-of-type td{border-top:none;}
+tr.cf-disc-group-row td:first-child{padding-left:34px; position:relative;}
+tr.cf-disc-group-row td:first-child::before{content:''; position:absolute; left:18px; top:50%; transform:translateY(-50%); width:6px; height:6px; border-radius:50%; background:var(--table-accent);}
 tr.cf-detail-row td{background:var(--sand); border-top:none;}
-tr.cf-detail-row.cf-detail-alt td{background:var(--border-soft);}
-tr.cf-detail-row .cf-cargo-name{color:var(--text-secondary); padding-left:34px; position:relative;}
-tr.cf-detail-row .cf-cargo-name::before{content:"↳"; position:absolute; left:14px; color:var(--text-muted);}
-tr.cf-disc-group-row td{background:var(--navy-100); color:var(--steel-strong); font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.03em; padding:6px 12px; border-top:1px solid var(--border);}
-tr.cf-disc-group-row td:first-child{padding-left:34px; text-transform:uppercase; letter-spacing:.07em; font-size:10.5px;}
+tr.cf-detail-row .cf-cargo-name{color:var(--text-secondary); padding-left:40px; position:relative; font-size:13px;}
+tr.cf-detail-row .cf-cargo-name::before{content:''; position:absolute; left:21px; top:0; bottom:0; width:1px; background:var(--border);}
+tr.cf-detail-row .num, tr.cf-detail-row .os-mini-nums{font-size:12.5px; color:var(--text-secondary);}
+tr.cf-detail-row .chip{font-size:11px; padding:2px 8px;}
 td.confronto-col{min-width:170px;}
 td.confronto-col .os-mini-bar{display:block; width:100%; max-width:none;}
 td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
@@ -2209,8 +2220,9 @@ function renderConfrontoTable(){
       </div>
     </div>
     <div class="cf-hero-hh-bar-wrap">
+      <span class="cf-hero-hh-bar-pct ${hhStatus}">${fmtInt(Math.round(hhPct*100))}%</span>
       <div class="cf-hero-hh-bar ${hhStatus}"><span class="fill" style="width:${(hhPctClamped*100).toFixed(1)}%"></span></div>
-      <span class="cf-hero-hh-bar-pct">${fmtInt(Math.round(hhPct*100))}%</span>
+      <span class="cf-hero-hh-bar-label">Consumido</span>
     </div>
     <span class="cf-hero-chip small ${hhStatus}">${hhDiferenca>=0?'+':''}${fmtInt(hhDiferenca)}h</span>`;
 
@@ -2263,7 +2275,7 @@ function renderConfrontoTable(){
           const cLocalMax = Math.max(1, c.planejado, c.apontado);
           const cDiffStr = (c.diferenca>0?'+':'')+c.diferenca;
           const dtr = document.createElement('tr');
-          dtr.className = 'cf-detail-row' + (gi%2 ? ' cf-detail-alt' : '');
+          dtr.className = 'cf-detail-row';
           dtr.innerHTML = `
             <td class="cf-cargo-name" colspan="3">${escHtml(c.cargo)}</td>
             <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*c.planejado/cLocalMax}%"></span><span class="fill-real" style="width:${100*c.apontado/cLocalMax}%"></span></span><span class="os-mini-nums">emp ${c.planejado} &middot; real ${c.apontado}</span></td>
