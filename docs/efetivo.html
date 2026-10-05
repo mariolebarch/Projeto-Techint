@@ -423,18 +423,21 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .cf-hero-stat-nums .v{font-family:var(--font-mono); font-size:21px; font-weight:700; color:#fff; line-height:1;}
 .cf-hero-stat-nums .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.62); font-weight:600;}
 .cf-hero-divider{width:1px; align-self:stretch; background:rgba(255,255,255,.18); flex:none; margin:0 6px;}
-.cf-hero-hh{flex:1; min-width:300px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding-left:22px;}
-/* Anel de progresso (% de HH previsto já realizado) no lugar da barra linear
-   — leitura tipo "gauge" de HUD, com glow na cor do status (good/warning/
-   critical), reaproveitando as mesmas três cores dos chips desta tela. */
-.cf-hero-ring-wrap{position:relative; width:54px; height:54px; flex:none;}
-.cf-hero-ring-wrap.good{color:#8ed45a; filter:drop-shadow(0 0 7px rgba(143,212,90,.5));}
-.cf-hero-ring-wrap.warning{color:#f0c64c; filter:drop-shadow(0 0 7px rgba(240,198,76,.5));}
-.cf-hero-ring-wrap.critical, .cf-hero-ring-wrap.info{color:#f0564f; filter:drop-shadow(0 0 7px rgba(240,86,79,.5));}
-.cf-hero-ring-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:12px; font-weight:700; color:#fff; letter-spacing:-.02em;}
+.cf-hero-hh{flex:1; min-width:300px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding-left:22px;}
+.cf-hero-hh-icon{width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; flex:none;}
+.cf-hero-hh-icon svg{width:17px; height:17px; stroke:var(--green);}
+/* Barra de progresso (% de HH previsto já realizado), com glow na cor do
+   status (good/warning/critical) e a porcentagem ao lado — mesmas três
+   cores dos chips desta tela. */
+.cf-hero-hh-bar-wrap{display:flex; flex-direction:column; gap:5px; min-width:112px; flex:none;}
+.cf-hero-hh-bar{width:112px; height:9px; border-radius:5px; background:rgba(255,255,255,.18); overflow:hidden; position:relative;}
+.cf-hero-hh-bar .fill{position:absolute; top:0; bottom:0; left:0; border-radius:5px;}
+.cf-hero-hh-bar.good .fill{background:#8ed45a; box-shadow:0 0 9px rgba(143,212,90,.65);}
+.cf-hero-hh-bar.warning .fill{background:#f0c64c; box-shadow:0 0 9px rgba(240,198,76,.65);}
+.cf-hero-hh-bar.critical .fill, .cf-hero-hh-bar.info .fill{background:#f0564f; box-shadow:0 0 9px rgba(240,86,79,.65);}
+.cf-hero-hh-bar-pct{font-family:var(--font-mono); font-size:12px; font-weight:700; color:#fff; letter-spacing:-.01em;}
 .cf-hero-hh-head{display:flex; flex-direction:column; gap:2px; flex:1; min-width:180px;}
 .cf-hero-hh-title{display:flex; align-items:center; gap:5px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.62); font-weight:700;}
-.cf-hero-hh-title svg{width:11px; height:11px; stroke:var(--green); flex:none;}
 .cf-hero-hh-nums{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;}
 .cf-hero-hh-nums .n{display:flex; flex-direction:column; gap:1px;}
 .cf-hero-hh-nums .n .v{font-family:var(--font-mono); font-size:19px; font-weight:700; color:#fff; line-height:1; letter-spacing:.01em;}
@@ -451,6 +454,8 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
   .cf-hero-stat{margin-right:0; padding-right:14px;}
   .cf-hero-divider{display:none;}
   .cf-hero-hh{min-width:0; padding-left:0; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.14);}
+  .cf-hero-hh-bar-wrap{min-width:0; flex:1;}
+  .cf-hero-hh-bar{width:100%;}
 }
 
 .ov-table-name{font-weight:600;}
@@ -2190,26 +2195,22 @@ function renderConfrontoTable(){
   else if(hhDiferenca===0) hhStatus = 'good';
   else if(Math.abs(hhDiferenca) <= Math.max(1, Math.round(stats.hhPlanejado*0.15))) hhStatus = 'warning';
   else hhStatus = 'critical';
-  // Anel de progresso (SVG) no lugar da barra linear — % de HH previsto já
-  // realizado, capado visualmente em 100% (volta completa) mas com o
-  // percentual real (pode passar de 100%) no centro.
+  // Barra de progresso com a porcentagem de HH previsto já realizado ao
+  // lado — fill e % capados em 100% (preenchimento cheio), mas a leitura
+  // de HH Previsto/Real acima já mostra o valor exato quando passa disso.
   const hhPct = stats.hhPlanejado>0 ? stats.hhApontado/stats.hhPlanejado : (stats.hhApontado>0 ? 1 : 0);
   const hhPctClamped = Math.max(0, Math.min(1, hhPct));
-  const ringR = 22, ringC = 2*Math.PI*ringR;
-  const ringLen = hhPctClamped*ringC;
   document.getElementById('cf-hh-tile').innerHTML = `
-    <div class="cf-hero-ring-wrap ${hhStatus}">
-      <svg viewBox="0 0 54 54" width="54" height="54">
-        <circle cx="27" cy="27" r="${ringR}" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="6"/>
-        <circle cx="27" cy="27" r="${ringR}" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="${ringLen.toFixed(1)} ${(ringC-ringLen).toFixed(1)}" transform="rotate(-90 27 27)"/>
-      </svg>
-      <span class="cf-hero-ring-label">${fmtInt(Math.round(hhPct*100))}%</span>
-    </div>
-    <div class="cf-hero-hh-head"><span class="cf-hero-hh-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>HH &middot; critério de jornada</span>
+    <span class="cf-hero-hh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg></span>
+    <div class="cf-hero-hh-head"><span class="cf-hero-hh-title">HH &middot; critério de jornada</span>
       <div class="cf-hero-hh-nums">
         <div class="n"><span class="v">${fmtInt(stats.hhPlanejado)}h</span><span class="k">Previsto</span></div>
         <div class="n real"><span class="v">${fmtInt(stats.hhApontado)}h</span><span class="k">Real</span></div>
       </div>
+    </div>
+    <div class="cf-hero-hh-bar-wrap">
+      <div class="cf-hero-hh-bar ${hhStatus}"><span class="fill" style="width:${(hhPctClamped*100).toFixed(1)}%"></span></div>
+      <span class="cf-hero-hh-bar-pct">${fmtInt(Math.round(hhPct*100))}%</span>
     </div>
     <span class="cf-hero-chip small ${hhStatus}">${hhDiferenca>=0?'+':''}${fmtInt(hhDiferenca)}h</span>`;
 
