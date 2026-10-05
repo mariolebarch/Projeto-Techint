@@ -467,6 +467,24 @@ tr.cf-os-row, tr.ov-colab-os-row{cursor:pointer;}
 tr.cf-os-row td:first-child{position:relative;}
 tr.cf-os-row.expanded td{background:var(--steel-soft);}
 tr.cf-os-row .expand-hint, tr.ov-colab-os-row .expand-hint{font-size:9.5px; color:var(--text-muted); text-transform:none; font-weight:400; margin-left:6px;}
+/* Linhas da tabela Confronto OS × Função (.cf-confronto-row, além da
+   .cf-os-row genérica): acento de cor na borda esquerda pela mesma cor do
+   chip de Situação, OS em mono-tag (padrão já usado em Saúde das OS's) e
+   um chevron que gira ao expandir, no lugar do texto ▸/▾ — dá mais cara
+   do tema Techint (navy/verde) sem mexer nas outras tabelas que também
+   usam .cf-os-row/.cf-detail-row (Apontamento Detalhado, Visão Geral). */
+tr.cf-confronto-row td:first-child{padding-left:16px;}
+tr.cf-confronto-row td:first-child::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px;}
+tr.cf-confronto-row.status-good td:first-child::before{background:var(--good);}
+tr.cf-confronto-row.status-warning td:first-child::before{background:var(--warning);}
+tr.cf-confronto-row.status-critical td:first-child::before{background:var(--critical);}
+tr.cf-confronto-row.status-info td:first-child::before{background:var(--info);}
+tr.cf-confronto-row.status-pci td:first-child::before{background:var(--slate);}
+tr.cf-confronto-row:hover td{background:var(--steel-soft);}
+.cf-os-cell{display:flex; align-items:center; gap:9px;}
+.cf-os-chevron{width:13px; height:13px; color:var(--text-muted); flex:none; transition:transform .18s, color .18s;}
+tr.cf-confronto-row.expanded .cf-os-chevron{transform:rotate(90deg); color:var(--steel-strong);}
+.cf-multi-toggle{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--text-secondary); cursor:pointer; user-select:none;}
 /* Detalhamento por disciplina/cargo (linhas expandidas de uma OS): header
    de disciplina com marcador verde + "espinha" vertical ligando o grupo
    aos cargos abaixo, no lugar do antigo "↳" — deixa a hierarquia OS →
@@ -760,6 +778,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="card">
       <div class="card-head">
         <h3>Confronto OS &times; Função</h3>
+        <label class="cf-multi-toggle" title="Quando ligado, abrir o detalhamento de uma OS não fecha as outras já abertas">
+          <span>Abrir várias OS's</span>
+          <span class="switch"><input type="checkbox" id="cf-multi-expand-toggle"><span class="switch-slider"></span></span>
+        </label>
       </div>
       <div class="cf-hero">
         <div class="cf-hero-accent"></div>
@@ -937,7 +959,7 @@ const state = {
   osGlobal: new Set(),
   supervisorGlobal: new Set(),
   discGlobal: new Set(),
-  cf: {expanded:new Set()},
+  cf: {expanded:new Set(), multiExpand:false},
   hm: {os:new Set(), search:'', scurve:false},
   eq: {mode:'supervisor', search:'', expanded:new Set()},
   apont: {expanded:new Set(), search:''},
@@ -2237,10 +2259,10 @@ function renderConfrontoTable(){
     const diffStr = (o.diferenca>0?'+':'')+o.diferenca;
     const expanded = f.expanded.has(o.os);
     const tr = document.createElement('tr');
-    tr.className = 'cf-os-row' + (expanded ? ' expanded' : '');
-    tr.title = 'Duplo clique para ' + (expanded ? 'recolher' : 'detalhar por função');
+    tr.className = 'cf-os-row cf-confronto-row status-'+o.status + (expanded ? ' expanded' : '');
+    tr.title = expanded ? 'Clique para recolher' : 'Clique para detalhar por função';
     tr.innerHTML = `
-      <td class="ov-table-name">OS ${escHtml(osLabel(o.os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
+      <td class="ov-table-name"><span class="cf-os-cell"><svg class="cf-os-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg><span class="mono-tag">OS ${escHtml(osLabel(o.os))}</span></span></td>
       <td><span class="badge-contrato ${o.contrato}">${o.contrato}</span></td>
       <td class="cargo-cell">${escHtml(o.titulo)}</td>
       <td class="confronto-col"><span class="os-mini-bar"><span class="fill-plan" style="width:${100*o.planejado/localMax}%"></span><span class="fill-real" style="width:${100*o.apontado/localMax}%"></span></span><span class="os-mini-nums">emp ${o.planejado} &middot; real ${o.apontado}</span></td>
@@ -2248,8 +2270,14 @@ function renderConfrontoTable(){
       <td class="num-col num">${o.apontado}</td>
       <td class="num-col num">${diffStr}</td>
       <td><span class="chip ${o.status}">${STATUS_LABEL[o.status]}</span></td>`;
-    tr.addEventListener('dblclick', ()=>{
-      if(f.expanded.has(o.os)) f.expanded.delete(o.os); else f.expanded.add(o.os);
+    // Clique único expande/recolhe; por padrão (multiExpand desligado) abrir
+    // uma OS fecha a que já estava aberta (accordion) — o toggle "Abrir
+    // várias OS's" no cabeçalho do card libera abrir mais de uma ao mesmo
+    // tempo pra quem quiser comparar duas OS's lado a lado na tabela.
+    tr.addEventListener('click', ()=>{
+      const isOpen = f.expanded.has(o.os);
+      if(!state.cf.multiExpand && !isOpen) f.expanded.clear();
+      if(isOpen) f.expanded.delete(o.os); else f.expanded.add(o.os);
       renderConfrontoTable();
     });
     tbody.appendChild(tr);
@@ -3082,6 +3110,14 @@ document.getElementById('apont-search').addEventListener('input', e=>{state.apon
 document.getElementById('hm-search').addEventListener('input', e=>{state.hm.search=e.target.value; renderPlanejamento();});
 document.getElementById('scurve-toggle-btn').addEventListener('click', ()=>{ state.hm.scurve = !state.hm.scurve; renderScurve(); });
 
+document.getElementById('cf-multi-expand-toggle').addEventListener('change', e=>{
+  state.cf.multiExpand = e.target.checked;
+  // Desligar com mais de uma OS aberta: fecha todas em vez de escolher
+  // arbitrariamente qual manter — evita ambiguidade.
+  if(!state.cf.multiExpand) state.cf.expanded.clear();
+  renderConfrontoTable();
+});
+
 /* ---------- Limpar filtros (por aba) ---------- */
 document.getElementById('hm-clear-btn').addEventListener('click', ()=>{
   state.hm.os.clear(); state.hm.search = ''; state.hm.scurve = false;
@@ -3490,6 +3526,8 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       state.contrato = 'all';
       state.cf.expanded = new Set();
+      state.cf.multiExpand = false;
+      document.getElementById('cf-multi-expand-toggle').checked = false;
       state.hm.os = new Set(); state.hm.search=''; state.hm.scurve=false;
       state.eq.search='';
       state.apont.search='';
