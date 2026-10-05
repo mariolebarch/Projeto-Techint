@@ -401,6 +401,32 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 #ab-stats .s .v{font-size:25px;}
 #ab-stats .s .k{font-size:11.5px;}
 
+/* Confronto OS × Função: cabeçalho com o empilhamento/apontamento (pessoas,
+   stat-strip padrão) ao lado de um tile de HH — mesmo critério de jornada
+   usado no card "Apontamentos por Contrato" (ver shiftHoursFor), aplicado
+   ao Previsto/Real desta tabela, então sempre conversa com os filtros
+   (Disciplina/Contrato/OS/datas) em vez de ser um HH importado à parte. */
+.cf-summary{display:flex; align-items:stretch; gap:20px; flex-wrap:wrap; margin-bottom:14px;}
+.cf-summary .stat-strip{flex:1; min-width:230px; margin-bottom:0;}
+.cf-hh-tile{flex:none; width:238px; background:linear-gradient(135deg, var(--navy) 0%, var(--steel-strong) 100%); border-radius:14px; padding:13px 16px 14px; position:relative; overflow:hidden; box-shadow:0 8px 22px rgba(0,43,92,.28); color:#fff;}
+.cf-hh-tile::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--green);}
+.cf-hh-head{display:flex; align-items:center; gap:6px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.72); font-weight:700; margin-bottom:10px;}
+.cf-hh-head svg{width:13px; height:13px; stroke:var(--green); flex:none;}
+.cf-hh-nums{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.cf-hh-nums .n{display:flex; flex-direction:column; gap:1px;}
+.cf-hh-nums .n.real{align-items:flex-end;}
+.cf-hh-nums .n .v{font-family:var(--font-mono); font-size:19px; font-weight:700; line-height:1;}
+.cf-hh-nums .n.real .v{color:var(--green);}
+.cf-hh-nums .n .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.65);}
+.cf-hh-bar{height:8px; border-radius:4px; background:rgba(255,255,255,.18); overflow:hidden; margin:9px 0 10px; position:relative;}
+.cf-hh-bar .fill-plan{position:absolute; inset:0; background:rgba(255,255,255,.4);}
+.cf-hh-bar .fill-real{position:absolute; top:0; bottom:0; left:0; background:var(--green); border-radius:4px;}
+.cf-hh-diff{display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:20px; border:1px solid transparent;}
+.cf-hh-diff.good{background:rgba(143,212,90,.2); border-color:rgba(143,212,90,.55); color:#d4f3b4;}
+.cf-hh-diff.warning{background:rgba(240,198,76,.2); border-color:rgba(240,198,76,.6); color:#ffe9b0;}
+.cf-hh-diff.critical, .cf-hh-diff.info{background:rgba(240,86,79,.22); border-color:rgba(240,86,79,.6); color:#ffc2bf;}
+@media (max-width:640px){.cf-hh-tile{width:100%;}}
+
 .ov-table-name{font-weight:600;}
 tr.cf-os-row, tr.ov-colab-os-row{cursor:pointer;}
 tr.cf-os-row td:first-child{position:relative;}
@@ -696,7 +722,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
           <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="cf-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
         </div>
       </div>
-      <div class="stat-strip" id="cf-stats"></div>
+      <div class="cf-summary">
+        <div class="stat-strip" id="cf-stats"></div>
+        <div class="cf-hh-tile" id="cf-hh-tile"></div>
+      </div>
       <div class="table-scroll">
         <table id="cf-table">
           <thead id="cf-thead"></thead>
@@ -964,18 +993,26 @@ function confrontoOsKey(osKey){
 function buildConfrontoFrom(ef, plan){
   const map = new Map();
 
+  // HH previsto/real do confronto: mesmo critério de jornada do card
+  // "Apontamentos por Contrato" (shiftHoursFor — 9h seg-qui, 8h sex/fim de
+  // semana/feriado) aplicado ao empilhamento (planejado) e ao apontamento
+  // real (presentes), por data — não um HH importado à parte, por isso
+  // sempre conversa com os mesmos filtros desta tabela.
   ef.forEach(r=>{
     const os = confrontoOsKey(r.os);
     const key = os+'|'+r.cargo;
-    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
+    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0, hhPlanejado:0, hhApontado:0});
     const row = map.get(key);
-    if(r.presente) row.apontado++; else row.ausente++;
+    if(r.presente){ row.apontado++; row.hhApontado += shiftHoursFor(r.data); }
+    else row.ausente++;
   });
   plan.forEach(r=>{
     const os = confrontoOsKey(r.os);
     const key = os+'|'+r.cargo;
-    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0});
-    map.get(key).planejado += r.qtd_planejada;
+    if(!map.has(key)) map.set(key,{os, cargo:r.cargo, planejado:0, apontado:0, ausente:0, hhPlanejado:0, hhApontado:0});
+    const row = map.get(key);
+    row.planejado += r.qtd_planejada;
+    row.hhPlanejado += r.qtd_planejada * shiftHoursFor(r.data);
   });
 
   return Array.from(map.values()).map(r=>{
@@ -1981,9 +2018,10 @@ function renderConfrontoTable(){
 
   const byOs = new Map();
   rows.forEach(r=>{
-    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, planejado:0, apontado:0, ausente:0, contrato:r.contrato, titulo:r.titulo, cargos:[]});
+    if(!byOs.has(r.os)) byOs.set(r.os, {os:r.os, planejado:0, apontado:0, ausente:0, hhPlanejado:0, hhApontado:0, contrato:r.contrato, titulo:r.titulo, cargos:[]});
     const o = byOs.get(r.os);
     o.planejado += r.planejado; o.apontado += r.apontado; o.ausente += r.ausente;
+    o.hhPlanejado += r.hhPlanejado; o.hhApontado += r.hhApontado;
     o.cargos.push(r);
   });
   let osRows = Array.from(byOs.values()).map(o=>{
@@ -1995,12 +2033,40 @@ function renderConfrontoTable(){
   const validOs = new Set(osRows.map(o=>o.os));
   Array.from(f.expanded).forEach(k=>{ if(!validOs.has(k)) f.expanded.delete(k); });
 
-  const stats = osRows.reduce((a,o)=>{a.planejado+=o.planejado; a.apontado+=o.apontado; return a;}, {planejado:0,apontado:0});
+  const stats = osRows.reduce((a,o)=>{
+    a.planejado+=o.planejado; a.apontado+=o.apontado;
+    a.hhPlanejado+=o.hhPlanejado; a.hhApontado+=o.hhApontado;
+    return a;
+  }, {planejado:0,apontado:0,hhPlanejado:0,hhApontado:0});
   document.getElementById('cf-stats').innerHTML = `
     <div class="s"><span class="v num">${stats.planejado}</span><span class="k">Empilhado</span></div>
     <div class="s"><span class="v num">${stats.apontado}</span><span class="k">Apontado</span></div>
     <div class="s"><span class="v num">${stats.apontado-stats.planejado>=0?'+':''}${stats.apontado-stats.planejado}</span><span class="k">Diferença</span></div>
     <div class="s"><span class="v num">${osRows.length}</span><span class="k">OS no resumo</span></div>`;
+
+  // Tile de HH — converte o mesmo Empilhado/Apontado acima para horas pelo
+  // critério de jornada (shiftHoursFor), para dar a leitura em HH do
+  // confronto sem precisar de uma fonte de HH separada; reage aos mesmos
+  // filtros (Disciplina, Contrato, OS, datas) desta tabela.
+  const hhDiferenca = stats.hhApontado - stats.hhPlanejado;
+  let hhStatus;
+  if(stats.hhPlanejado===0 && stats.hhApontado>0) hhStatus = 'info';
+  else if(stats.hhPlanejado>0 && stats.hhApontado===0) hhStatus = 'critical';
+  else if(hhDiferenca===0) hhStatus = 'good';
+  else if(Math.abs(hhDiferenca) <= Math.max(1, Math.round(stats.hhPlanejado*0.15))) hhStatus = 'warning';
+  else hhStatus = 'critical';
+  const hhLocalMax = Math.max(1, stats.hhPlanejado, stats.hhApontado);
+  document.getElementById('cf-hh-tile').innerHTML = `
+    <div class="cf-hh-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
+      HH &middot; critério de jornada
+    </div>
+    <div class="cf-hh-nums">
+      <div class="n"><span class="v">${fmtInt(stats.hhPlanejado)}h</span><span class="k">Previsto</span></div>
+      <div class="n real"><span class="v">${fmtInt(stats.hhApontado)}h</span><span class="k">Real</span></div>
+    </div>
+    <div class="cf-hh-bar"><span class="fill-plan" style="width:${100*stats.hhPlanejado/hhLocalMax}%"></span><span class="fill-real" style="width:${100*stats.hhApontado/hhLocalMax}%"></span></div>
+    <span class="cf-hh-diff ${hhStatus}">${hhDiferenca>=0?'+':''}${fmtInt(hhDiferenca)}h</span>`;
 
   thead.innerHTML = `<tr>
       <th>OS</th><th>Contrato</th><th>Título</th><th style="min-width:180px;">Confronto</th>
