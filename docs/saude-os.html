@@ -1036,7 +1036,13 @@ function renderAlerts(){
 function renderKPIs(){
   const rows = filteredOS();
   const sum = k => rows.reduce((a,r)=>a+(r[k]||0), 0);
-  const hhPrev = sum('hh_previsto'), hhReal = sum('hh_realizado');
+  const hhPrev = sum('hh_previsto');
+  // HH Realizado: mesmo "HH Total Realizado" do Resumo da OS/Detalhamento
+  // por OS (hhTotalRealizadoForOs — HH Realizado + Pendência + Aprop.+
+  // Mob.), não o r.hh_realizado bruto usado antes aqui — o bruto ficava
+  // zerado/baixo pra OS's cujo consumo já realizado está todo em
+  // Pendência/Projeção, divergindo do que o Resumo da OS já mostrava.
+  const hhReal = rows.reduce((a,r)=>a+hhTotalRealizadoForOs(r), 0);
   const pctCons = hhPrev>0 ? hhReal/hhPrev : 0;
   // HH Saldo Final: mesmo cálculo função a função do Resumo da OS/
   // Detalhamento por OS (saldoFinalForOs — HH Previsto - HH Realizado -
@@ -1045,22 +1051,18 @@ function renderKPIs(){
   // Geral para uma OS que o Resumo da OS já mostrava com Saldo Final
   // negativo (ex.: OS 44128), por ignorar Pendência/Projeção.
   const hhSaldoFinal = rows.reduce((a,r)=>a+saldoFinalForOs(r), 0);
-  // R$ Estourado: soma do valor (R$) já gasto ALÉM do previsto nas OS's com
-  // saldo negativo — dimensão financeira que não aparece em nenhum outro
-  // lugar do Panorama Geral (diferente do antigo "Saldo Geral (R$)", que foi
-  // removido por ignorar os filtros; este soma só as OS's filtradas). Usa
-  // saldoFinalRsForOs (mesmo cálculo função a função do Resumo da OS/
-  // Detalhamento por OS, que conta Pendência + Aprop.+Mob.), não r.vl_saldo
-  // bruto (Previsto - Realizado) — mesmo motivo de saldoFinalForOs/
-  // classifyAndamento: o bruto pode ficar positivo mesmo quando a OS já
-  // estourou ao contar pendência/projeção.
-  const rsEstourado = rows.reduce((a,r)=> { const sf = saldoFinalRsForOs(r); return a + (sf<0 ? -sf : 0); }, 0);
+  // Saldo Final (R$): mesma soma do "Saldo Final (R$)" do Resumo da OS/
+  // Detalhamento por OS (saldoFinalRsForOs), com sinal — substitui o antigo
+  // "R$ Estourado" (que só somava a magnitude das OS's negativas) pra bater
+  // exatamente com o que aparece no detalhamento, incluindo OS's com saldo
+  // positivo.
+  const saldoFinalRsTotal = rows.reduce((a,r)=>a+saldoFinalRsForOs(r), 0);
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
     <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
     <div class="kpi"><span class="kpi-label">HH Realizado</span><span class="kpi-value">${fmtInt(hhReal)}</span><span class="kpi-sub">${fmtPct(pctCons)} consumido</span></div>
     <div class="kpi ${hhSaldoFinal<0?'critical':'good'}"><span class="kpi-label">HH Saldo Final</span><span class="kpi-value">${fmtInt(hhSaldoFinal)}</span><span class="kpi-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
-    <div class="kpi ${rsEstourado>0?'critical':'good'}"><span class="kpi-label">R$ Estourado</span><span class="kpi-value" style="font-size:19px;">${fmtRs(rsEstourado)}</span><span class="kpi-sub">Soma do saldo (R$) negativo</span></div>
+    <div class="kpi ${saldoFinalRsTotal<0?'critical':'good'}"><span class="kpi-label">Saldo Final (R$)</span><span class="kpi-value" style="font-size:19px;">${fmtRs(saldoFinalRsTotal)}</span><span class="kpi-sub">Previsto &minus; (Realizado + Pendência + Projeção), em R$</span></div>
   `;
 }
 
@@ -1308,6 +1310,9 @@ function saldoFinalForOs(r){
 }
 function saldoFinalRsForOs(r){
   return computeOsSummary(r, funcoesForOs(r.os)).saldoFinalRs;
+}
+function hhTotalRealizadoForOs(r){
+  return computeOsSummary(r, funcoesForOs(r.os)).hhTotalRealizado;
 }
 function computeOsSummary(r, funcoes){
   // Fonte única de verdade para os cartões da OS: aba "1 - PLAN SALDO_OSs
