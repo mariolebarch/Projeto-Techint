@@ -408,6 +408,9 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .clear-x-btn:hover{background:var(--critical); border-color:var(--critical); color:#fff;}
 
 /* Absenteeism rows */
+.ab-hero{margin-bottom:0;}
+.ab-bar{border-radius:8px;}
+.ab-bar .bar-fill{border-radius:8px;}
 .ab-row{cursor:pointer;}
 .ab-row td:first-child{display:flex; align-items:center; gap:8px;}
 .ab-row .chev{font-size:10px; color:var(--text-muted); transition:transform .15s; display:inline-block;}
@@ -869,7 +872,12 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   <section class="view" id="view-ausencias">
     <div class="card">
       <div class="card-head"><h3>Absenteísmo</h3><span class="card-note">Sábados, domingos e feriados não entram no cálculo</span></div>
-      <div class="stat-strip" id="ab-stats"></div>
+      <div class="cf-hero ab-hero">
+        <div class="cf-hero-accent"></div>
+        <div class="cf-hero-body">
+          <div class="cf-hero-stats" id="ab-stats"></div>
+        </div>
+      </div>
     </div>
     <div class="two-col">
       <div class="card">
@@ -2832,12 +2840,33 @@ function renderAusencias(){
   const byCargo = computeAbsenteeism(ef, 'cargo');
   const byDisc = computeAbsenteeism(ef, 'disciplina');
 
+  const icoPeopleAb = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M17 11a4 4 0 1 0 0-8"/><path d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>';
+  const icoCalendar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  const icoAlertAb = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+  const icoPercent = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>';
+  const geralStatus = pctStatus(pctGeral);
+
   document.getElementById('ab-stats').innerHTML = `
-    <div class="s"><span class="v num">${totalEsc}</span><span class="k">Contratados${suf}</span></div>
-    <div class="s"><span class="v num">${avgFerias}</span><span class="k">Férias${suf}</span></div>
-    <div class="s"><span class="v num">${avgFalta}</span><span class="k">Ausências${suf}</span></div>
-    <div class="s"><span class="v num" style="color:var(--critical)">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>
-    <div class="s"><span class="v num" style="color:var(--warning)">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>`;
+    <div class="cf-hero-stat">
+      <span class="cf-hero-stat-icon">${icoPeopleAb}</span>
+      <div class="cf-hero-stat-nums"><span class="v">${totalEsc}</span><span class="k">Contratados${suf}</span></div>
+    </div>
+    <div class="cf-hero-stat">
+      <span class="cf-hero-stat-icon">${icoCalendar}</span>
+      <div class="cf-hero-stat-nums"><span class="v">${avgFerias}</span><span class="k">Férias${suf}</span></div>
+    </div>
+    <div class="cf-hero-stat">
+      <span class="cf-hero-stat-icon">${icoAlertAb}</span>
+      <div class="cf-hero-stat-nums"><span class="v">${avgFalta}</span><span class="k">Ausências${suf}</span></div>
+    </div>
+    <div class="cf-hero-stat">
+      <span class="cf-hero-stat-icon">${icoPercent}</span>
+      <div class="cf-hero-stat-nums"><span class="cf-hero-chip ${geralStatus} small">${fmtPct1(pctGeral)}</span><span class="k">Absenteísmo geral</span></div>
+    </div>
+    <div class="cf-hero-stat">
+      <span class="cf-hero-stat-icon">${icoPercent}</span>
+      <div class="cf-hero-stat-nums"><span class="v">${fmtPct1(pctFerias)}</span><span class="k">Férias (%)</span></div>
+    </div>`;
 
   const cargoBody = document.getElementById('ab-cargo-tbody'); cargoBody.innerHTML='';
   byCargo.forEach(item=>renderAbsenteeRow(cargoBody, item));
