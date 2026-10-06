@@ -205,17 +205,28 @@ button.settings-item:hover{background:var(--sand);}
 .ov-right-col .ov-eq-card .eq-list{flex:1; min-height:120px; max-height:none;}
 .kpi-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;}
 @media (max-width:640px){.kpi-grid{grid-template-columns:minmax(0,1fr);}}
-.kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
-.kpi::before{content:"";position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--steel);}
+.kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:16px 18px 15px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:10px; position:relative; overflow:hidden;}
+.kpi::before{content:"";position:absolute; left:0; top:0; right:0; height:4px; background:var(--steel);}
 .kpi.good::before{background:var(--good);} .kpi.warning::before{background:var(--warning);} .kpi.critical::before{background:var(--critical);}
+.kpi-top{display:flex; align-items:center; gap:11px;}
+.kpi-icon{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:none; background:var(--navy-100);}
+.kpi-icon svg{width:17px; height:17px; stroke:var(--navy);}
+.kpi.good .kpi-icon{background:var(--good-soft);} .kpi.good .kpi-icon svg{stroke:var(--good);}
+.kpi.warning .kpi-icon{background:var(--warning-soft);} .kpi.warning .kpi-icon svg{stroke:var(--warning);}
+.kpi.critical .kpi-icon{background:var(--critical-soft);} .kpi.critical .kpi-icon svg{stroke:var(--critical);}
 .kpi .kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-weight:600;}
-.kpi .kpi-value{font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1;}
+.kpi .kpi-value{font-family:var(--font-mono); font-size:27px; font-weight:700; line-height:1;}
 .kpi .kpi-sub{font-size:12px; color:var(--text-secondary);}
+.kpi-meter{height:5px; border-radius:3px; background:var(--border-soft); overflow:hidden; margin-top:1px;}
+.kpi-meter .fill{height:100%; border-radius:3px; background:var(--good);}
 .kpi-split{display:flex; gap:18px;}
-.kpi-split-item{display:flex; flex-direction:column; gap:2px;}
-.kpi-split-value{font-family:var(--font-mono); font-size:22px; font-weight:600; line-height:1; color:var(--text-primary);}
+.kpi-split-item{display:flex; flex-direction:column; gap:2px; flex:1;}
+.kpi-split-value{font-family:var(--font-mono); font-size:22px; font-weight:700; line-height:1; color:var(--text-primary);}
 .kpi-split-label{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:600;}
 .kpi-split-pct{font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary);}
+.kpi-split-meter{display:flex; height:5px; border-radius:3px; overflow:hidden; margin-top:4px; background:var(--border-soft);}
+.kpi-split-meter .seg.ausencia{background:var(--warning);}
+.kpi-split-meter .seg.ferias{background:var(--info);}
 
 .callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
 .callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
@@ -358,10 +369,17 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .eq-list .eq-detail-row{padding:4px 0;}
 .eq-list .eq-detail-row .label{width:200px; padding-left:20px; position:relative; color:var(--text-secondary); font-size:12px;}
 .eq-list .eq-detail-row .label::before{content:"↳"; position:absolute; left:4px; color:var(--text-muted);}
-.eq-group-header{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel-strong); font-weight:700; padding:12px 0 4px; border-top:1px solid var(--border-soft); margin-top:6px;}
-.eq-group-header:first-child{border-top:none; margin-top:0; padding-top:2px;}
-.eq-group-total{font-family:var(--font-mono); color:var(--steel); font-weight:700; font-size:13px; flex:none;}
+.eq-group-header{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:14px; padding:7px 12px 7px 15px; border-radius:7px; background:var(--navy); position:relative; overflow:hidden;}
+.eq-group-header:first-child{margin-top:0;}
+.eq-group-header::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--green);}
+.eq-group-header > span:first-child{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#fff; font-weight:700;}
+.eq-group-total{font-family:var(--font-mono); color:var(--green); font-weight:700; font-size:13px; flex:none;}
 .eq-list .eq-detail-row .bar-fill{opacity:.7;}
+/* Barras "Colaboradores por Supervisor/Encarregado" — trilho arredondado +
+   ponta em verde (brilho), no mesmo padrão navy/verde do resto do painel. */
+.eq-list .bar-row.eq-row .bar-track{border-radius:8px;}
+.eq-list .bar-row.eq-row .bar-fill{border-radius:8px; position:relative;}
+.eq-list .bar-row.eq-row .bar-fill::after{content:''; position:absolute; top:0; right:0; bottom:0; width:4px; border-radius:0 8px 8px 0; background:var(--green); box-shadow:0 0 6px rgba(146,208,80,.85);}
 
 .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
 
@@ -504,25 +522,30 @@ td.confronto-col{min-width:170px;}
 td.confronto-col .os-mini-bar{display:block; width:100%; max-width:none;}
 td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 
-/* Donut chart */
-.donut-wrap{display:flex; align-items:center; gap:26px; flex-wrap:wrap; padding:6px 0;}
-.donut-center-label{font-family:var(--font-mono); font-weight:600;}
-.donut-legend{display:flex; flex-direction:column; gap:12px; flex:1; min-width:200px;}
-.donut-legend-row{display:flex; align-items:center; gap:10px;}
-.donut-legend-row .sw{width:12px; height:12px; border-radius:3px; flex:none;}
-.donut-legend-row .txt{display:flex; flex-direction:column; gap:1px;}
-.donut-legend-row .txt .n{font-weight:600; font-size:13.5px;}
-.donut-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary);}
-
-/* HH badge — total de HH apontado (headcount presente x jornada do dia),
-   destacado ao lado do gráfico de rosca. */
-.hh-badge{flex:none; width:172px; background:linear-gradient(135deg, var(--navy) 0%, var(--steel-strong) 100%); border-radius:14px; padding:16px 18px; position:relative; overflow:hidden; box-shadow:0 8px 22px rgba(0,43,92,.28); display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px;}
-.hh-badge::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--green);}
-.hh-badge-value{display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-size:32px; font-weight:800; color:#fff; line-height:1; letter-spacing:.01em;}
-.hh-badge-clock{width:22px; height:22px; flex:none; stroke:var(--green);}
-.hh-badge-unit{font-size:17px; margin-left:2px; opacity:.85;}
-.hh-badge-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.88); margin-top:4px;}
-@media (max-width:520px){.hh-badge{width:100%;}}
+/* Painel "Apontamentos por Contrato" — hero navy com donut + legenda + HH,
+   no mesmo padrão visual do cf-hero (Confronto OS × Função). */
+.oc-hero{position:relative; margin-bottom:16px; background:var(--navy); border-radius:14px; overflow:hidden; box-shadow:0 10px 26px rgba(0,43,92,.22);}
+.oc-hero-accent{height:5px; background:var(--green);}
+.oc-hero-body{display:flex; align-items:center; gap:22px; flex-wrap:wrap; padding:20px 22px 22px;}
+.donut-center-label{font-family:var(--font-mono); font-weight:700;}
+.oc-donut-legend{display:flex; flex-direction:column; gap:12px; flex:1; min-width:170px;}
+.oc-legend-row{display:flex; align-items:center; gap:10px;}
+.oc-legend-row .sw{width:11px; height:11px; border-radius:3px; flex:none;}
+.oc-legend-row .txt{display:flex; flex-direction:column; gap:1px;}
+.oc-legend-row .txt .n{font-weight:700; font-size:13.5px; color:#fff;}
+.oc-legend-row .txt .d{font-family:var(--font-mono); font-size:12px; color:rgba(255,255,255,.65);}
+.oc-hero-divider{width:1px; align-self:stretch; background:rgba(255,255,255,.18); flex:none;}
+.oc-hh-stat{display:flex; align-items:center; gap:12px; flex:none;}
+.oc-hh-icon{width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; flex:none;}
+.oc-hh-icon svg{width:19px; height:19px; stroke:var(--green);}
+.oc-hh-nums{display:flex; flex-direction:column; gap:2px;}
+.oc-hh-nums .v{font-family:var(--font-mono); font-size:25px; font-weight:800; color:#fff; line-height:1;}
+.oc-hh-nums .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.62); font-weight:700;}
+@media (max-width:520px){
+  .oc-hero-body{flex-direction:column; align-items:stretch; gap:16px; padding:18px;}
+  .oc-hero-divider{display:none;}
+  .oc-hh-stat{justify-content:center;}
+}
 
 /* Colab. por OS — dynamic accordion + data bars */
 .colab-acc-wrap{display:flex; flex-direction:column; gap:10px;}
@@ -617,9 +640,6 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   .card-head h3{font-size:15px;}
   .kpi .kpi-value{font-size:22px;}
   .kpi-split-value{font-size:19px;}
-
-  .donut-wrap{flex-direction:column; align-items:flex-start; gap:14px;}
-  .donut-legend{min-width:0; width:100%;}
 
   .filters{width:100%;}
   .filters .field{width:100%;}
@@ -1356,13 +1376,17 @@ function renderKPIs(){
 
   const rows = buildConfrontoMulti();
 
+  const icoPeople = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M17 11a4 4 0 1 0 0-8"/><path d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>';
+  const icoCheck = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 17.01"/></svg>';
+  const icoAlert = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
   const kpis = [
-    {label:'Contratados', value:fmtInt(total), sub:datesLabel(), cls:''},
-    {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good'},
-    {label:'Ausentes', cls: ausenciaCount>total*0.15?'critical':(ausenciaCount>0?'warning':'good'),
+    {label:'Contratados', value:fmtInt(total), sub:datesLabel(), cls:'', icon:icoPeople},
+    {label:'Presentes', value:fmtInt(presentes), sub:fmtPct(pct)+' do efetivo', cls:'good', icon:icoCheck, meterPct:pct},
+    {label:'Ausentes', cls: ausenciaCount>total*0.15?'critical':(ausenciaCount>0?'warning':'good'), icon:icoAlert,
       split:[
-        {value:fmtInt(ausenciaCount), label:'Ausência', pct:fmtPct1(pctAusencia)},
-        {value:fmtInt(feriasCount), label:'Férias', pct:fmtPct1(pctFeriasSplit)},
+        {value:fmtInt(ausenciaCount), label:'Ausência', pct:fmtPct1(pctAusencia), share:ausenciaCount, cssCls:'ausencia'},
+        {value:fmtInt(feriasCount), label:'Férias', pct:fmtPct1(pctFeriasSplit), share:feriasCount, cssCls:'ferias'},
       ]},
   ];
   const grid = document.getElementById('kpi-grid');
@@ -1370,11 +1394,16 @@ function renderKPIs(){
   kpis.forEach(k=>{
     const el = document.createElement('div');
     el.className = 'kpi '+k.cls;
+    const top = `<div class="kpi-top"><span class="kpi-icon">${k.icon}</span><span class="kpi-label">${k.label}</span></div>`;
     if(k.split){
-      el.innerHTML = `<span class="kpi-label">${k.label}</span>
-        <div class="kpi-split">${k.split.map(s=>`<div class="kpi-split-item"><span class="kpi-split-value">${s.value}</span><span class="kpi-split-label">${s.label}</span><span class="kpi-split-pct">${s.pct}</span></div>`).join('')}</div>`;
+      const splitTotal = k.split.reduce((a,s)=>a+s.share,0) || 1;
+      const meter = `<div class="kpi-split-meter">${k.split.map(s=>`<span class="seg ${s.cssCls}" style="width:${100*s.share/splitTotal}%"></span>`).join('')}</div>`;
+      el.innerHTML = `${top}
+        <div class="kpi-split">${k.split.map(s=>`<div class="kpi-split-item"><span class="kpi-split-value">${s.value}</span><span class="kpi-split-label">${s.label}</span><span class="kpi-split-pct">${s.pct}</span></div>`).join('')}</div>
+        ${meter}`;
     } else {
-      el.innerHTML = `<span class="kpi-label">${k.label}</span><span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>`;
+      const meter = k.meterPct!=null ? `<div class="kpi-meter"><span class="fill" style="width:${Math.min(100,k.meterPct*100)}%"></span></div>` : '';
+      el.innerHTML = `${top}<span class="kpi-value">${k.value}</span><span class="kpi-sub">${k.sub}</span>${meter}`;
     }
     grid.appendChild(el);
   });
@@ -1432,7 +1461,7 @@ function renderContratoChart(ef){
   });
   const grand = stats.reduce((a,s)=>a+s.presentes,0);
   const grandHh = stats.reduce((a,s)=>a+s.hh,0);
-  const colorStyle = c => c==='MOA' ? 'var(--navy)' : 'var(--pci-chart)';
+  const colorStyle = c => c==='MOA' ? 'var(--chart-moa)' : 'var(--pci-chart)';
 
   const r=46, cx=60, cy=60, sw=18;
   const C = 2*Math.PI*r;
@@ -1440,7 +1469,7 @@ function renderContratoChart(ef){
 
   let segmentsSvg = '';
   if(grand===0){
-    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:var(--border-soft);" stroke-width="${sw}"/>`;
+    segmentsSvg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" style="stroke:rgba(255,255,255,.14);" stroke-width="${sw}"/>`;
   } else {
     let offset = 0;
     stats.forEach(s=>{
@@ -1454,26 +1483,31 @@ function renderContratoChart(ef){
 
   const svg = `<svg width="140" height="140" viewBox="0 0 120 120" role="img" aria-label="Presentes por contrato: MOA e PCI">
       ${segmentsSvg}
-      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:22px; fill:var(--text-primary);">${fmtInt(grand)}</text>
-      <text x="60" y="73" text-anchor="middle" style="font-size:9.5px; fill:var(--text-muted); font-family:var(--font-body);">presentes</text>
+      <text x="60" y="57" text-anchor="middle" class="donut-center-label" style="font-size:22px; fill:#fff;">${fmtInt(grand)}</text>
+      <text x="60" y="73" text-anchor="middle" style="font-size:9.5px; fill:rgba(255,255,255,.62); font-family:var(--font-body);">presentes</text>
     </svg>`;
 
   const legend = stats.map(s=>{
-    return `<div class="donut-legend-row">
+    return `<div class="oc-legend-row">
       <span class="sw" style="background:${colorStyle(s.c)}"></span>
       <span class="txt"><span class="n">${s.c}</span><span class="d">${fmtInt(s.presentes)} presentes &middot; ${fmtInt(s.hh)}h</span></span>
     </div>`;
   }).join('');
 
-  const hhBadge = `<div class="hh-badge">
-    <span class="hh-badge-value">
-      <svg class="hh-badge-clock" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>
-      ${fmtInt(grandHh)}<span class="hh-badge-unit">h</span>
-    </span>
-    <span class="hh-badge-label">HH Estimado</span>
-  </div>`;
+  const hhStat = `<div class="oc-hero-divider"></div>
+    <div class="oc-hh-stat">
+      <span class="oc-hh-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg></span>
+      <span class="oc-hh-nums"><span class="v">${fmtInt(grandHh)}h</span><span class="k">HH Estimado</span></span>
+    </div>`;
 
-  box.innerHTML = `<div class="donut-wrap">${svg}<div class="donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0;">Sem dados para os filtros atuais.</div>' : legend}</div>${grand===0 ? '' : hhBadge}</div>`;
+  box.innerHTML = `<div class="oc-hero">
+      <div class="oc-hero-accent"></div>
+      <div class="oc-hero-body">
+        ${svg}
+        <div class="oc-donut-legend">${grand===0 ? '<div class="empty-state" style="padding:6px 0; color:rgba(255,255,255,.65);">Sem dados para os filtros atuais.</div>' : legend}</div>
+        ${grand===0 ? '' : hhStat}
+      </div>
+    </div>`;
 }
 
 function renderOsColabTable(ef){
@@ -2380,7 +2414,7 @@ function renderEquipes(){
     row.className = 'bar-row eq-row';
     row.title = n + ' — ' + osBreakdown + ' (2 cliques p/ detalhar)';
     row.innerHTML = `<span class="label">${highlightMatch(n, state.eq.search)}<span class="expand-hint">${expanded?'▾':'▸'}</span></span>
-      <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:var(--navy);"></span></span>
+      <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:linear-gradient(90deg, var(--navy-700) 0%, var(--navy) 100%);"></span></span>
       <span class="bar-val num">${total}</span>`;
     row.addEventListener('dblclick', ()=>{
       if(state.eq.expanded.has(n)) state.eq.expanded.delete(n);
