@@ -2422,17 +2422,27 @@ function parseWorkbookToBundleSaudeOs(wb){
   // achar a função — uma linha sem função reconhecida (ou com o nome da
   // função grafado diferente da aba 1) ainda entra no total da OS, só não
   // aparece quebrada por função na tabela.
+  // Relatórios como "3 - PENDÊNCIAS" costumam vir com a coluna de OS
+  // mesclada no Excel original (uma OS só grava valor na primeira linha de
+  // um grupo de RDC's/itens, deixando as linhas seguintes vazias "por
+  // baixo" da mesclagem). Sem tratar isso, cada linha "órfã" (sem OS
+  // própria, mas com HH/R$ válidos) era silenciosamente descartada e seu
+  // HH some do total — por isso toda leitura de coluna de OS aqui herda o
+  // último valor não vazio visto na mesma varredura, até aparecer um novo.
   function scanFixedCols(sheetName, osCol, funcCol, hhCol){
     const byFunc = {}, byOs = {};
     if(!sheetName) return {byFunc, byOs};
     let ws2;
     try{ ws2 = sheet(sheetName); }catch(e){ return {byFunc, byOs}; }
     const maxR2 = maxRow(ws2);
+    let lastOs = null;
     for(let r=1; r<=maxR2; r++){
-      const osVal = osNumImport(cellVal(ws2,r,osCol));
-      if(osVal==null) continue;
+      const osRaw = osNumImport(cellVal(ws2,r,osCol));
       const hhVal = numImport(cellVal(ws2,r,hhCol));
-      if(!hhVal) continue;
+      if(osRaw==null && !hhVal) continue;
+      const osVal = osRaw!=null ? osRaw : lastOs;
+      if(osRaw!=null) lastOs = osRaw;
+      if(osVal==null || !hhVal) continue;
       byOs[osVal] = (byOs[osVal]||0) + hhVal;
       const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
       if(funcRaw){
@@ -2475,17 +2485,28 @@ function parseWorkbookToBundleSaudeOs(wb){
   // pendência por pendência. Colunas informadas pelo usuário: OS=J,
   // Código=F, Função=G (Item = "Código - Função"), HH=I, Valor R$=Q,
   // Motivo=T.
+  // Leitura criteriosa (os dados deste relatório precisam bater com o
+  // banco): (1) OS herda o último valor visto quando a célula vem vazia
+  // — mesma mesclagem comentada em scanFixedCols; (2) uma linha só é
+  // descartada quando não carrega HH nem R$ nenhum — antes, uma pendência
+  // só-de-valor (HH=0 mas com R$) era jogada fora inteira, perdendo HH *e*
+  // R$ dela do total.
   const pendenciasDetalhe = [];
   if(pendSheetName){
     let wsPend;
     try{ wsPend = sheet(pendSheetName); }catch(e){ wsPend = null; }
     if(wsPend){
       const maxRPend = maxRow(wsPend);
+      let lastOsPend = null;
       for(let r=1; r<=maxRPend; r++){
-        const osVal = osNumImport(cellVal(wsPend,r,10));
-        if(osVal==null) continue;
+        const osRaw = osNumImport(cellVal(wsPend,r,10));
         const hhVal = numImport(cellVal(wsPend,r,9));
-        if(!hhVal) continue;
+        const valorVal = numImport(cellVal(wsPend,r,17));
+        if(osRaw==null && !hhVal && !valorVal) continue;
+        const osVal = osRaw!=null ? osRaw : lastOsPend;
+        if(osRaw!=null) lastOsPend = osRaw;
+        if(osVal==null) continue;
+        if(!hhVal && !valorVal) continue;
         const codigo = cleanStrImport(cellVal(wsPend,r,6));
         const funcaoR = cleanStrImport(cellVal(wsPend,r,7));
         const item = [codigo, funcaoR].filter(Boolean).join(' - ');
@@ -2495,7 +2516,7 @@ function parseWorkbookToBundleSaudeOs(wb){
           os_label: osLabelForImport(osVal, null),
           item,
           hh: hhVal,
-          valor_rs: numImport(cellVal(wsPend,r,17)),
+          valor_rs: valorVal,
           motivo: cleanStrImport(cellVal(wsPend,r,20)),
         });
       }
