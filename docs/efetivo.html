@@ -201,8 +201,6 @@ button.settings-item:hover{background:var(--sand);}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
 .ov-right-col{display:flex; flex-direction:column; gap:16px;}
-.ov-right-col .ov-eq-card{flex:1; min-height:0; display:flex; flex-direction:column;}
-.ov-right-col .ov-eq-card .eq-list{flex:1; min-height:120px; max-height:none;}
 /* KPIs (Contratados/Presentes/Ausentes) — segmentos lado a lado dentro de
    um só painel branco (reaproveitando o componente hero do Confronto/
    Absenteísmo só pela faixa verde no topo e divisórias), com texto em
@@ -368,9 +366,11 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ab-table-scroll{height:520px; overflow-y:auto;}
 .eq-list{max-height:520px; overflow-y:auto; padding-right:4px; margin-top:10px;}
 .eq-list .bar-row .label{width:200px;}
-.eq-list .bar-row.eq-row{height:var(--bar-row-h, auto); box-sizing:border-box;}
+.eq-list .bar-row.eq-row{height:var(--bar-row-h, auto); box-sizing:border-box; border-radius:6px; padding-left:6px; padding-right:6px; margin:0 -6px;}
 .eq-list .eq-row{cursor:pointer;}
+.eq-list .eq-row:hover{background:var(--sand);}
 .eq-list .eq-row .expand-hint{font-size:9.5px; color:var(--text-muted); margin-left:5px;}
+.eq-rank{font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); flex:none; width:18px; text-align:right;}
 .eq-list .eq-detail-row{padding:4px 0;}
 .eq-list .eq-detail-row .label{width:200px; padding-left:20px; position:relative; color:var(--text-secondary); font-size:12px;}
 .eq-list .eq-detail-row .label::before{content:"↳"; position:absolute; left:4px; color:var(--text-muted);}
@@ -388,7 +388,7 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 
 .foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
 
-.ov-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:stretch;}
+.ov-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:start;}
 .ov-grid > .card{min-width:0;}
 @media (max-width:1000px){.ov-grid{grid-template-columns:minmax(0,1fr);}}
 .ov-left-card{display:flex; flex-direction:column;}
@@ -2425,7 +2425,7 @@ function renderEquipes(){
 
   const max = Math.max(1, ...names.map(totalOf));
 
-  function renderNameRow(n){
+  function renderNameRow(n, rank){
     const rec = byName.get(n);
     const total = totalOf(n);
     const osEntries = Object.entries(rec).sort((a,b)=>osSortVal(a[0])-osSortVal(b[0]));
@@ -2434,7 +2434,8 @@ function renderEquipes(){
     const row = document.createElement('div');
     row.className = 'bar-row eq-row';
     row.title = n + ' — ' + osBreakdown + ' (2 cliques p/ detalhar)';
-    row.innerHTML = `<span class="label">${highlightMatch(n, state.eq.search)}<span class="expand-hint">${expanded?'▾':'▸'}</span></span>
+    row.innerHTML = `<span class="eq-rank">#${rank}</span>
+      <span class="label">${highlightMatch(n, state.eq.search)}<span class="expand-hint">${expanded?'▾':'▸'}</span></span>
       <span class="bar-track"><span class="bar-fill" style="width:${100*total/max}%; background:linear-gradient(90deg, var(--navy-700) 0%, var(--navy) 100%);"></span></span>
       <span class="bar-val num">${total}</span>`;
     row.addEventListener('dblclick', ()=>{
@@ -2449,7 +2450,8 @@ function renderEquipes(){
       osEntries.forEach(([os,v])=>{
         const dRow = document.createElement('div');
         dRow.className = 'bar-row eq-detail-row';
-        dRow.innerHTML = `<span class="label">OS ${escHtml(osLabel(os))}</span>
+        dRow.innerHTML = `<span class="eq-rank" aria-hidden="true"></span>
+          <span class="label">OS ${escHtml(osLabel(os))}</span>
           <span class="bar-track"><span class="bar-fill" style="width:${100*v/maxOs}%; background:var(--slate);"></span></span>
           <span class="bar-val num">${v}</span>`;
         box.appendChild(dRow);
@@ -2473,10 +2475,10 @@ function renderEquipes(){
       header.className = 'eq-group-header';
       header.innerHTML = `<span>${escHtml(sup)}</span><span class="eq-group-total">${groupTotal(sup)}</span>`;
       box.appendChild(header);
-      groups.get(sup).forEach(renderNameRow);
+      groups.get(sup).forEach((n,i)=>renderNameRow(n, i+1));
     });
   } else {
-    names.forEach(renderNameRow);
+    names.forEach((n,i)=>renderNameRow(n, i+1));
   }
   alignOvTables();
 }
