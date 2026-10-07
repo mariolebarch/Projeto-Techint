@@ -1169,9 +1169,14 @@ function buildSaldoDateMultiSelect(){
   const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
   function datesOfMonth(monthKey){ return datas.filter(d=>d.slice(0,7)===monthKey); }
+  // Sem filtro ativo (De e Até nulos, o estado de "Selecionar todas"), todo
+  // dia do calendário aparece marcado como selecionado — só afeta o
+  // destaque visual aqui, não os cálculos (que já tratam "sem filtro" como
+  // "inclui tudo" via dateFilterActive()/passSaldoDate(), inclusive linhas
+  // sem data própria, o que um intervalo De/Até explícito não incluiria).
   function inRange(d){
     const r = state.saldoDateRange;
-    if(!r.start && !r.end) return false;
+    if(!r.start && !r.end) return true;
     if(r.start && d<r.start) return false;
     if(r.end && d>r.end) return false;
     return true;
