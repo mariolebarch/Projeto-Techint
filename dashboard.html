@@ -394,6 +394,32 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-left-card{display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
+/* Mapa proporcional (treemap) de "Pessoas presentes por OS" — substitui a
+   tabela linha-a-linha, que crescia demais com muitas OS's. */
+.ov-colab-treemap{display:flex; flex-direction:column; gap:4px;}
+.ov-colab-treemap-row{display:flex; gap:4px; min-width:0;}
+.ov-colab-tile{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border-radius:7px; color:#fff; overflow:hidden; cursor:pointer; min-width:0; border:2px solid transparent; transition:filter .15s, border-color .15s;}
+.ov-colab-tile:hover{filter:brightness(1.1);}
+.ov-colab-tile.selected{border-color:#fff; box-shadow:0 0 0 2px var(--navy);}
+.ov-colab-tile.MOA{background:var(--chart-moa);}
+.ov-colab-tile.PCI{background:var(--green-dark);}
+.oct-os{font-family:var(--font-mono); font-size:10px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:94%; padding:0 4px;}
+.oct-val{font-family:var(--font-mono); font-weight:800; line-height:1;}
+.oct-pct{font-size:10.5px; opacity:.85;}
+.ov-colab-tile.size-lg .oct-val{font-size:28px;}
+.ov-colab-tile.size-md .oct-val{font-size:18px;}
+.ov-colab-tile.size-sm .oct-val{font-size:13px;}
+.ov-colab-tile.size-sm .oct-os, .ov-colab-tile.size-sm .oct-pct{display:none;}
+.ov-colab-tile.size-md .oct-pct{display:none;}
+.ov-colab-detail{margin-top:12px; border:1px solid var(--border-soft); border-radius:9px; overflow:hidden; background:var(--sand);}
+.ov-colab-detail-head{display:flex; align-items:center; gap:9px; padding:9px 12px; background:var(--paper); border-bottom:1px solid var(--border-soft);}
+.ov-colab-detail-total{font-family:var(--font-mono); font-size:12.5px; color:var(--text-secondary); margin-right:auto;}
+.ov-colab-detail-close{border:none; background:none; font-size:18px; line-height:1; color:var(--text-muted); cursor:pointer; padding:2px 4px;}
+.ov-colab-detail-close:hover{color:var(--critical);}
+.ov-colab-detail-list{max-height:160px; overflow-y:auto; padding:4px 12px;}
+.ov-colab-detail-row{display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px; color:var(--text-secondary); border-top:1px solid var(--border-soft);}
+.ov-colab-detail-row:first-child{border-top:none;}
+.ov-colab-detail-row .num{font-family:var(--font-mono); color:var(--text-primary); font-weight:600;}
 .bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border); min-width:36px;}
@@ -1541,46 +1567,73 @@ function renderOsColabTable(ef){
   const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v.total,0);
   const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
 
-  const rowsHtml = entries.map(([os,rec],i)=>{
-    const contrato = contratoOfOs(os);
-    const pct = grandTotal? rec.total/grandTotal : 0;
-    const expanded = state.ovColab.expanded.has(os);
-    let html = `<tr class="ov-colab-os-row" data-os="${escHtml(os)}">
-        <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
-        <td class="ov-table-name">OS ${escHtml(osLabel(os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
-        <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
-        <td class="num-col num">${rec.total}</td>
-        <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pct)}</td>
-      </tr>`;
-    if(expanded){
-      const supEntries = Array.from(rec.bySup.entries()).sort((a,b)=>b[1]-a[1]);
-      html += supEntries.map(([sup,cnt])=>`<tr class="cf-detail-row">
-          <td></td>
-          <td class="cf-cargo-name">${escHtml(sup)}</td>
-          <td></td>
-          <td class="num-col num">${cnt}</td>
-          <td></td>
-        </tr>`).join('');
-    }
-    return html;
+  // Mapa proporcional (treemap): mostra TODAS as OS's de uma vez, sem
+  // "ver mais"/top N escondendo nada — cada bloco representa uma OS, com
+  // área proporcional ao nº de pessoas, dentro de uma altura fixa (bem
+  // menor que a tabela linha-a-linha de antes). Particiona as OS's em
+  // linhas com soma balanceada (greedy — cada OS vai pra linha com menor
+  // soma atual); a largura de cada bloco dentro da linha é proporcional
+  // ao seu valor via flex-grow, e a altura da linha é proporcional à sua
+  // soma — dá o efeito de treemap sem precisar de um algoritmo completo.
+  const NUM_ROWS = 3, TOTAL_H = 230;
+  const rows = Array.from({length:NUM_ROWS}, ()=>({items:[], sum:0}));
+  entries.forEach(entry=>{
+    let target = rows[0];
+    rows.forEach(r=>{ if(r.sum<target.sum) target=r; });
+    target.items.push(entry);
+    target.sum += entry[1].total;
+  });
+
+  const rowsHtml = rows.filter(r=>r.items.length>0).map(row=>{
+    const rowH = Math.max(40, Math.round((row.sum/grandTotal)*TOTAL_H));
+    const tiles = row.items.map(([os,rec])=>{
+      const contrato = contratoOfOs(os);
+      const pct = grandTotal? rec.total/grandTotal : 0;
+      const size = rec.total>=15 ? 'lg' : (rec.total>=6 ? 'md' : 'sm');
+      const selected = state.ovColab.expanded.has(os);
+      return `<div class="ov-colab-tile ${contrato} size-${size}${selected?' selected':''}" data-os="${escHtml(os)}" style="flex:${rec.total} 1 0%;" title="OS ${escHtml(osLabel(os))} · ${contrato} · ${rec.total} pessoas · ${fmtPct(pct)}">
+          <span class="oct-os">OS ${escHtml(osLabel(os))}</span>
+          <span class="oct-val">${rec.total}</span>
+          <span class="oct-pct">${fmtPct(pct)}</span>
+        </div>`;
+    }).join('');
+    return `<div class="ov-colab-treemap-row" style="height:${rowH}px;">${tiles}</div>`;
   }).join('');
 
-  box.innerHTML = `<div class="table-scroll" style="overflow-y:auto;">
-      <table>
-        <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do total</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>`;
+  // Clicar numa OS revela o detalhamento por supervisor dela abaixo do
+  // mapa — mesma informação que o duplo clique na tabela antiga mostrava,
+  // só que num painel próprio (não dá pra "abrir" um bloco do treemap
+  // sem distorcer o layout dos outros). Só uma OS por vez, pra não deixar
+  // o quadro crescer sem limite.
+  let detailHtml = '';
+  const selectedOs = Array.from(state.ovColab.expanded)[0];
+  if(selectedOs && byOs.has(selectedOs)){
+    const rec = byOs.get(selectedOs);
+    const contrato = contratoOfOs(selectedOs);
+    const supEntries = Array.from(rec.bySup.entries()).sort((a,b)=>b[1]-a[1]);
+    detailHtml = `<div class="ov-colab-detail">
+        <div class="ov-colab-detail-head">
+          <span class="mono-tag">OS ${escHtml(osLabel(selectedOs))}</span>
+          <span class="badge-contrato ${contrato}">${contrato}</span>
+          <span class="ov-colab-detail-total">${rec.total} pessoas</span>
+          <button type="button" class="ov-colab-detail-close" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="ov-colab-detail-list">${supEntries.map(([sup,cnt])=>`<div class="ov-colab-detail-row"><span>${escHtml(sup)}</span><span class="num">${cnt}</span></div>`).join('')}</div>
+      </div>`;
+  }
 
-  box.querySelectorAll('.ov-colab-os-row').forEach(tr=>{
-    tr.addEventListener('dblclick', ()=>{
-      const os = tr.dataset.os;
-      if(state.ovColab.expanded.has(os)) state.ovColab.expanded.delete(os);
-      else state.ovColab.expanded.add(os);
+  box.innerHTML = `<div class="ov-colab-treemap">${rowsHtml}</div>${detailHtml}`;
+
+  box.querySelectorAll('.ov-colab-tile').forEach(tile=>{
+    tile.addEventListener('click', ()=>{
+      const os = tile.dataset.os;
+      if(state.ovColab.expanded.has(os)) state.ovColab.expanded.clear();
+      else { state.ovColab.expanded.clear(); state.ovColab.expanded.add(os); }
       renderOsColabTable(ef);
     });
   });
-  alignOvTables();
+  const closeBtn = box.querySelector('.ov-colab-detail-close');
+  if(closeBtn) closeBtn.addEventListener('click', ()=>{ state.ovColab.expanded.clear(); renderOsColabTable(ef); });
 }
 
 // Alinha as linhas de "Pessoas presentes por OS" (tabela) com as de
