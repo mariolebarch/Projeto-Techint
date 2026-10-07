@@ -732,6 +732,12 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <div class="field"><label>OS</label><input class="search-input" id="os-search-global" placeholder="buscar OS ou título&hellip;" style="min-width:150px;"></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <div class="field"><label>Situa&ccedil;&atilde;o</label><div class="msel" id="sit-msel-global"></div></div>
+    <div class="field"><label>Saldo consumido at&eacute;</label><div style="display:flex; gap:6px; align-items:center;">
+      <input type="date" class="search-input" id="saldo-date-start" title="A partir de" style="min-width:0; width:126px;">
+      <span style="color:var(--text-muted); font-size:12px;">at&eacute;</span>
+      <input type="date" class="search-input" id="saldo-date-end" title="At&eacute;" style="min-width:0; width:126px;">
+    </div></div>
+    <div class="field"><label>M&ecirc;s</label><select id="saldo-date-month" style="min-width:150px;"><option value="">Per&iacute;odo manual</option></select></div>
     <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
@@ -872,15 +878,90 @@ function normalizeBundle(bundle){
   });
   if(!bundle.funcoes_por_os) bundle.funcoes_por_os = {};
   if(!bundle.contrato_labels) bundle.contrato_labels = {};
+  if(!bundle.apropriacao_rows) bundle.apropriacao_rows = [];
+  if(!bundle.mobile_rows) bundle.mobile_rows = [];
+  if(!bundle.pendencias_rows) bundle.pendencias_rows = [];
+  if(!bundle.datas_saldo) bundle.datas_saldo = [];
   return bundle;
 }
 function contratoLabel(pep){
   if(!pep) return pep;
   return (DATA.contrato_labels && DATA.contrato_labels[pep]) || pep;
 }
+/* ---------- Filtro de período do saldo (Aprop./Mobile/Pendências) ----------
+   As abas "4 - APROPRIAÇÃO", "5 - PLAN SGE_MOBILE" e "3 - PENDÊNCIAS" têm
+   data por linha (ver dateCellToIso na importação). Esses totais, por OS e
+   por função, são recalculados aqui (no navegador) a partir das linhas cruas
+   (DATA.apropriacao_rows/mobile_rows/pendencias_rows) sempre que o filtro
+   de período mudar — em vez de usar o total "desde sempre" já somado na
+   importação — pra permitir "saldo consumido até tal semana/mês/período"
+   sem precisar reimportar a planilha. Sem filtro ativo (start e end nulos,
+   o padrão), o resultado bate exatamente com o total "desde sempre" de
+   antes deste filtro existir. */
+function dateFilterActive(){
+  const f = state.saldoDateRange;
+  return !!(f && (f.start || f.end));
+}
+function passSaldoDate(iso){
+  if(!dateFilterActive()) return true;
+  if(!iso) return false; // sem data própria: não dá pra saber se cai no período, então não entra quando o filtro está ativo
+  const f = state.saldoDateRange;
+  if(f.start && iso < f.start) return false;
+  if(f.end && iso > f.end) return false;
+  return true;
+}
+let saldoAggCache = null, saldoAggCacheKey = null;
+function saldoAggregates(){
+  const key = JSON.stringify(state.saldoDateRange) + '|' + (DATA && DATA.os_list ? DATA.os_list.length : 0);
+  if(saldoAggCache && saldoAggCacheKey === key) return saldoAggCache;
+  const provByOs = {}, pendByOs = {}, provByFunc = {}, pendByFunc = {};
+  const addProv = r=>{
+    if(!passSaldoDate(r.data)) return;
+    provByOs[r.os] = (provByOs[r.os]||0) + r.hh;
+    if(r.funcao){ const k=r.os+'|'+r.funcao; provByFunc[k] = (provByFunc[k]||0) + r.hh; }
+  };
+  (DATA.apropriacao_rows||[]).forEach(addProv);
+  (DATA.mobile_rows||[]).forEach(addProv);
+  (DATA.pendencias_rows||[]).forEach(r=>{
+    if(!passSaldoDate(r.data)) return;
+    pendByOs[r.os] = (pendByOs[r.os]||0) + r.hh;
+    if(r.funcao){ const k=r.os+'|'+r.funcao; pendByFunc[k] = (pendByFunc[k]||0) + r.hh; }
+  });
+  saldoAggCache = {provByOs, pendByOs, provByFunc, pendByFunc};
+  saldoAggCacheKey = key;
+  return saldoAggCache;
+}
+function provTotalHhForOs(os){ return saldoAggregates().provByOs[os] || 0; }
+function pendTotalHhForOs(os){ return saldoAggregates().pendByOs[os] || 0; }
+function fmtSaldoDateRangeLabel(){
+  const f = state.saldoDateRange;
+  if(!dateFilterActive()) return 'Todo o período';
+  const fmt = iso => { const d=new Date(iso+'T00:00:00'); return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear(); };
+  if(f.start && f.end) return 'de '+fmt(f.start)+' até '+fmt(f.end);
+  if(f.end) return 'até '+fmt(f.end);
+  return 'a partir de '+fmt(f.start);
+}
+
 function funcoesForOs(os){
   if(os==null) return [];
-  return (DATA.funcoes_por_os && DATA.funcoes_por_os[String(os)]) || [];
+  const base = (DATA.funcoes_por_os && DATA.funcoes_por_os[String(os)]) || [];
+  if(!dateFilterActive()) return base;
+  // Com filtro ativo, troca prov_hh/pend_hh (que vieram "desde sempre" da
+  // importação) pelos valores recalculados pro período escolhido, e tira
+  // da lista as funções "sem previsto" (ver importação) que só existiam
+  // por causa de Aprop./Mobile/Pendências e, filtradas, zeraram de vez.
+  const agg = saldoAggregates();
+  return base
+    .map(f=>{
+      const key = os+'|'+f.funcao;
+      const prov = agg.provByFunc[key]||0;
+      const pend = agg.pendByFunc[key]||0;
+      const out = Object.assign({}, f);
+      if(prov) out.prov_hh = prov; else delete out.prov_hh;
+      if(pend) out.pend_hh = pend; else delete out.pend_hh;
+      return out;
+    })
+    .filter(f=>f.consolidado||f.realizado||f.saldo||f.prov_hh||f.pend_hh);
 }
 
 function fmtDateLabelFull(iso){
@@ -905,6 +986,11 @@ const state = {
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
   supl: {search:'', motivos: new Set(), selected: new Set()},
+  // Filtro de período do saldo consumido (Aprop./Mobile/Pendências) — null
+  // em start/end = sem limite daquele lado. Com os dois null (padrão),
+  // o filtro está desligado e os totais são "desde sempre", idênticos ao
+  // comportamento antes deste filtro existir.
+  saldoDateRange: {start: null, end: null},
 };
 
 function passCommon(r){
@@ -993,6 +1079,44 @@ function renderGlobalFilters(){
     btn.addEventListener('click', ()=>{ state.contrato=val; renderAll(); });
     cbox.appendChild(btn);
   });
+  buildSaldoDateFilterUI();
+}
+const MESES_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function monthLabel(ym){
+  const [y,m] = ym.split('-');
+  const nome = MESES_PT[parseInt(m,10)-1];
+  return nome.charAt(0).toUpperCase()+nome.slice(1)+'/'+y;
+}
+function monthBounds(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const start = ym+'-01';
+  const end = ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');
+  return {start, end};
+}
+/* Reconstrói os campos De/Até e o atalho de Mês do filtro de período do
+   saldo a partir de state.saldoDateRange — chamado a cada renderAll(), o
+   que garante que importar um novo arquivo ou trocar de snapshot (que já
+   zeram state.saldoDateRange) também limpa esses campos, sem precisar de
+   uma função de reset separada. */
+function buildSaldoDateFilterUI(){
+  const startEl = document.getElementById('saldo-date-start');
+  const endEl = document.getElementById('saldo-date-end');
+  const monthEl = document.getElementById('saldo-date-month');
+  if(!startEl || !endEl || !monthEl) return;
+  const datas = DATA.datas_saldo || [];
+  startEl.min = endEl.min = datas[0] || '';
+  startEl.max = endEl.max = datas[datas.length-1] || '';
+  startEl.value = state.saldoDateRange.start || '';
+  endEl.value = state.saldoDateRange.end || '';
+
+  const months = Array.from(new Set(datas.map(d=>d.slice(0,7)))).sort();
+  let matchedMonth = '';
+  for(const ym of months){
+    const b = monthBounds(ym);
+    if(b.start===state.saldoDateRange.start && b.end===state.saldoDateRange.end){ matchedMonth = ym; break; }
+  }
+  monthEl.innerHTML = '<option value="">Período manual</option>' + months.map(ym=>`<option value="${ym}">${monthLabel(ym)}</option>`).join('');
+  monthEl.value = matchedMonth;
 }
 
 /* ---------- Avisos ---------- */
@@ -1295,14 +1419,15 @@ function computeSaldoFinal(r, funcoes){
   // Saldo Final = Saldo sistema (HH Previsto - HH Realizado) menos o que
   // ainda está pendente ou em projeção (Pendência + Aprop.+Mob.): positivo
   // quando ainda sobra saldo depois de contar tudo isso, negativo quando
-  // o total já estoura o previsto. Pendência/Aprop.+Mob. usam o total já
-  // somado por OS (r.pend_total_hh/r.prov_total_hh) — não a soma por
-  // função — porque uma linha de pendência/apropriação sem função
-  // reconhecida na aba 1 ainda deve contar no total da OS.
+  // o total já estoura o previsto. Pendência/Aprop.+Mob. usam o total por
+  // OS (pendTotalHhForOs/provTotalHhForOs, que respeitam o filtro de
+  // período) — não a soma por função — porque uma linha de
+  // pendência/apropriação sem função reconhecida na aba 1 ainda deve
+  // contar no total da OS.
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizado = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
-  const pend = r.pend_total_hh || 0;
-  const prov = r.prov_total_hh || 0;
+  const pend = pendTotalHhForOs(r.os);
+  const prov = provTotalHhForOs(r.os);
   return hhPrevisto - hhRealizado - pend - prov;
 }
 function saldoFinalForOs(r){
@@ -1324,8 +1449,8 @@ function computeOsSummary(r, funcoes){
   const hhPrevisto = funcoes.reduce((a,f)=>a+(f.consolidado||0),0);
   const hhRealizadoBase = funcoes.reduce((a,f)=>a+(f.realizado||0),0);
   const saldoHh = funcoes.reduce((a,f)=>a+(f.saldo||0),0);
-  const provTotal = r.prov_total_hh || 0;
-  const pendTotal = r.pend_total_hh || 0;
+  const provTotal = provTotalHhForOs(r.os);
+  const pendTotal = pendTotalHhForOs(r.os);
   const hhTotalRealizado = hhRealizadoBase + pendTotal + provTotal;
   const saldoFinal = computeSaldoFinal(r, funcoes);
 
@@ -1486,7 +1611,7 @@ function renderDetalheTable(){
    busca de OS), pelo filtro de Motivo e pela busca local desta aba. */
 function suplementacaoRows(){
   const allowedOs = new Set(filteredOS().map(r=>r.os));
-  let rows = (DATA.pendencias_detalhe || []).filter(r => r.os!=null && allowedOs.has(r.os));
+  let rows = (DATA.pendencias_detalhe || []).filter(r => r.os!=null && allowedOs.has(r.os) && passSaldoDate(r.data));
   if(state.supl.motivos.size>0){
     rows = rows.filter(r => state.supl.motivos.has(r.motivo||''));
   }
@@ -1868,8 +1993,25 @@ document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
 });
 
 document.getElementById('os-search-global').addEventListener('input', e=>{ state.osSearch = e.target.value; renderAll(); });
+document.getElementById('saldo-date-start').addEventListener('change', e=>{
+  state.saldoDateRange.start = e.target.value || null;
+  renderAll();
+});
+document.getElementById('saldo-date-end').addEventListener('change', e=>{
+  state.saldoDateRange.end = e.target.value || null;
+  renderAll();
+});
+document.getElementById('saldo-date-month').addEventListener('change', e=>{
+  const ym = e.target.value;
+  if(!ym) return;
+  const b = monthBounds(ym);
+  state.saldoDateRange.start = b.start;
+  state.saldoDateRange.end = b.end;
+  renderAll();
+});
 document.getElementById('global-clear-btn').addEventListener('click', ()=>{
   state.osSearch=''; state.contrato='all'; state.sit=new Set();
+  state.saldoDateRange = {start:null, end:null};
   document.getElementById('os-search-global').value='';
   renderAll();
 });
@@ -1906,6 +2048,7 @@ function exportFiltersSummarySheet(){
     ['Busca OS', state.osSearch || 'Nenhuma'],
     ['Contrato', state.contrato==='all' ? 'Todos' : state.contrato],
     ['Situação', state.sit.size ? Array.from(state.sit).join(', ') : 'Todas'],
+    ['Saldo consumido até', fmtSaldoDateRangeLabel()],
   ]};
 }
 function exportResumoSheet(){
@@ -2303,6 +2446,34 @@ function parseWorkbookToBundleSaudeOs(wb){
   function sheet(name){ const s = wb.Sheets[name]; if(!s) throw new Error('Aba "'+name+'" não encontrada na planilha.'); return s; }
   function maxRow(s){ if(!s['!ref']) return 0; const rng = XLSX.utils.decode_range(s['!ref']); return rng.e.r+1; }
   function cellVal(s,row,col){ const addr = XLSX.utils.encode_cell({r:row-1,c:col-1}); const c=s[addr]; return c? c.v : undefined; }
+  // Converte a célula de data (lida como objeto Date, já que XLSX.read usa
+  // cellDates:true) para "YYYY-MM-DD". Também aceita, defensivamente, um
+  // número de série do Excel (célula formatada como texto/número) ou uma
+  // string "dd/mm/aaaa", caso a conversão automática não tenha acontecido.
+  function dateCellToIso(v){
+    if(v==null || v==='') return null;
+    if(v instanceof Date){
+      if(isNaN(v.getTime())) return null;
+      return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+    }
+    if(typeof v === 'number'){
+      const parsed = XLSX.SSF && XLSX.SSF.parse_date_code ? XLSX.SSF.parse_date_code(v) : null;
+      if(parsed) return parsed.y+'-'+String(parsed.m).padStart(2,'0')+'-'+String(parsed.d).padStart(2,'0');
+      return null;
+    }
+    if(typeof v === 'string'){
+      const s = v.trim();
+      const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if(m){
+        let [,dd,mm,yyyy] = m;
+        if(yyyy.length===2) yyyy = '20'+yyyy;
+        return yyyy+'-'+mm.padStart(2,'0')+'-'+dd.padStart(2,'0');
+      }
+      const d2 = new Date(s);
+      if(!isNaN(d2.getTime())) return d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+    }
+    return null;
+  }
 
   const ws = sheet('RESUMO GERAL');
   const maxR = maxRow(ws);
@@ -2434,11 +2605,16 @@ function parseWorkbookToBundleSaudeOs(wb){
   // própria, mas com HH/R$ válidos) era silenciosamente descartada e seu
   // HH some do total — por isso toda leitura de coluna de OS aqui herda o
   // último valor não vazio visto na mesma varredura, até aparecer um novo.
-  function scanFixedCols(sheetName, osCol, funcCol, hhCol){
-    const byFunc = {}, byOs = {};
-    if(!sheetName) return {byFunc, byOs};
+  // dateCol é opcional — quando informado, cada linha também entra em
+  // "rows" (sem agregação, com a data já convertida pra "YYYY-MM-DD") pra
+  // permitir recalcular os totais depois, no navegador, restritos a um
+  // período escolhido pelo filtro de data (ver passSaldoDate/saldoAggregates
+  // mais abaixo). Sem isso, só daria pra saber o total "desde sempre".
+  function scanFixedCols(sheetName, osCol, funcCol, hhCol, dateCol){
+    const byFunc = {}, byOs = {}, rows = [];
+    if(!sheetName) return {byFunc, byOs, rows};
     let ws2;
-    try{ ws2 = sheet(sheetName); }catch(e){ return {byFunc, byOs}; }
+    try{ ws2 = sheet(sheetName); }catch(e){ return {byFunc, byOs, rows}; }
     const maxR2 = maxRow(ws2);
     let lastOs = null;
     for(let r=1; r<=maxR2; r++){
@@ -2450,18 +2626,22 @@ function parseWorkbookToBundleSaudeOs(wb){
       if(osVal==null || !hhVal) continue;
       byOs[osVal] = (byOs[osVal]||0) + hhVal;
       const funcRaw = cleanStrImport(cellVal(ws2,r,funcCol));
+      let funcao = null;
       if(funcRaw){
-        const funcao = funcRaw.replace(funcPrefixRe, '');
+        funcao = funcRaw.replace(funcPrefixRe, '');
         const key = osVal+'|'+funcao;
         byFunc[key] = (byFunc[key]||0) + hhVal;
       }
+      if(dateCol!=null){
+        rows.push({os: osVal, funcao, hh: hhVal, data: dateCellToIso(cellVal(ws2,r,dateCol))});
+      }
     }
-    return {byFunc, byOs};
+    return {byFunc, byOs, rows};
   }
-  // "4 - APROPRIAÇÃO": OS=col L, HH=col T, Função=col AD
-  const aproScan = scanFixedCols('4 - APROPRIAÇÃO', 12, 30, 20);
-  // "5 - PLAN SGE_MOBILE": OS=col S, HH=col J, Função=col AE
-  const mobScan = scanFixedCols('5 - PLAN SGE_MOBILE', 19, 31, 10);
+  // "4 - APROPRIAÇÃO": OS=col L, HH=col T, Função=col AD, Data=col D
+  const aproScan = scanFixedCols('4 - APROPRIAÇÃO', 12, 30, 20, 4);
+  // "5 - PLAN SGE_MOBILE": OS=col S, HH=col J, Função=col AE, Data=col B
+  const mobScan = scanFixedCols('5 - PLAN SGE_MOBILE', 19, 31, 10, 2);
   const provApropriacao = aproScan.byFunc, provMobile = mobScan.byFunc;
 
   // O nome exato da aba "3 - PENDÊNCIAS" é localizado por busca tolerante
@@ -2479,9 +2659,9 @@ function parseWorkbookToBundleSaudeOs(wb){
     });
     return matches[0];
   }
-  // Função=col G, HH=col I, OS=col J
+  // Função=col G, HH=col I, OS=col J, Data=col H
   const pendSheetName = findSheetName('pendenc');
-  const pendScan = scanFixedCols(pendSheetName, 10, 7, 9);
+  const pendScan = scanFixedCols(pendSheetName, 10, 7, 9, 8);
   const pendenciasPorFunc = pendScan.byFunc;
 
   // Detalhamento linha a linha da aba "3 - PENDÊNCIAS" para a aba
@@ -2523,6 +2703,7 @@ function parseWorkbookToBundleSaudeOs(wb){
           hh: hhVal,
           valor_rs: valorVal,
           motivo: cleanStrImport(cellVal(wsPend,r,20)),
+          data: dateCellToIso(cellVal(wsPend,r,8)),
         });
       }
     }
@@ -2571,11 +2752,22 @@ function parseWorkbookToBundleSaudeOs(wb){
       .sort((a,b)=>b.saldo-a.saldo);
   });
 
+  // Datas distintas das 3 abas com data (Aprop./Mobile/Pendências),
+  // usadas pra montar o filtro de período (limites min/máx e o seletor de
+  // "mês inteiro") sem precisar escanear tudo de novo no navegador.
+  const datasSaldoSet = new Set();
+  [aproScan.rows, mobScan.rows, pendScan.rows].forEach(rows=>{
+    rows.forEach(r=>{ if(r.data) datasSaldoSet.add(r.data); });
+  });
+  const datasSaldo = Array.from(datasSaldoSet).sort();
+
   return {
     meta: {empresa: 'TECHINT ENGENHARIA E CONSTRUCAO SA'},
     periodos, os_list: osList, totais, contratos, contrato_labels: contratoLabels,
     lideres, fiscais, situacoes, funcoes_por_os: funcoesPorOs,
     pendencias_detalhe: pendenciasDetalhe,
+    apropriacao_rows: aproScan.rows, mobile_rows: mobScan.rows, pendencias_rows: pendScan.rows,
+    datas_saldo: datasSaldo,
   };
 }
 
@@ -2601,6 +2793,8 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       bundle = parseWorkbookToBundleSaudeOs(wb);
       DATA = normalizeBundle(bundle);
       state.osSearch=''; state.contrato='all'; state.sit=new Set();
+      state.saldoDateRange = {start:null, end:null};
+      saldoAggCache = null; saldoAggCacheKey = null;
       document.getElementById('os-search-global').value = '';
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
@@ -2787,6 +2981,8 @@ async function sbInit(){
     if(error) throw error;
     if(data && data.bundle){
       DATA = normalizeBundle(data.bundle);
+      state.saldoDateRange = {start:null, end:null};
+      saldoAggCache = null; saldoAggCacheKey = null;
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
       const when = fmtDateLabelFull(String(data.created_at).slice(0,10));
