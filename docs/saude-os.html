@@ -1114,9 +1114,21 @@ function buildSaldoDateMultiSelect(){
 
   function updateBtnLabel(){ btn.textContent = fmtSaldoDateRangeLabel(); }
 
+  // O clique pra abrir/fechar o painel é ligado ANTES do "return" de baixo
+  // (sem dados) — senão, quando ainda não há datas carregadas (snapshot
+  // publicado antes deste filtro existir, ou aba de origem sem data
+  // reconhecida), o botão ficava sem nenhum listener e clicar nele não
+  // fazia literalmente nada, sem sequer mostrar o aviso "Nenhuma data
+  // disponível" explicando o motivo.
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
+
   const datas = DATA.datas_saldo || [];
   if(datas.length===0){
-    panel.innerHTML = '<div class="msel-empty">Nenhuma data disponível nas abas de Apropriação/Mobile/Pendências.</div>';
+    panel.innerHTML = '<div class="msel-empty">Nenhuma data disponível nas abas de Apropriação/Mobile/Pendências. Se o arquivo foi importado antes deste filtro existir, reimporte-o uma vez (Configurações) para capturar as datas.</div>';
     updateBtnLabel();
     return;
   }
@@ -1244,12 +1256,6 @@ function buildSaldoDateMultiSelect(){
 
   actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
     applyRange(null, null);
-  });
-
-  btn.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
-    container.classList.toggle('open');
   });
 }
 
