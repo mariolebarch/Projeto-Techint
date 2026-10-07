@@ -394,19 +394,15 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-left-card{display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
-.ov-colab-grid-scroll{max-height:220px; overflow-y:auto; padding-right:2px;}
-.ov-colab-grid{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px;}
-.ov-colab-chip{border:1px solid var(--border-soft); border-radius:8px; padding:7px 10px; cursor:pointer; background:var(--paper); transition:background .15s, border-color .15s;}
+.ov-colab-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px;}
+.ov-colab-chip{border:1px solid var(--border-soft); border-radius:7px; padding:6px 9px; cursor:pointer; background:var(--paper); transition:background .15s, border-color .15s;}
 .ov-colab-chip:hover{background:var(--border-soft);}
 .ov-colab-chip.expanded{grid-column:1 / -1; background:var(--steel-soft); border-color:var(--steel);}
-.occ-top{display:flex; align-items:center; gap:7px; margin-bottom:3px;}
-.occ-rank{font-family:var(--font-mono); font-size:10px; color:var(--text-muted); flex:none;}
+.occ-top{display:flex; align-items:center; gap:7px;}
+.occ-pessoas-val{font-family:var(--font-mono); font-size:16px; font-weight:800; color:var(--text-primary); flex:none;}
 .occ-os{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.occ-pct-inline{color:var(--text-secondary); font-weight:400;}
 .occ-chevron{margin-left:auto; flex:none;}
-.occ-stats{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
-.occ-pessoas{font-family:var(--font-mono); font-size:16px; font-weight:700; color:var(--text-primary); display:flex; align-items:baseline; gap:5px;}
-.occ-pessoas-unit{font-size:9.5px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
-.occ-pct{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); flex:none;}
 .occ-sup-list{margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
 .occ-sup-row{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--text-secondary); padding:2px 0;}
 .occ-sup-row .num{font-family:var(--font-mono); color:var(--text-primary); font-weight:600;}
@@ -1558,9 +1554,11 @@ function renderOsColabTable(ef){
   const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v.total,0);
   const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
 
-  // Grade de cartões (2 colunas) com rolagem interna — substitui a tabela
-  // linha-a-linha, que crescia sem limite conforme o número de OS's.
-  const chipsHtml = entries.map(([os,rec],i)=>{
+  // Grade de cartões compacta, uma linha só por OS: o nº de pessoas fica
+  // à esquerda (no lugar do antigo "#rank"), e a % já vem junto do nome
+  // da OS — cartão mais baixo, e sem corte/rolagem: todas as OS's
+  // aparecem sempre.
+  const chipsHtml = entries.map(([os,rec])=>{
     const contrato = contratoOfOs(os);
     const pct = grandTotal? rec.total/grandTotal : 0;
     const expanded = state.ovColab.expanded.has(os);
@@ -1571,20 +1569,17 @@ function renderOsColabTable(ef){
     }
     return `<div class="ov-colab-chip${expanded?' expanded':''}" data-os="${escHtml(os)}">
         <div class="occ-top">
-          <span class="occ-rank">#${i+1}</span>
+          <span class="occ-pessoas-val">${rec.total}</span>
           <span class="occ-os mono-tag">OS ${escHtml(osLabel(os))}</span>
+          <span class="occ-pct-inline">${fmtPct(pct)}</span>
           <span class="badge-contrato ${contrato}">${contrato}</span>
           <span class="expand-hint occ-chevron">${expanded?'▾':'▸'}</span>
-        </div>
-        <div class="occ-stats">
-          <span class="occ-pessoas">${rec.total}<span class="occ-pessoas-unit">pessoas</span></span>
-          <span class="occ-pct">${fmtPct(pct)}</span>
         </div>
         ${supHtml}
       </div>`;
   }).join('');
 
-  box.innerHTML = `<div class="ov-colab-grid-scroll"><div class="ov-colab-grid">${chipsHtml}</div></div>`;
+  box.innerHTML = `<div class="ov-colab-grid">${chipsHtml}</div>`;
 
   box.querySelectorAll('.ov-colab-chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{
