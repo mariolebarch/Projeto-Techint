@@ -398,6 +398,7 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-colab-chip{border:1px solid var(--border-soft); border-radius:7px; padding:6px 9px; cursor:pointer; background:var(--paper); transition:background .15s, border-color .15s;}
 .ov-colab-chip:hover{background:var(--border-soft);}
 .ov-colab-chip.expanded{grid-column:1 / -1; background:var(--steel-soft); border-color:var(--steel);}
+.ov-colab-chip.contrato-PCI .occ-os.mono-tag{background:var(--pci-chart-soft); color:var(--good);}
 .occ-top{display:flex; align-items:center; gap:7px;}
 .occ-pessoas-val{font-family:var(--font-mono); font-size:16px; font-weight:800; color:var(--text-primary); flex:none;}
 .occ-os{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -1567,7 +1568,7 @@ function renderOsColabTable(ef){
       const supEntries = Array.from(rec.bySup.entries()).sort((a,b)=>b[1]-a[1]);
       supHtml = `<div class="occ-sup-list">${supEntries.map(([sup,cnt])=>`<div class="occ-sup-row"><span>${escHtml(sup)}</span><span class="num">${cnt}</span></div>`).join('')}</div>`;
     }
-    return `<div class="ov-colab-chip${expanded?' expanded':''}" data-os="${escHtml(os)}">
+    return `<div class="ov-colab-chip${expanded?' expanded':''} contrato-${escHtml(contrato)}" data-os="${escHtml(os)}">
         <div class="occ-top">
           <span class="occ-pessoas-val">${rec.total}</span>
           <span class="occ-os mono-tag">OS ${escHtml(osLabel(os))}</span>
