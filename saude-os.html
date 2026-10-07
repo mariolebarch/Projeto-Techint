@@ -276,6 +276,7 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-cal-day:hover:not(.disabled){background:var(--steel-soft); color:var(--steel-strong);}
 .msel-cal-day.empty{visibility:hidden; cursor:default;}
 .msel-cal-day.selected{background:var(--green-dark); color:#fff; font-weight:700;}
+.msel-cal-day.anchor{box-shadow:0 0 0 2px var(--steel) inset;}
 .msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
 .msel-item:hover{background:var(--sand);}
 .msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
@@ -732,12 +733,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <div class="field"><label>OS</label><input class="search-input" id="os-search-global" placeholder="buscar OS ou título&hellip;" style="min-width:150px;"></div>
     <div class="field"><label>Contrato</label><div class="date-toggle" id="contrato-toggle-global"></div></div>
     <div class="field"><label>Situa&ccedil;&atilde;o</label><div class="msel" id="sit-msel-global"></div></div>
-    <div class="field"><label>Saldo consumido at&eacute;</label><div style="display:flex; gap:6px; align-items:center;">
-      <input type="date" class="search-input" id="saldo-date-start" title="A partir de" style="min-width:0; width:126px;">
-      <span style="color:var(--text-muted); font-size:12px;">at&eacute;</span>
-      <input type="date" class="search-input" id="saldo-date-end" title="At&eacute;" style="min-width:0; width:126px;">
-    </div></div>
-    <div class="field"><label>M&ecirc;s</label><select id="saldo-date-month" style="min-width:150px;"><option value="">Per&iacute;odo manual</option></select></div>
+    <div class="field"><label>Saldo consumido at&eacute;</label><div class="msel" id="saldo-date-msel-global"></div></div>
     <div class="field"><label>&nbsp;</label><button class="clear-x-btn" id="global-clear-btn" type="button" title="Limpar filtros" aria-label="Limpar filtros">&times;</button></div>
     <span class="hint">Esses filtros afetam todas as abas abaixo.</span>
   </div>
@@ -1079,44 +1075,182 @@ function renderGlobalFilters(){
     btn.addEventListener('click', ()=>{ state.contrato=val; renderAll(); });
     cbox.appendChild(btn);
   });
-  buildSaldoDateFilterUI();
+  buildSaldoDateMultiSelect();
 }
-const MESES_PT = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-function monthLabel(ym){
-  const [y,m] = ym.split('-');
-  const nome = MESES_PT[parseInt(m,10)-1];
-  return nome.charAt(0).toUpperCase()+nome.slice(1)+'/'+y;
+function isoWeekOf(iso){
+  const d = new Date(iso+'T00:00:00Z');
+  const dayNum = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate()-dayNum+3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const firstDayNum = (firstThursday.getUTCDay()+6)%7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate()-firstDayNum+3);
+  const week = 1 + Math.round((d-firstThursday)/(7*24*3600*1000));
+  return {week, year:d.getUTCFullYear()};
 }
-function monthBounds(ym){
-  const [y,m] = ym.split('-').map(Number);
-  const start = ym+'-01';
-  const end = ym+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');
-  return {start, end};
-}
-/* Reconstrói os campos De/Até e o atalho de Mês do filtro de período do
-   saldo a partir de state.saldoDateRange — chamado a cada renderAll(), o
-   que garante que importar um novo arquivo ou trocar de snapshot (que já
-   zeram state.saldoDateRange) também limpa esses campos, sem precisar de
-   uma função de reset separada. */
-function buildSaldoDateFilterUI(){
-  const startEl = document.getElementById('saldo-date-start');
-  const endEl = document.getElementById('saldo-date-end');
-  const monthEl = document.getElementById('saldo-date-month');
-  if(!startEl || !endEl || !monthEl) return;
-  const datas = DATA.datas_saldo || [];
-  startEl.min = endEl.min = datas[0] || '';
-  startEl.max = endEl.max = datas[datas.length-1] || '';
-  startEl.value = state.saldoDateRange.start || '';
-  endEl.value = state.saldoDateRange.end || '';
+/* Calendário de período (De/Até) do saldo consumido — mesmo componente
+   visual do filtro de data do painel Efetivo × Empilhamento (.msel com
+   navegação de mês, semanas clicáveis e dias no grid), adaptado pra
+   escolher um INTERVALO em vez de dias avulsos: o 1º clique num dia marca
+   o início (âncora), o 2º fecha o intervalo (do menor pro maior); clicar
+   numa semana ou no rótulo do mês seleciona aquele intervalo inteiro de
+   uma vez (ou desmarca, se já for exatamente o intervalo ativo). */
+let saldoRangeAnchor = null;
+function buildSaldoDateMultiSelect(){
+  const container = document.getElementById('saldo-date-msel-global');
+  if(!container) return;
+  const wasOpen = container.classList.contains('open');
+  container.innerHTML = '';
+  container.className = 'msel' + (wasOpen ? ' open' : '');
+  if(!wasOpen) saldoRangeAnchor = null;
 
-  const months = Array.from(new Set(datas.map(d=>d.slice(0,7)))).sort();
-  let matchedMonth = '';
-  for(const ym of months){
-    const b = monthBounds(ym);
-    if(b.start===state.saldoDateRange.start && b.end===state.saldoDateRange.end){ matchedMonth = ym; break; }
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'msel-btn';
+  container.appendChild(btn);
+
+  const panel = document.createElement('div');
+  panel.className = 'msel-panel';
+  panel.style.width = '300px';
+  container.appendChild(panel);
+
+  function updateBtnLabel(){ btn.textContent = fmtSaldoDateRangeLabel(); }
+
+  const datas = DATA.datas_saldo || [];
+  if(datas.length===0){
+    panel.innerHTML = '<div class="msel-empty">Nenhuma data disponível nas abas de Apropriação/Mobile/Pendências.</div>';
+    updateBtnLabel();
+    return;
   }
-  monthEl.innerHTML = '<option value="">Período manual</option>' + months.map(ym=>`<option value="${ym}">${monthLabel(ym)}</option>`).join('');
-  monthEl.value = matchedMonth;
+
+  const actions = document.createElement('div');
+  actions.className = 'msel-actions';
+  actions.innerHTML = `<button type="button" data-act="all">Todo o período</button>`;
+  panel.appendChild(actions);
+
+  const weekMap = new Map();
+  datas.forEach(d=>{
+    const {week, year} = isoWeekOf(d);
+    const key = year+'-W'+String(week).padStart(2,'0');
+    if(!weekMap.has(key)) weekMap.set(key, {week, year, dates:[]});
+    weekMap.get(key).dates.push(d);
+  });
+
+  const monthKeys = Array.from(new Set(datas.map(d=>d.slice(0,7)))).sort();
+  const refMonth = (state.saldoDateRange.end || state.saldoDateRange.start || datas[datas.length-1]).slice(0,7);
+  let monthIdx = Math.max(0, monthKeys.indexOf(refMonth));
+
+  const calNav = document.createElement('div'); calNav.className = 'msel-cal-nav';
+  const prevMBtn = document.createElement('button'); prevMBtn.type='button'; prevMBtn.className='msel-cal-nav-btn'; prevMBtn.innerHTML='&lsaquo;'; prevMBtn.setAttribute('aria-label','Mês anterior');
+  const monthLabelEl = document.createElement('button'); monthLabelEl.type='button'; monthLabelEl.className = 'msel-cal-month-label'; monthLabelEl.title = 'Clique para selecionar/desmarcar o mês inteiro';
+  const nextMBtn = document.createElement('button'); nextMBtn.type='button'; nextMBtn.className='msel-cal-nav-btn'; nextMBtn.innerHTML='&rsaquo;'; nextMBtn.setAttribute('aria-label','Próximo mês');
+  calNav.appendChild(prevMBtn); calNav.appendChild(monthLabelEl); calNav.appendChild(nextMBtn);
+  panel.appendChild(calNav);
+
+  const cal = document.createElement('div'); cal.className = 'msel-calendar';
+  panel.appendChild(cal);
+
+  const DOW = ['S','T','Q','Q','S','S','D'];
+  const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
+  function datesOfMonth(monthKey){ return datas.filter(d=>d.slice(0,7)===monthKey); }
+  function inRange(d){
+    const r = state.saldoDateRange;
+    if(!r.start && !r.end) return false;
+    if(r.start && d<r.start) return false;
+    if(r.end && d>r.end) return false;
+    return true;
+  }
+  function applyRange(start, end){
+    state.saldoDateRange = {start, end};
+    saldoRangeAnchor = null;
+    updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
+  }
+
+  function renderMonth(){
+    const monthKey = monthKeys[monthIdx];
+    const [y,m] = monthKey.split('-').map(Number);
+    monthLabelEl.textContent = MONTH_NAMES[m-1] + ' ' + y;
+    const monthDates = datesOfMonth(monthKey);
+    const mb = monthDates.length ? {start: monthDates[0], end: monthDates[monthDates.length-1]} : null;
+    monthLabelEl.classList.toggle('active', !!mb && state.saldoDateRange.start===mb.start && state.saldoDateRange.end===mb.end);
+    prevMBtn.disabled = monthIdx<=0;
+    nextMBtn.disabled = monthIdx>=monthKeys.length-1;
+
+    cal.innerHTML = '';
+    const grid = document.createElement('div'); grid.className = 'msel-cal-grid';
+    const corner = document.createElement('div'); corner.className = 'msel-cal-corner';
+    grid.appendChild(corner);
+    DOW.forEach(l=>{ const el = document.createElement('div'); el.className='msel-cal-dow'; el.textContent=l; grid.appendChild(el); });
+    cal.appendChild(grid);
+
+    Array.from(weekMap.values())
+      .filter(w=>w.dates.some(d=>d.slice(0,7)===monthKey))
+      .sort((a,b)=> a.year-b.year || a.week-b.week)
+      .forEach(w=>{
+        const wStart = w.dates[0], wEnd = w.dates[w.dates.length-1];
+        const wActive = state.saldoDateRange.start===wStart && state.saldoDateRange.end===wEnd;
+        const wbtn = document.createElement('button');
+        wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (wActive?' active':'');
+        wbtn.textContent = 'S'+w.week;
+        wbtn.title = 'Semana '+w.week+' · clique para filtrar só essa semana';
+        wbtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          applyRange(wActive?null:wStart, wActive?null:wEnd);
+        });
+        grid.appendChild(wbtn);
+
+        const byDow = new Map();
+        w.dates.forEach(d=>byDow.set(isoDow(d), d));
+        for(let i=0;i<7;i++){
+          const d = byDow.get(i);
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          if(!d || d.slice(0,7)!==monthKey){
+            cell.className = 'msel-cal-day empty'; cell.disabled = true;
+          } else {
+            cell.className = 'msel-cal-day' + (inRange(d)?' selected':'') + (saldoRangeAnchor===d?' anchor':'');
+            cell.dataset.date = d;
+            cell.textContent = String(Number(d.slice(8,10)));
+            cell.title = fmtDateLabelFull(d);
+            cell.addEventListener('click', (e)=>{
+              e.stopPropagation();
+              if(saldoRangeAnchor===null){
+                saldoRangeAnchor = d;
+                state.saldoDateRange = {start:d, end:d};
+                updateBtnLabel(); renderMonth();
+              } else {
+                const start = d<saldoRangeAnchor ? d : saldoRangeAnchor;
+                const end = d<saldoRangeAnchor ? saldoRangeAnchor : d;
+                applyRange(start, end);
+              }
+            });
+          }
+          grid.appendChild(cell);
+        }
+      });
+  }
+  renderMonth();
+  updateBtnLabel();
+
+  prevMBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(monthIdx>0){ monthIdx--; renderMonth(); } });
+  nextMBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if(monthIdx<monthKeys.length-1){ monthIdx++; renderMonth(); } });
+  monthLabelEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const monthDates = datesOfMonth(monthKeys[monthIdx]);
+    if(monthDates.length===0) return;
+    const mb = {start: monthDates[0], end: monthDates[monthDates.length-1]};
+    const active = state.saldoDateRange.start===mb.start && state.saldoDateRange.end===mb.end;
+    applyRange(active?null:mb.start, active?null:mb.end);
+  });
+
+  actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    applyRange(null, null);
+  });
+
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll('.msel.open').forEach(m=>{ if(m!==container) m.classList.remove('open'); });
+    container.classList.toggle('open');
+  });
 }
 
 /* ---------- Avisos ---------- */
@@ -1993,25 +2127,10 @@ document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
 });
 
 document.getElementById('os-search-global').addEventListener('input', e=>{ state.osSearch = e.target.value; renderAll(); });
-document.getElementById('saldo-date-start').addEventListener('change', e=>{
-  state.saldoDateRange.start = e.target.value || null;
-  renderAll();
-});
-document.getElementById('saldo-date-end').addEventListener('change', e=>{
-  state.saldoDateRange.end = e.target.value || null;
-  renderAll();
-});
-document.getElementById('saldo-date-month').addEventListener('change', e=>{
-  const ym = e.target.value;
-  if(!ym) return;
-  const b = monthBounds(ym);
-  state.saldoDateRange.start = b.start;
-  state.saldoDateRange.end = b.end;
-  renderAll();
-});
 document.getElementById('global-clear-btn').addEventListener('click', ()=>{
   state.osSearch=''; state.contrato='all'; state.sit=new Set();
   state.saldoDateRange = {start:null, end:null};
+  saldoRangeAnchor = null;
   document.getElementById('os-search-global').value='';
   renderAll();
 });
@@ -2794,6 +2913,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       DATA = normalizeBundle(bundle);
       state.osSearch=''; state.contrato='all'; state.sit=new Set();
       state.saldoDateRange = {start:null, end:null};
+      saldoRangeAnchor = null;
       saldoAggCache = null; saldoAggCacheKey = null;
       document.getElementById('os-search-global').value = '';
       renderAll();
@@ -2982,6 +3102,7 @@ async function sbInit(){
     if(data && data.bundle){
       DATA = normalizeBundle(data.bundle);
       state.saldoDateRange = {start:null, end:null};
+      saldoRangeAnchor = null;
       saldoAggCache = null; saldoAggCacheKey = null;
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
