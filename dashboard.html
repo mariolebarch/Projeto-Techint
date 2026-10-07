@@ -394,6 +394,23 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-left-card{display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
+.ov-colab-grid-scroll{max-height:220px; overflow-y:auto; padding-right:2px;}
+.ov-colab-grid{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px;}
+.ov-colab-chip{border:1px solid var(--border-soft); border-radius:8px; padding:7px 10px; cursor:pointer; background:var(--paper); transition:background .15s, border-color .15s;}
+.ov-colab-chip:hover{background:var(--border-soft);}
+.ov-colab-chip.expanded{grid-column:1 / -1; background:var(--steel-soft); border-color:var(--steel);}
+.occ-top{display:flex; align-items:center; gap:7px; margin-bottom:3px;}
+.occ-rank{font-family:var(--font-mono); font-size:10px; color:var(--text-muted); flex:none;}
+.occ-os{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.occ-chevron{margin-left:auto; flex:none;}
+.occ-stats{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.occ-pessoas{font-family:var(--font-mono); font-size:16px; font-weight:700; color:var(--text-primary); display:flex; align-items:baseline; gap:5px;}
+.occ-pessoas-unit{font-size:9.5px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
+.occ-pct{font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); flex:none;}
+.occ-sup-list{margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
+.occ-sup-row{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--text-secondary); padding:2px 0;}
+.occ-sup-row .num{font-family:var(--font-mono); color:var(--text-primary); font-weight:600;}
+@media (max-width:520px){.ov-colab-grid{grid-template-columns:1fr;}}
 .bar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
 .bar-row .label{width:190px; font-size:12.5px; color:var(--text-secondary); flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bar-track{flex:1; height:16px; background:var(--border-soft); border-radius:4px; overflow:hidden; display:flex; position:relative; border:1px solid var(--border); min-width:36px;}
@@ -1541,46 +1558,42 @@ function renderOsColabTable(ef){
   const grandTotal = Array.from(byOs.values()).reduce((a,v)=>a+v.total,0);
   const entries = Array.from(byOs.entries()).sort((a,b)=>b[1].total-a[1].total);
 
-  const rowsHtml = entries.map(([os,rec],i)=>{
+  // Grade de cartões (2 colunas) com rolagem interna — substitui a tabela
+  // linha-a-linha, que crescia sem limite conforme o número de OS's.
+  const chipsHtml = entries.map(([os,rec],i)=>{
     const contrato = contratoOfOs(os);
     const pct = grandTotal? rec.total/grandTotal : 0;
     const expanded = state.ovColab.expanded.has(os);
-    let html = `<tr class="ov-colab-os-row" data-os="${escHtml(os)}">
-        <td class="num-col num" style="color:var(--text-muted);">${i+1}</td>
-        <td class="ov-table-name">OS ${escHtml(osLabel(os))}<span class="expand-hint">${expanded?'▾':'▸'}</span></td>
-        <td><span class="badge-contrato ${contrato}">${contrato}</span></td>
-        <td class="num-col num">${rec.total}</td>
-        <td class="num-col num" style="color:var(--text-secondary);">${fmtPct(pct)}</td>
-      </tr>`;
+    let supHtml = '';
     if(expanded){
       const supEntries = Array.from(rec.bySup.entries()).sort((a,b)=>b[1]-a[1]);
-      html += supEntries.map(([sup,cnt])=>`<tr class="cf-detail-row">
-          <td></td>
-          <td class="cf-cargo-name">${escHtml(sup)}</td>
-          <td></td>
-          <td class="num-col num">${cnt}</td>
-          <td></td>
-        </tr>`).join('');
+      supHtml = `<div class="occ-sup-list">${supEntries.map(([sup,cnt])=>`<div class="occ-sup-row"><span>${escHtml(sup)}</span><span class="num">${cnt}</span></div>`).join('')}</div>`;
     }
-    return html;
+    return `<div class="ov-colab-chip${expanded?' expanded':''}" data-os="${escHtml(os)}">
+        <div class="occ-top">
+          <span class="occ-rank">#${i+1}</span>
+          <span class="occ-os mono-tag">OS ${escHtml(osLabel(os))}</span>
+          <span class="badge-contrato ${contrato}">${contrato}</span>
+          <span class="expand-hint occ-chevron">${expanded?'▾':'▸'}</span>
+        </div>
+        <div class="occ-stats">
+          <span class="occ-pessoas">${rec.total}<span class="occ-pessoas-unit">pessoas</span></span>
+          <span class="occ-pct">${fmtPct(pct)}</span>
+        </div>
+        ${supHtml}
+      </div>`;
   }).join('');
 
-  box.innerHTML = `<div class="table-scroll" style="overflow-y:auto;">
-      <table>
-        <thead><tr><th>#</th><th>OS</th><th>Contrato</th><th class="num-col">Pessoas</th><th class="num-col">% do total</th></tr></thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>`;
+  box.innerHTML = `<div class="ov-colab-grid-scroll"><div class="ov-colab-grid">${chipsHtml}</div></div>`;
 
-  box.querySelectorAll('.ov-colab-os-row').forEach(tr=>{
-    tr.addEventListener('dblclick', ()=>{
-      const os = tr.dataset.os;
+  box.querySelectorAll('.ov-colab-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const os = chip.dataset.os;
       if(state.ovColab.expanded.has(os)) state.ovColab.expanded.delete(os);
       else state.ovColab.expanded.add(os);
       renderOsColabTable(ef);
     });
   });
-  alignOvTables();
 }
 
 // Alinha as linhas de "Pessoas presentes por OS" (tabela) com as de
