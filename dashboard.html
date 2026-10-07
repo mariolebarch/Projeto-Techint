@@ -1597,8 +1597,6 @@ function renderOsColabTable(ef){
 // variam de fonte/navegador para navegador.
 function alignOvTables(){
   const eqList = document.getElementById('eq-list');
-  const tableRow = document.querySelector('#ov-colab-table table tbody tr');
-  const barRow = document.querySelector('#eq-list .bar-row.eq-row');
   if(!eqList) return;
   // Se a aba Visão Geral estiver escondida (display:none, por estar em outra
   // aba), getBoundingClientRect() de tudo dentro dela retorna 0 — medir nesse
@@ -1606,30 +1604,22 @@ function alignOvTables(){
   // usuário voltar para a aba. Só recalcula quando a aba está realmente visível.
   if(eqList.offsetParent === null) return;
   eqList.style.removeProperty('--bar-row-h');
-  eqList.style.marginTop = '';
-  if(!tableRow || !barRow || window.innerWidth <= 1000) return; // sem par para alinhar, ou colunas empilhadas
-  // Quando há menos supervisores/encarregados do que linhas na tabela de OS,
-  // usar a altura "natural" da linha deixaria uma sobra em branco no fim do
-  // card (que já tem a mesma altura do card ao lado — ver .ov-eq-card flex).
-  // Em vez disso, estica cada linha o quanto for preciso pra ocupar o espaço
-  // disponível, sem nunca ficar menor que a altura natural (que continua
-  // valendo quando há MUITOS nomes e a lista precisa rolar).
-  const naturalRowH = tableRow.getBoundingClientRect().height;
+  const barRow = document.querySelector('#eq-list .bar-row.eq-row');
   const rowCount = document.querySelectorAll('#eq-list .bar-row.eq-row').length;
+  if(!barRow || rowCount===0 || window.innerWidth <= 1000) return; // sem linhas, ou colunas empilhadas
+  // #eq-list acompanha a altura do card de Apontamentos por Contrato ao
+  // lado (grid com align-items:stretch) — quando há poucos supervisores/
+  // encarregados, a lista natural fica bem menor que esse espaço e sobra
+  // uma faixa em branco no fim do card. Em vez disso, estica cada linha
+  // proporcionalmente até preencher o espaço disponível, sem nunca ficar
+  // menor que a altura natural (que volta a valer quando há muitos nomes
+  // e a lista precisa rolar).
+  const naturalRowH = barRow.getBoundingClientRect().height;
   const availableH = eqList.getBoundingClientRect().height;
-  const fitRowH = rowCount>0 ? availableH/rowCount : naturalRowH;
-  // Preenche só parte da folga (não o espaço todo) pra não afastar demais
-  // os nomes quando há poucos supervisores/encarregados em relação às
-  // linhas da tabela de OS ao lado — fica mais denso que antes, mas sem
-  // voltar a deixar uma sobra grande em branco no fim do card.
-  const target = naturalRowH + Math.max(0, fitRowH-naturalRowH)*0.45;
-  const rowH = Math.min(target, naturalRowH*1.8);
+  const fitRowH = availableH/rowCount;
+  const target = naturalRowH + Math.max(0, fitRowH-naturalRowH)*0.75;
+  const rowH = Math.min(target, naturalRowH*2.4);
   eqList.style.setProperty('--bar-row-h', rowH + 'px');
-  const diff = tableRow.getBoundingClientRect().top - barRow.getBoundingClientRect().top;
-  if(diff > 0){
-    const baseMargin = parseFloat(getComputedStyle(eqList).marginTop) || 0;
-    eqList.style.marginTop = (baseMargin + diff) + 'px';
-  }
 }
 
 /* ---------- Confronto table ---------- */
