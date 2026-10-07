@@ -1216,7 +1216,7 @@ function buildSaldoDateMultiSelect(){
               if(saldoRangeAnchor===null){
                 saldoRangeAnchor = d;
                 state.saldoDateRange = {start:d, end:d};
-                updateBtnLabel(); renderMonth();
+                updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
               } else {
                 const start = d<saldoRangeAnchor ? d : saldoRangeAnchor;
                 const end = d<saldoRangeAnchor ? saldoRangeAnchor : d;
