@@ -391,7 +391,8 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .ov-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:stretch;}
 .ov-grid > .card{min-width:0;}
 @media (max-width:1000px){.ov-grid{grid-template-columns:minmax(0,1fr);}}
-.ov-left-card{display:flex; flex-direction:column;}
+.ov-left-card{display:flex; flex-direction:column; position:relative; overflow:hidden; padding-top:25px;}
+.ov-left-card::before{content:''; position:absolute; top:0; left:0; right:0; height:5px; background:var(--green);}
 .ov-left-card #ov-colab-table{flex:1; min-height:0; display:flex; flex-direction:column;}
 .ov-left-card #ov-colab-table .table-scroll{flex:1; min-height:120px;}
 .ov-colab-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:6px;}
@@ -659,6 +660,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
   .tabbtn{padding:10px 12px; font-size:12.5px;}
 
   .card{padding:14px 16px;}
+  .ov-left-card{padding-top:21px;}
   .card-head h3{font-size:15px;}
   .kpi .kpi-value{font-size:22px;}
   .kpi-split-value{font-size:19px;}
