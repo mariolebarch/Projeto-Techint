@@ -282,7 +282,6 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-cal-day:hover:not(.disabled){background:var(--steel-soft); color:var(--steel-strong);}
 .msel-cal-day.empty{visibility:hidden; cursor:default;}
 .msel-cal-day.selected{background:var(--green-dark); color:#fff; font-weight:700;}
-.msel-cal-day.anchor{box-shadow:0 0 0 2px var(--steel) inset;}
 .msel-item{display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; cursor:pointer; font-size:12.5px;}
 .msel-item:hover{background:var(--sand);}
 .msel-item input{accent-color:var(--steel); width:14px; height:14px; flex:none; margin:0;}
@@ -896,25 +895,26 @@ function contratoLabel(pep){
    por função, são recalculados aqui (no navegador) a partir das linhas cruas
    (DATA.apropriacao_rows/mobile_rows/pendencias_rows) sempre que o filtro
    de período mudar — em vez de usar o total "desde sempre" já somado na
-   importação — pra permitir "saldo consumido até tal semana/mês/período"
-   sem precisar reimportar a planilha. Sem filtro ativo (start e end nulos,
-   o padrão), o resultado bate exatamente com o total "desde sempre" de
-   antes deste filtro existir. */
+   importação — pra permitir restringir o saldo consumido a dias
+   específicos, sem precisar reimportar a planilha. Mesmo padrão de
+   seleção do filtro de data do Efetivo: um Set de dias individualmente
+   marcados (clicar num dia alterna só aquele dia, sem mexer nos outros;
+   clicar numa semana/mês alterna o grupo inteiro). Com o Set vazio (o
+   padrão), o filtro está desligado e os totais batem exatamente com o
+   "desde sempre" de antes deste filtro existir — inclusive linhas sem
+   data própria, que um Set explícito (mesmo com todos os dias marcados)
+   não incluiria. */
 function dateFilterActive(){
-  const f = state.saldoDateRange;
-  return !!(f && (f.start || f.end));
+  return state.saldoDates.size>0;
 }
 function passSaldoDate(iso){
   if(!dateFilterActive()) return true;
   if(!iso) return false; // sem data própria: não dá pra saber se cai no período, então não entra quando o filtro está ativo
-  const f = state.saldoDateRange;
-  if(f.start && iso < f.start) return false;
-  if(f.end && iso > f.end) return false;
-  return true;
+  return state.saldoDates.has(iso);
 }
 let saldoAggCache = null, saldoAggCacheKey = null;
 function saldoAggregates(){
-  const key = JSON.stringify(state.saldoDateRange) + '|' + (DATA && DATA.os_list ? DATA.os_list.length : 0);
+  const key = Array.from(state.saldoDates).sort().join(',') + '|' + (DATA && DATA.os_list ? DATA.os_list.length : 0);
   if(saldoAggCache && saldoAggCacheKey === key) return saldoAggCache;
   const provByOs = {}, pendByOs = {}, provByFunc = {}, pendByFunc = {};
   const addProv = r=>{
@@ -936,12 +936,12 @@ function saldoAggregates(){
 function provTotalHhForOs(os){ return saldoAggregates().provByOs[os] || 0; }
 function pendTotalHhForOs(os){ return saldoAggregates().pendByOs[os] || 0; }
 function fmtSaldoDateRangeLabel(){
-  const f = state.saldoDateRange;
-  if(!dateFilterActive()) return 'Todo o período';
+  const arr = Array.from(state.saldoDates).sort();
+  if(arr.length===0) return 'Todo o período';
   const fmt = iso => { const d=new Date(iso+'T00:00:00'); return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear(); };
-  if(f.start && f.end) return 'de '+fmt(f.start)+' até '+fmt(f.end);
-  if(f.end) return 'até '+fmt(f.end);
-  return 'a partir de '+fmt(f.start);
+  if(arr.length===1) return fmt(arr[0]);
+  if(arr.length<=3) return arr.map(fmt).join(', ');
+  return arr.length + ' datas selecionadas';
 }
 
 function funcoesForOs(os){
@@ -988,11 +988,10 @@ const state = {
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
   supl: {search:'', motivos: new Set(), selected: new Set()},
-  // Filtro de período do saldo consumido (Aprop./Mobile/Pendências) — null
-  // em start/end = sem limite daquele lado. Com os dois null (padrão),
-  // o filtro está desligado e os totais são "desde sempre", idênticos ao
-  // comportamento antes deste filtro existir.
-  saldoDateRange: {start: null, end: null},
+  // Filtro de período do saldo consumido (Aprop./Mobile/Pendências) — Set
+  // de dias individualmente marcados, mesmo padrão do filtro de data do
+  // Efetivo. Vazio (padrão) = filtro desligado, totais "desde sempre".
+  saldoDates: new Set(),
 };
 
 function passCommon(r){
@@ -1093,21 +1092,19 @@ function isoWeekOf(iso){
   const week = 1 + Math.round((d-firstThursday)/(7*24*3600*1000));
   return {week, year:d.getUTCFullYear()};
 }
-/* Calendário de período (De/Até) do saldo consumido — mesmo componente
-   visual do filtro de data do painel Efetivo × Empilhamento (.msel com
-   navegação de mês, semanas clicáveis e dias no grid), adaptado pra
-   escolher um INTERVALO em vez de dias avulsos: o 1º clique num dia marca
-   o início (âncora), o 2º fecha o intervalo (do menor pro maior); clicar
-   numa semana ou no rótulo do mês seleciona aquele intervalo inteiro de
-   uma vez (ou desmarca, se já for exatamente o intervalo ativo). */
-let saldoRangeAnchor = null;
+/* Calendário de período do saldo consumido — mesmo componente e mesmo
+   padrão de seleção do filtro de data do painel Efetivo × Empilhamento
+   (.msel com navegação de mês, semanas clicáveis e dias no grid): cada
+   dia é marcado/desmarcado individualmente, sem afetar os outros dias já
+   marcados; clicar numa semana ou no rótulo do mês alterna o grupo
+   inteiro de uma vez (marca se algum dia do grupo ainda estava fora,
+   desmarca se o grupo inteiro já estava marcado). */
 function buildSaldoDateMultiSelect(){
   const container = document.getElementById('saldo-date-msel-global');
   if(!container) return;
   const wasOpen = container.classList.contains('open');
   container.innerHTML = '';
   container.className = 'msel' + (wasOpen ? ' open' : '');
-  if(!wasOpen) saldoRangeAnchor = null;
 
   const btn = document.createElement('button');
   btn.type = 'button'; btn.className = 'msel-btn';
@@ -1152,7 +1149,8 @@ function buildSaldoDateMultiSelect(){
   });
 
   const monthKeys = Array.from(new Set(datas.map(d=>d.slice(0,7)))).sort();
-  const refMonth = (state.saldoDateRange.end || state.saldoDateRange.start || datas[datas.length-1]).slice(0,7);
+  const refDate = state.saldoDates.size ? Array.from(state.saldoDates).sort().pop() : datas[datas.length-1];
+  const refMonth = refDate.slice(0,7);
   let monthIdx = Math.max(0, monthKeys.indexOf(refMonth));
 
   const calNav = document.createElement('div'); calNav.className = 'msel-cal-nav';
@@ -1169,31 +1167,13 @@ function buildSaldoDateMultiSelect(){
   const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   function isoDow(d){ return (new Date(d+'T00:00:00Z').getUTCDay()+6)%7; }
   function datesOfMonth(monthKey){ return datas.filter(d=>d.slice(0,7)===monthKey); }
-  // Sem filtro ativo (De e Até nulos, o estado de "Selecionar todas"), todo
-  // dia do calendário aparece marcado como selecionado — só afeta o
-  // destaque visual aqui, não os cálculos (que já tratam "sem filtro" como
-  // "inclui tudo" via dateFilterActive()/passSaldoDate(), inclusive linhas
-  // sem data própria, o que um intervalo De/Até explícito não incluiria).
-  function inRange(d){
-    const r = state.saldoDateRange;
-    if(!r.start && !r.end) return true;
-    if(r.start && d<r.start) return false;
-    if(r.end && d>r.end) return false;
-    return true;
-  }
-  function applyRange(start, end){
-    state.saldoDateRange = {start, end};
-    saldoRangeAnchor = null;
-    updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
-  }
 
   function renderMonth(){
     const monthKey = monthKeys[monthIdx];
     const [y,m] = monthKey.split('-').map(Number);
     monthLabelEl.textContent = MONTH_NAMES[m-1] + ' ' + y;
     const monthDates = datesOfMonth(monthKey);
-    const mb = monthDates.length ? {start: monthDates[0], end: monthDates[monthDates.length-1]} : null;
-    monthLabelEl.classList.toggle('active', !!mb && state.saldoDateRange.start===mb.start && state.saldoDateRange.end===mb.end);
+    monthLabelEl.classList.toggle('active', monthDates.length>0 && monthDates.every(d=>state.saldoDates.has(d)));
     prevMBtn.disabled = monthIdx<=0;
     nextMBtn.disabled = monthIdx>=monthKeys.length-1;
 
@@ -1208,15 +1188,15 @@ function buildSaldoDateMultiSelect(){
       .filter(w=>w.dates.some(d=>d.slice(0,7)===monthKey))
       .sort((a,b)=> a.year-b.year || a.week-b.week)
       .forEach(w=>{
-        const wStart = w.dates[0], wEnd = w.dates[w.dates.length-1];
-        const wActive = state.saldoDateRange.start===wStart && state.saldoDateRange.end===wEnd;
         const wbtn = document.createElement('button');
-        wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (wActive?' active':'');
+        wbtn.type = 'button'; wbtn.className = 'msel-cal-week-btn' + (w.dates.every(d=>state.saldoDates.has(d))?' active':'');
         wbtn.textContent = 'S'+w.week;
-        wbtn.title = 'Semana '+w.week+' · clique para filtrar só essa semana';
+        wbtn.title = 'Semana '+w.week+' · clique para marcar/desmarcar todos os dias';
         wbtn.addEventListener('click', (e)=>{
           e.stopPropagation();
-          applyRange(wActive?null:wStart, wActive?null:wEnd);
+          const allSel = w.dates.every(d=>state.saldoDates.has(d));
+          w.dates.forEach(d=> allSel ? state.saldoDates.delete(d) : state.saldoDates.add(d));
+          updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
         });
         grid.appendChild(wbtn);
 
@@ -1229,21 +1209,14 @@ function buildSaldoDateMultiSelect(){
           if(!d || d.slice(0,7)!==monthKey){
             cell.className = 'msel-cal-day empty'; cell.disabled = true;
           } else {
-            cell.className = 'msel-cal-day' + (inRange(d)?' selected':'') + (saldoRangeAnchor===d?' anchor':'');
+            cell.className = 'msel-cal-day' + (state.saldoDates.has(d)?' selected':'');
             cell.dataset.date = d;
             cell.textContent = String(Number(d.slice(8,10)));
             cell.title = fmtDateLabelFull(d);
             cell.addEventListener('click', (e)=>{
               e.stopPropagation();
-              if(saldoRangeAnchor===null){
-                saldoRangeAnchor = d;
-                state.saldoDateRange = {start:d, end:d};
-                updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
-              } else {
-                const start = d<saldoRangeAnchor ? d : saldoRangeAnchor;
-                const end = d<saldoRangeAnchor ? saldoRangeAnchor : d;
-                applyRange(start, end);
-              }
+              if(state.saldoDates.has(d)) state.saldoDates.delete(d); else state.saldoDates.add(d);
+              updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
             });
           }
           grid.appendChild(cell);
@@ -1259,18 +1232,19 @@ function buildSaldoDateMultiSelect(){
     e.stopPropagation();
     const monthDates = datesOfMonth(monthKeys[monthIdx]);
     if(monthDates.length===0) return;
-    const mb = {start: monthDates[0], end: monthDates[monthDates.length-1]};
-    const active = state.saldoDateRange.start===mb.start && state.saldoDateRange.end===mb.end;
-    applyRange(active?null:mb.start, active?null:mb.end);
+    const allSel = monthDates.every(d=>state.saldoDates.has(d));
+    monthDates.forEach(d=> allSel ? state.saldoDates.delete(d) : state.saldoDates.add(d));
+    updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
   });
 
   actions.querySelector('[data-act="all"]').addEventListener('click', ()=>{
-    applyRange(null, null);
+    datas.forEach(d=>state.saldoDates.add(d));
+    updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
   });
   actions.querySelector('[data-act="last"]').addEventListener('click', ()=>{
+    state.saldoDates.clear();
     const last = datas[datas.length-1];
-    state.saldoDateRange = {start:last, end:last};
-    saldoRangeAnchor = null;
+    if(last) state.saldoDates.add(last);
     monthIdx = monthKeys.length-1;
     updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
   });
@@ -2152,8 +2126,7 @@ document.querySelectorAll('#detalhe-table thead th[data-sort]').forEach(th=>{
 document.getElementById('os-search-global').addEventListener('input', e=>{ state.osSearch = e.target.value; renderAll(); });
 document.getElementById('global-clear-btn').addEventListener('click', ()=>{
   state.osSearch=''; state.contrato='all'; state.sit=new Set();
-  state.saldoDateRange = {start:null, end:null};
-  saldoRangeAnchor = null;
+  state.saldoDates = new Set();
   document.getElementById('os-search-global').value='';
   renderAll();
 });
@@ -2935,8 +2908,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       bundle = parseWorkbookToBundleSaudeOs(wb);
       DATA = normalizeBundle(bundle);
       state.osSearch=''; state.contrato='all'; state.sit=new Set();
-      state.saldoDateRange = {start:null, end:null};
-      saldoRangeAnchor = null;
+      state.saldoDates = new Set();
       saldoAggCache = null; saldoAggCacheKey = null;
       document.getElementById('os-search-global').value = '';
       renderAll();
@@ -3124,8 +3096,7 @@ async function sbInit(){
     if(error) throw error;
     if(data && data.bundle){
       DATA = normalizeBundle(data.bundle);
-      state.saldoDateRange = {start:null, end:null};
-      saldoRangeAnchor = null;
+      state.saldoDates = new Set();
       saldoAggCache = null; saldoAggCacheKey = null;
       renderAll();
       document.getElementById('foot-empresa').textContent = DATA.meta.empresa;
