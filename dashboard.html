@@ -171,6 +171,27 @@ button.settings-item:hover{background:var(--sand);}
 .sb-signed-in{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--text-secondary);}
 .sb-signed-in button{font-size:11.5px; padding:4px 9px; border-radius:6px; border:1px solid var(--border); background:var(--sand); color:var(--text-secondary); cursor:pointer; flex:none;}
 
+/* Modal "Modelo de e-mail" (resumo diário pronto pra copiar/enviar) */
+.email-modal-overlay{position:fixed; inset:0; z-index:600; background:rgba(10,20,30,.55); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; padding:24px;}
+.email-modal-overlay[hidden]{display:none;}
+.email-modal{width:100%; max-width:700px; max-height:min(88vh,860px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
+.email-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:var(--navy); color:#fff;}
+.email-modal-head h3{margin:0; font-family:var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:.04em;}
+.email-modal-head span.sub{display:block; font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.7); margin-top:2px;}
+.email-modal-close{width:30px; height:30px; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; font-size:17px; line-height:1; cursor:pointer; flex:none;}
+.email-modal-close:hover{background:rgba(255,255,255,.18);}
+.email-modal-subject{display:flex; align-items:center; gap:8px; padding:10px 18px; border-bottom:1px solid var(--border-soft); font-size:12.5px; color:var(--text-secondary); background:var(--sand);}
+.email-modal-subject b{color:var(--text-primary); font-weight:600;}
+.email-modal-body{flex:1; overflow:auto; background:#dfe4e8; padding:16px;}
+.email-modal-body iframe{width:100%; min-height:520px; border:none; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.email-modal-actions{display:flex; align-items:center; gap:10px; padding:14px 18px; border-top:1px solid var(--border-soft); flex-wrap:wrap;}
+.email-modal-status{font-size:12px; color:var(--good); flex:1 1 100%; order:3;}
+.email-modal-status.error{color:var(--critical);}
+.email-btn-primary{border:1px solid var(--steel); background:var(--steel); color:#fff; border-radius:7px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer;}
+.email-btn-primary:hover{filter:brightness(1.08);}
+.email-btn-ghost{border:1px solid var(--border); background:var(--paper); color:var(--text-primary); border-radius:7px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer;}
+.email-btn-ghost:hover{background:var(--sand);}
+
 /* Global filter bar */
 .global-filters{display:flex; gap:22px; align-items:flex-end; padding:13px calc((100vw - min(100vw,1360px))/2 + 24px); background:var(--navy-100); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
 .global-filters .field{gap:2px;}
@@ -808,6 +829,11 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
             <div class="export-status" id="export-status" hidden></div>
           </div>
           <div class="settings-divider"></div>
+          <button class="settings-item" id="settings-email-btn" type="button">
+            <span class="si-icon">&#9993;</span>
+            <span class="si-text"><span class="si-title">Modelo de e-mail</span><span class="si-sub">Resumo diário pronto para enviar</span></span>
+          </button>
+          <div class="settings-divider"></div>
           <div class="settings-item settings-theme-row">
             <span class="si-icon" id="theme-icon">◐</span>
             <span class="si-text"><span class="si-title">Modo escuro</span><span class="si-sub" id="theme-sub">Desativado</span></span>
@@ -1298,6 +1324,22 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
 
 </svg>
 </div>
+</div>
+
+<div class="email-modal-overlay" id="email-modal-overlay" hidden>
+  <div class="email-modal" role="dialog" aria-modal="true" aria-label="Modelo de e-mail — resumo diário">
+    <div class="email-modal-head">
+      <div><h3>Modelo de e-mail</h3><span class="sub">Resumo diário de Efetivo &times; Empilhamento</span></div>
+      <button class="email-modal-close" id="email-modal-close" type="button" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="email-modal-subject">Assunto: <b id="email-subject-text"></b></div>
+    <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
+    <div class="email-modal-actions">
+      <button class="email-btn-primary" id="email-copy-btn" type="button">Copiar e-mail formatado</button>
+      <button class="email-btn-ghost" id="email-open-btn" type="button">Abrir no e-mail</button>
+      <span class="email-modal-status" id="email-modal-status" hidden></span>
+    </div>
+  </div>
 </div>
 
 <script id="bundle-data" type="application/json">__DATA_JSON__</script>
@@ -3885,6 +3927,337 @@ function parseWorkbookToBundle(wb){
     cargos: Array.from(cargoSet).sort(),
   };
 }
+
+/* ---------- Modelo de e-mail (resumo diário) ----------
+   Reaproveita os mesmos acessores/cálculos das abas Visão Geral, Confronto
+   Diário e Absenteísmo (efetivoForDates, buildConfrontoMulti,
+   computeAbsenteeism, etc.) para montar um e-mail HTML (tabelas + estilo
+   inline, compatível com clientes de e-mail) com o retrato do dia já
+   filtrado pelos filtros globais atuais — não é um envio automático de
+   verdade (este painel é um site estático, sem servidor/back-end pra
+   disparar e-mail sozinho): o botão gera o modelo pronto, pra copiar e
+   colar no e-mail ou abrir direto no cliente padrão. */
+function buildEmailSummary(){
+  const ef = efetivoForDates();
+  const total = ef.length;
+  const presentes = ef.filter(r=>r.presente).length;
+  const ausentesRows = ef.filter(r=>!r.presente);
+  const feriasCount = ausentesRows.filter(r=>r.status==='Férias').length;
+  const ausenciaCount = ausentesRows.length - feriasCount;
+  const pct = total? presentes/total : 0;
+
+  const porContrato = ['MOA','PCI'].map(c=>{
+    const rows = ef.filter(r=>contratoOfOs(String(r.os))===c);
+    const presentRows = rows.filter(r=>r.presente);
+    const hh = presentRows.reduce((a,r)=>a+shiftHoursFor(r.data),0);
+    return {c, presentes: presentRows.length, hh};
+  });
+
+  const byOs = new Map();
+  ef.forEach(r=>{
+    if(!r.presente) return;
+    const os = String(r.os);
+    byOs.set(os, (byOs.get(os)||0)+1);
+  });
+  const grandOs = Array.from(byOs.values()).reduce((a,n)=>a+n,0);
+  const topOs = Array.from(byOs.entries())
+    .map(([os,n])=>({os, n, pct: grandOs? n/grandOs : 0, contrato: contratoOfOs(os)}))
+    .sort((a,b)=>b.n-a.n).slice(0,10);
+
+  const bySup = new Map();
+  ef.filter(r=>r.presente).forEach(r=>{
+    const sup = r.supervisor || '(sem supervisor)';
+    bySup.set(sup, (bySup.get(sup)||0)+1);
+  });
+  const topSup = Array.from(bySup.entries()).map(([sup,n])=>({sup,n})).sort((a,b)=>b.n-a.n).slice(0,8);
+
+  const confRows = buildConfrontoMulti();
+  const byOsConf = new Map();
+  confRows.forEach(r=>{
+    if(!byOsConf.has(r.os)) byOsConf.set(r.os, {os:r.os, planejado:0, apontado:0, hhPlanejado:0, hhApontado:0});
+    const o = byOsConf.get(r.os);
+    o.planejado += r.planejado; o.apontado += r.apontado;
+    o.hhPlanejado += r.hhPlanejado; o.hhApontado += r.hhApontado;
+  });
+  const confOsRows = Array.from(byOsConf.values());
+  const confStats = confOsRows.reduce((a,o)=>{
+    a.planejado+=o.planejado; a.apontado+=o.apontado;
+    a.hhPlanejado+=o.hhPlanejado; a.hhApontado+=o.hhApontado;
+    return a;
+  }, {planejado:0, apontado:0, hhPlanejado:0, hhApontado:0});
+  const confDiferenca = confStats.apontado - confStats.planejado;
+  const hhPct = confStats.hhPlanejado>0 ? confStats.hhApontado/confStats.hhPlanejado : (confStats.hhApontado>0?1:0);
+  const divergentes = confOsRows
+    .map(o=>Object.assign({}, o, {diferenca: o.apontado-o.planejado}))
+    .filter(o=>o.diferenca!==0)
+    .sort((a,b)=>Math.abs(b.diferenca)-Math.abs(a.diferenca))
+    .slice(0,8);
+
+  const efAb = efetivoForDates().filter(r=>!isWeekendOrHoliday(r.data));
+  const numDays = new Set(efAb.map(r=>r.data)).size || 1;
+  const escaladoDias = efAb.length;
+  const faltaDias = efAb.filter(r=>!r.presente && r.status!=='Férias').length;
+  const feriasDiasAb = efAb.filter(r=>!r.presente && r.status==='Férias').length;
+  const totalEscAb = Math.round(escaladoDias/numDays);
+  const avgFalta = Math.round(faltaDias/numDays);
+  const avgFerias = Math.round(feriasDiasAb/numDays);
+  const pctGeral = escaladoDias? faltaDias/escaladoDias : 0;
+  const pctFerias = escaladoDias? feriasDiasAb/escaladoDias : 0;
+  const byCargo = computeAbsenteeism(efAb, 'cargo').filter(x=>x.faltas>0).slice(0,6);
+  const byDisc = computeAbsenteeism(efAb, 'disciplina').filter(x=>x.faltas>0).slice(0,6);
+
+  return {
+    dateLabel: datesLabel(),
+    kpi: {total, presentes, pct, ausenciaCount, feriasCount},
+    porContrato,
+    topOs, grandOs,
+    topSup,
+    confronto: {planejado:confStats.planejado, apontado:confStats.apontado, diferenca:confDiferenca,
+      osCount:confOsRows.length, hhPlanejado:confStats.hhPlanejado, hhApontado:confStats.hhApontado, hhPct, divergentes},
+    absenteismo: {totalEscAb, avgFalta, avgFerias, pctGeral, pctFerias, suf: numDays>1?' (média/dia)':'', byCargo, byDisc},
+  };
+}
+
+function emailStatusChip(status){
+  const map = {good:'#e8f5dc;color:#3f7a1e', warning:'#fbf1d2;color:#9c6f10', critical:'#fbe0df;color:#c81a21', info:'#e6edf4;color:#0a3b70'};
+  return map[status] || map.info;
+}
+function emailConfStatus(diferenca, planejado){
+  if(planejado===0 && diferenca>0) return 'info';
+  if(planejado>0 && diferenca===-planejado) return 'critical';
+  if(diferenca===0) return 'good';
+  if(Math.abs(diferenca) <= Math.max(1, Math.round(planejado*0.15))) return 'warning';
+  return 'critical';
+}
+
+function buildEmailHtml(s){
+  const box = (label, value, sub) => `
+    <td style="padding:4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; border-radius:8px;">
+        <tr><td style="padding:10px 12px;">
+          <div style="font-family:Arial,sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#6c6966;">${label}</div>
+          <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#121212; line-height:1.3;">${value}</div>
+          ${sub?`<div style="font-family:Arial,sans-serif; font-size:11px; color:#6c6966;">${sub}</div>`:''}
+        </td></tr>
+      </table>
+    </td>`;
+  const sectionHead = title => `
+    <tr><td style="padding:22px 24px 8px;">
+      <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">${title}</div>
+    </td></tr>`;
+  const tableWrap = rowsHtml => `
+    <tr><td style="padding:4px 24px 4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-family:Arial,sans-serif; font-size:12.5px;">
+        ${rowsHtml}
+      </table>
+    </td></tr>`;
+
+  const kpiRow = `<tr>${box('Contratados', fmtInt(s.kpi.total), s.dateLabel)}${box('Presentes', fmtInt(s.kpi.presentes), fmtPct(s.kpi.pct)+' do efetivo')}${box('Ausências', fmtInt(s.kpi.ausenciaCount), '')}${box('Férias', fmtInt(s.kpi.feriasCount), '')}</tr>`;
+
+  const contratoBoxes = s.porContrato.map(c=>`
+    <td style="padding:4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#002b5c; border-radius:8px;">
+        <tr><td style="padding:12px 14px;">
+          <div style="font-family:Arial,sans-serif; font-size:12px; font-weight:700; color:#fff;">${c.c}</div>
+          <div style="font-family:Arial,sans-serif; font-size:19px; font-weight:800; color:#fff;">${fmtInt(c.presentes)} <span style="font-size:11px; font-weight:400; color:rgba(255,255,255,.75);">presentes</span></div>
+          <div style="font-family:Arial,sans-serif; font-size:11.5px; color:rgba(255,255,255,.75);">${fmtInt(c.hh)}h HH estimado</div>
+        </td></tr>
+      </table>
+    </td>`).join('');
+
+  const topOsRows = s.topOs.map(o=>`
+    <tr>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee;">OS ${escHtml(osLabel(o.os))}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee;"><span style="background:${o.contrato==='PCI'?'#eaf6dc':'#e6edf4'}; color:${o.contrato==='PCI'?'#4c7623':'#0a3b70'}; font-size:10.5px; font-weight:700; padding:2px 6px; border-radius:4px;">${o.contrato}</span></td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.n)}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right; color:#6c6966;">${fmtPct(o.pct)}</td>
+    </tr>`).join('');
+
+  const supRows = s.topSup.map(x=>`
+    <tr>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee;">${escHtml(x.sup)}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right; font-weight:700;">${fmtInt(x.n)}</td>
+    </tr>`).join('');
+
+  const confKpiRow = `<tr>${box('Empilhado', fmtInt(s.confronto.planejado), '')}${box('Apontado', fmtInt(s.confronto.apontado), '')}${box('Diferença', (s.confronto.diferenca>=0?'+':'')+fmtInt(s.confronto.diferenca), '')}${box('OS no resumo', fmtInt(s.confronto.osCount), '')}</tr>`;
+
+  const divergRows = s.confronto.divergentes.map(o=>{
+    const st = emailConfStatus(o.diferenca, o.planejado);
+    const chip = emailStatusChip(st);
+    const bg = chip.split(';')[0], fg = chip.split('color:')[1];
+    return `<tr>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee;">OS ${escHtml(osLabel(o.os))}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.planejado)}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.apontado)}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;"><span style="background:${bg}; color:${fg}; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px;">${(o.diferenca>0?'+':'')+fmtInt(o.diferenca)}</span></td>
+    </tr>`;
+  }).join('');
+
+  const abKpiRow = `<tr>${box('Contratados'+s.absenteismo.suf, fmtInt(s.absenteismo.totalEscAb), '')}${box('Férias'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFerias), '')}${box('Ausências'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFalta), '')}${box('Absenteísmo geral', fmtPct1(s.absenteismo.pctGeral), '')}</tr>`;
+
+  const abList = (items, label) => items.length ? `
+    <tr><td style="padding:4px 24px 0;">
+      <div style="font-family:Arial,sans-serif; font-size:11.5px; font-weight:700; color:#6c6966; margin-bottom:4px;">${label}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-family:Arial,sans-serif; font-size:12px; margin-bottom:6px;">
+        ${items.map(it=>`<tr>
+          <td style="padding:4px 8px; border-bottom:1px solid #eee;">${escHtml(it.key)}</td>
+          <td style="padding:4px 8px; border-bottom:1px solid #eee; text-align:right; color:#6c6966;">${it.faltas}/${it.escalados}</td>
+          <td style="padding:4px 8px; border-bottom:1px solid #eee; text-align:right; font-weight:700; color:${it.pct>0.15?'#c81a21':(it.pct>0.05?'#9c6f10':'#3f7a1e')};">${fmtPct1(it.pct)}</td>
+        </tr>`).join('')}
+      </table>
+    </td></tr>` : '';
+
+  const now = new Date();
+  const genAt = now.getDate().toString().padStart(2,'0')+'/'+(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear()+' às '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0; padding:0; background:#dfe4e8;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8; padding:20px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:10px; overflow:hidden; border:1px solid #ddd9d2;">
+        <tr><td style="background:#002b5c; padding:20px 24px;">
+          <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;">Techint &middot; Painel de Confronto · Mão de Obra</div>
+          <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#fff; margin-top:2px;">Efetivo &times; Empilhamento</div>
+          <div style="font-family:Arial,sans-serif; font-size:12.5px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
+        </td></tr>
+
+        ${sectionHead('Efetivo')}
+        ${tableWrap(kpiRow)}
+
+        ${sectionHead('Apontamentos por contrato')}
+        <tr><td style="padding:4px 24px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${contratoBoxes}</tr></table></td></tr>
+        ${s.topOs.length ? tableWrap(`<tr><td colspan="4" style="padding:10px 8px 4px; font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">OS com mais presentes</td></tr>${topOsRows}`) : ''}
+
+        ${sectionHead('Colaboradores por supervisor')}
+        ${s.topSup.length ? tableWrap(supRows) : tableWrap('<tr><td style="padding:8px; color:#6c6966;">Sem dados para os filtros atuais.</td></tr>')}
+
+        ${sectionHead('Confronto OS &times; Função')}
+        ${tableWrap(confKpiRow)}
+        <tr><td style="padding:4px 24px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; border-radius:8px;">
+            <tr><td style="padding:10px 14px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="font-family:Arial,sans-serif; font-size:11px; color:#6c6966;">HH &middot; critério de jornada &mdash; previsto <b style="color:#121212;">${fmtInt(s.confronto.hhPlanejado)}h</b> &middot; real <b style="color:#121212;">${fmtInt(s.confronto.hhApontado)}h</b></td>
+                <td style="text-align:right; font-family:Arial,sans-serif; font-size:13px; font-weight:800; color:#002b5c;">${fmtInt(Math.round(s.confronto.hhPct*100))}% consumido</td>
+              </tr></table>
+            </td></tr>
+          </table>
+        </td></tr>
+        ${s.confronto.divergentes.length ? tableWrap(`<tr><td colspan="4" style="padding:10px 8px 4px; font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">Maiores divergências (empilhado &times; apontado)</td></tr>${divergRows}`) : tableWrap('<tr><td style="padding:8px; color:#6c6966;">Nenhuma divergência nos filtros atuais.</td></tr>')}
+
+        ${sectionHead('Absenteísmo e férias')}
+        ${tableWrap(abKpiRow)}
+        ${abList(s.absenteismo.byCargo, 'Por função (maiores % de falta)')}
+        ${abList(s.absenteismo.byDisc, 'Por disciplina (maiores % de falta)')}
+
+        <tr><td style="padding:18px 24px; border-top:1px solid #eee;">
+          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt}.</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function buildEmailPlainText(s){
+  const lines = [];
+  lines.push('RESUMO DIÁRIO — EFETIVO × EMPILHAMENTO (' + s.dateLabel + ')');
+  lines.push('');
+  lines.push('EFETIVO');
+  lines.push('Contratados: ' + fmtInt(s.kpi.total) + ' | Presentes: ' + fmtInt(s.kpi.presentes) + ' (' + fmtPct(s.kpi.pct) + ') | Ausências: ' + fmtInt(s.kpi.ausenciaCount) + ' | Férias: ' + fmtInt(s.kpi.feriasCount));
+  lines.push('');
+  lines.push('APONTAMENTOS POR CONTRATO');
+  s.porContrato.forEach(c=> lines.push(c.c + ': ' + fmtInt(c.presentes) + ' presentes · ' + fmtInt(c.hh) + 'h HH estimado'));
+  if(s.topOs.length){
+    lines.push('Top OS por presentes:');
+    s.topOs.slice(0,6).forEach(o=> lines.push('  OS ' + osLabel(o.os) + ' (' + o.contrato + '): ' + o.n + ' — ' + fmtPct(o.pct)));
+  }
+  lines.push('');
+  lines.push('COLABORADORES POR SUPERVISOR');
+  s.topSup.slice(0,6).forEach(x=> lines.push('  ' + x.sup + ': ' + x.n));
+  lines.push('');
+  lines.push('CONFRONTO OS × FUNÇÃO');
+  lines.push('Empilhado: ' + fmtInt(s.confronto.planejado) + ' | Apontado: ' + fmtInt(s.confronto.apontado) + ' | Diferença: ' + (s.confronto.diferenca>=0?'+':'') + fmtInt(s.confronto.diferenca) + ' | OS no resumo: ' + fmtInt(s.confronto.osCount));
+  lines.push('HH previsto: ' + fmtInt(s.confronto.hhPlanejado) + 'h | HH real: ' + fmtInt(s.confronto.hhApontado) + 'h | Consumido: ' + fmtInt(Math.round(s.confronto.hhPct*100)) + '%');
+  if(s.confronto.divergentes.length){
+    lines.push('Maiores divergências:');
+    s.confronto.divergentes.slice(0,6).forEach(o=> lines.push('  OS ' + osLabel(o.os) + ': emp ' + o.planejado + ' · real ' + o.apontado + ' (' + (o.diferenca>0?'+':'') + o.diferenca + ')'));
+  }
+  lines.push('');
+  lines.push('ABSENTEÍSMO E FÉRIAS');
+  lines.push('Contratados' + s.absenteismo.suf + ': ' + fmtInt(s.absenteismo.totalEscAb) + ' | Férias: ' + fmtInt(s.absenteismo.avgFerias) + ' | Ausências: ' + fmtInt(s.absenteismo.avgFalta) + ' | Absenteísmo geral: ' + fmtPct1(s.absenteismo.pctGeral));
+  if(s.absenteismo.byCargo.length){
+    lines.push('Por função:');
+    s.absenteismo.byCargo.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
+  }
+  if(s.absenteismo.byDisc.length){
+    lines.push('Por disciplina:');
+    s.absenteismo.byDisc.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
+  }
+  lines.push('');
+  lines.push('Gerado automaticamente pelo Painel Efetivo × Empilhamento (Techint).');
+  return lines.join('\n');
+}
+
+function openEmailModal(){
+  const summary = buildEmailSummary();
+  const html = buildEmailHtml(summary);
+  const text = buildEmailPlainText(summary);
+  const subject = 'Resumo Efetivo × Empilhamento — ' + summary.dateLabel;
+  document.getElementById('email-subject-text').textContent = subject;
+  document.getElementById('email-preview-frame').srcdoc = html;
+  const statusEl = document.getElementById('email-modal-status');
+  statusEl.hidden = true;
+  document.getElementById('email-modal-overlay').hidden = false;
+  document.getElementById('email-modal-overlay').dataset.html = '';
+  document.getElementById('email-copy-btn')._emailHtml = html;
+  document.getElementById('email-copy-btn')._emailText = text;
+  document.getElementById('email-open-btn')._emailSubject = subject;
+  document.getElementById('email-open-btn')._emailText = text;
+}
+function closeEmailModal(){
+  document.getElementById('email-modal-overlay').hidden = true;
+}
+document.getElementById('settings-email-btn').addEventListener('click', ()=>{
+  document.getElementById('settings-panel').hidden = true;
+  document.getElementById('settings-btn').setAttribute('aria-expanded','false');
+  openEmailModal();
+});
+document.getElementById('email-modal-close').addEventListener('click', closeEmailModal);
+document.getElementById('email-modal-overlay').addEventListener('click', (e)=>{
+  if(e.target.id==='email-modal-overlay') closeEmailModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape' && !document.getElementById('email-modal-overlay').hidden) closeEmailModal();
+});
+document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('email-copy-btn');
+  const statusEl = document.getElementById('email-modal-status');
+  const html = btn._emailHtml, text = btn._emailText;
+  try{
+    if(typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write){
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], {type:'text/html'}),
+        'text/plain': new Blob([text], {type:'text/plain'}),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    statusEl.hidden = false; statusEl.className = 'email-modal-status';
+    statusEl.textContent = 'E-mail copiado — já pode colar no corpo do seu cliente de e-mail (Outlook, Gmail, etc.).';
+  }catch(err){
+    console.error(err);
+    statusEl.hidden = false; statusEl.className = 'email-modal-status error';
+    statusEl.textContent = 'Não foi possível copiar automaticamente. Selecione o conteúdo da pré-visualização e copie manualmente.';
+  }
+});
+document.getElementById('email-open-btn').addEventListener('click', ()=>{
+  const btn = document.getElementById('email-open-btn');
+  const mailto = 'mailto:?subject=' + encodeURIComponent(btn._emailSubject) + '&body=' + encodeURIComponent(btn._emailText);
+  window.location.href = mailto;
+});
 
 document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
   document.getElementById('settings-file-input').click();
