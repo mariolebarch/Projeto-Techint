@@ -191,6 +191,8 @@ button.settings-item:hover{background:var(--sand);}
 .email-modal-body iframe{width:100%; min-height:520px; border:none; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.12);}
 .email-modal-actions{display:flex; align-items:center; gap:10px; padding:14px 18px; border-top:1px solid var(--border-soft); flex-wrap:wrap;}
 .email-modal-status{font-size:12px; color:var(--good); flex:1 1 100%; order:3;}
+.email-modal-hint{font-size:11px; color:var(--text-muted); line-height:1.5; flex:1 1 100%; order:4; padding-top:4px; border-top:1px dashed var(--border-soft); margin-top:2px;}
+.email-modal-hint code{background:var(--sand); padding:1px 4px; border-radius:4px; font-family:var(--font-mono);}
 .email-modal-status.error{color:var(--critical);}
 .email-btn-primary{border:1px solid var(--steel); background:var(--steel); color:#fff; border-radius:7px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer;}
 .email-btn-primary:hover{filter:brightness(1.08);}
@@ -1360,8 +1362,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
     <div class="email-modal-actions">
       <button class="email-btn-primary" id="email-copy-btn" type="button">Copiar e-mail formatado (com gráficos)</button>
-      <button class="email-btn-ghost" id="email-open-btn" type="button">Abrir no e-mail</button>
+      <button class="email-btn-ghost" id="email-open-tab-btn" type="button">Abrir em nova aba</button>
+      <button class="email-btn-ghost" id="email-open-btn" type="button">Abrir no e-mail (só texto)</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
+      <div class="email-modal-hint">Clique em <b>Copiar</b> e cole (Ctrl+V) numa mensagem nova do Outlook. Se não colar com formatação, use <b>Abrir em nova aba</b>, dê Ctrl+A e depois Ctrl+C na página que abrir, e cole de novo — isso usa a cópia nativa do navegador, que o Outlook aceita melhor. "Abrir no e-mail" usa o link <code>mailto:</code> do navegador, que só aceita texto simples (sem imagens) — é um limite do protocolo de e-mail, não deste painel.</div>
     </div>
   </div>
 </div>
@@ -4178,31 +4182,25 @@ function emailStatusChip(status){
 }
 
 function buildEmailHtml(s, shots){
-  const sectionHead = title => `
-    <tr><td style="padding:22px 24px 8px;">
-      <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">${title}</div>
-    </td></tr>`;
-  const imgRow = (src, altText, w) => {
-    if(src){
-      return `<tr><td style="padding:4px 24px 4px;">
-        <img src="${src}" width="${w||660}" style="display:block; width:100%; max-width:${w||660}px; height:auto; border-radius:8px; border:1px solid #eee;" alt="${altText}">
-      </td></tr>`;
-    }
-    return `<tr><td style="padding:10px 24px;">
-      <div style="font-family:Arial,sans-serif; font-size:12px; color:#c81a21; background:#fbe0df; border-radius:8px; padding:10px 12px;">Não foi possível gerar o print automático de "${altText}" (biblioteca de captura não carregou — provável bloqueio de rede). Confira direto no painel: <a href="${EMAIL_REPORT_LINK}" style="color:#c81a21;">${EMAIL_REPORT_LINK}</a></div>
-    </td></tr>`;
-  };
+  const imgFallback = altText => `<div style="font-family:Arial,sans-serif; font-size:12px; color:#c81a21; background:#fbe0df; padding:10px 12px;">Não foi possível gerar o print automático de "${altText}" (biblioteca de captura não carregou — provável bloqueio de rede). Confira direto no painel: <a href="${EMAIL_REPORT_LINK}" style="color:#c81a21;">${EMAIL_REPORT_LINK}</a></div>`;
 
   const now = new Date();
   const genAt = now.getDate().toString().padStart(2,'0')+'/'+(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear()+' às '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   const dateFmt = fmtEmailDate(s.refDateIso);
 
+  // Tabela ÚNICA (sem sub-tabelas aninhadas dentro do "cartão"): o Outlook
+  // desktop (motor do Word) costuma falhar em colar HTML com tabelas
+  // aninhadas — em vez de manter o texto/imagens editáveis, ele acaba
+  // colando tudo como uma única imagem "achatada" (apareceu com alça de
+  // seleção, sem formatação de verdade). Uma tabela só, com o visual do
+  // "cartão" simulado por bordas esquerda/direita em cada linha, cola bem
+  // mais confiável.
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0; padding:0; background:#dfe4e8;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8; padding:20px 0;">
-    <tr><td align="center">
-      <table role="presentation" width="700" cellpadding="0" cellspacing="0" style="max-width:700px; width:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8;">
+    <tr><td align="center" style="padding:20px 0;">
+      <table role="presentation" width="700" cellpadding="0" cellspacing="0" style="width:700px;">
 
         <!-- saudação curta, no mesmo padrão do e-mail de exemplo -->
         <tr><td style="padding:0 4px 18px; font-family:Arial,sans-serif; font-size:14px; color:#1c2126; line-height:1.6;">
@@ -4212,27 +4210,35 @@ function buildEmailHtml(s, shots){
           <a href="${EMAIL_REPORT_LINK}" style="color:#0a3b70;">${EMAIL_REPORT_LINK}</a>
         </td></tr>
 
-        <tr><td style="background:#ffffff; border-radius:10px; border:1px solid #ddd9d2; overflow:hidden;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="background:#002b5c; padding:20px 24px; border-radius:10px 10px 0 0;">
+        <tr><td style="background:#002b5c; padding:20px 24px; border:1px solid #ddd9d2; border-bottom:none;">
           <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;">Techint &middot; Painel de Confronto · Mão de Obra</div>
           <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#fff; margin-top:2px;">Efetivo &times; Empilhamento</div>
           <div style="font-family:Arial,sans-serif; font-size:12.5px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
         </td></tr>
 
-        ${sectionHead('Apontamentos por contrato &amp; Efetivo')}
-        ${imgRow(shots.visao, 'Apontamentos por Contrato e Efetivo', 652)}
-
-        ${sectionHead('Confronto OS &times; Função')}
-        ${imgRow(shots.confronto, 'Confronto OS × Função', 652)}
-
-        ${sectionHead('Absenteísmo e férias')}
-        ${imgRow(shots.ausencias, 'Absenteísmo e Férias', 652)}
-
-        <tr><td style="padding:18px 24px; border-top:1px solid #eee;">
-          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt} — prints tirados ao vivo do painel, com os filtros atuais.</div>
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
+          <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Apontamentos por contrato &amp; Efetivo</div>
         </td></tr>
-        </table>
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
+          ${shots.visao ? `<img src="${shots.visao}" width="652" style="display:block; width:652px; height:auto; border:1px solid #eee;" alt="Apontamentos por Contrato e Efetivo">` : imgFallback('Apontamentos por Contrato e Efetivo')}
+        </td></tr>
+
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
+          <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Confronto OS &times; Função</div>
+        </td></tr>
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
+          ${shots.confronto ? `<img src="${shots.confronto}" width="652" style="display:block; width:652px; height:auto; border:1px solid #eee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
+        </td></tr>
+
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
+          <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Absenteísmo e férias</div>
+        </td></tr>
+        <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
+          ${shots.ausencias ? `<img src="${shots.ausencias}" width="652" style="display:block; width:652px; height:auto; border:1px solid #eee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
+        </td></tr>
+
+        <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eee; padding:18px 24px;">
+          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt} — prints tirados ao vivo do painel, com os filtros atuais.</div>
         </td></tr>
 
       </table>
@@ -4315,6 +4321,7 @@ async function openEmailModal(){
   statusEl.hidden = true;
   document.getElementById('email-copy-btn')._emailHtml = html;
   document.getElementById('email-copy-btn')._emailText = text;
+  document.getElementById('email-open-tab-btn')._emailHtml = html;
   document.getElementById('email-open-btn')._emailSubject = subject;
   document.getElementById('email-open-btn')._emailText = text;
 }
@@ -4376,6 +4383,16 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     statusEl.hidden = false; statusEl.className = 'email-modal-status error';
     statusEl.textContent = 'Não foi possível copiar automaticamente. Selecione o conteúdo da pré-visualização e copie manualmente.';
   }
+});
+document.getElementById('email-open-tab-btn').addEventListener('click', ()=>{
+  const btn = document.getElementById('email-open-tab-btn');
+  if(!btn._emailHtml) return;
+  const blob = new Blob([btn._emailHtml], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  // o blob URL só precisa existir até a aba terminar de carregar a página.
+  if(win) win.addEventListener('load', ()=> setTimeout(()=>URL.revokeObjectURL(url), 2000));
+  else setTimeout(()=>URL.revokeObjectURL(url), 5000);
 });
 document.getElementById('email-open-btn').addEventListener('click', ()=>{
   const btn = document.getElementById('email-open-btn');
