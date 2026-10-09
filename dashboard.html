@@ -386,7 +386,72 @@ mark{background:var(--warning-soft); color:var(--text-primary); border-radius:3p
 .eq-list .bar-row.eq-row .bar-fill{border-radius:8px; position:relative;}
 .eq-list .bar-row.eq-row .bar-fill::after{content:''; position:absolute; top:0; right:0; bottom:0; width:4px; border-radius:0 8px 8px 0; background:var(--green); box-shadow:0 0 6px rgba(146,208,80,.85);}
 
-.foot-note{margin-top:26px; padding-top:16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);}
+/* ===== Banner "canteiro de obras" TECHINT ===== */
+.techint-banner{
+  margin-top:26px; padding-top:16px; border-top:1px solid var(--border);
+  overflow:hidden;
+}
+.techint-banner svg{display:block; width:100%; height:auto; max-height:168px;}
+
+/* letras-tubo */
+.tb-letters{
+  font-family:var(--font-display);
+  font-weight:800; font-size:108px; letter-spacing:2px;
+  fill:var(--steel-strong); stroke:var(--navy); stroke-width:2.5; paint-order:stroke;
+}
+.tb-letters-shine{
+  font-family:var(--font-display);
+  font-weight:800; font-size:108px; letter-spacing:2px;
+  fill:none; stroke:rgba(255,255,255,.35); stroke-width:1.2;
+}
+.tb-rivet{fill:var(--green); opacity:.85;}
+.tb-rivet.alt{fill:var(--navy-700);}
+
+/* grua */
+.tb-crane-arm{transform-box:fill-box; transform-origin:0% 50%; animation:tb-swing 6s ease-in-out infinite;}
+@keyframes tb-swing{0%,100%{transform:rotate(-5deg);} 50%{transform:rotate(4deg);}}
+.tb-hook-drop{transform-box:fill-box; transform-origin:50% 0%; animation:tb-bob 3s ease-in-out infinite;}
+@keyframes tb-bob{0%,100%{transform:translateY(0);} 50%{transform:translateY(10px);}}
+.tb-cargo-glow{animation:tb-glow 3s ease-in-out infinite;}
+@keyframes tb-glow{0%,40%,100%{opacity:0;} 55%,75%{opacity:1;} 90%{opacity:0;}}
+
+/* carrinho de carga */
+.tb-cart{animation:tb-cart-move 7s ease-in-out infinite;}
+@keyframes tb-cart-move{0%,100%{transform:translateX(0);} 50%{transform:translateX(58px);}}
+.tb-wheel{transform-box:fill-box; transform-origin:50% 50%; animation:tb-spin 1.1s linear infinite;}
+@keyframes tb-spin{to{transform:rotate(360deg);}}
+
+/* bracos de trabalho (chave de boca) */
+.tb-arm-work{transform-box:fill-box; transform-origin:0% 0%; animation:tb-work 1.8s ease-in-out infinite;}
+@keyframes tb-work{0%,100%{transform:rotate(-12deg);} 50%{transform:rotate(10deg);}}
+
+/* pintor - rolo sobe/desce */
+.tb-roller-arm{transform-box:fill-box; transform-origin:50% 0%; animation:tb-roll 2.2s ease-in-out infinite;}
+@keyframes tb-roll{0%,100%{transform:translateY(0) rotate(-4deg);} 50%{transform:translateY(-14px) rotate(4deg);}}
+.tb-paint-drip{animation:tb-drip 2.2s ease-in-out infinite;}
+@keyframes tb-drip{0%,20%{opacity:0; transform:translateY(0);} 35%{opacity:1;} 100%{opacity:0; transform:translateY(10px);}}
+
+/* eletricista - faisca piscando */
+.tb-spark{animation:tb-spark 1.4s steps(1) infinite;}
+@keyframes tb-spark{0%,49%{opacity:1;} 50%,100%{opacity:.15;}}
+
+/* topografo - mira do nivel */
+.tb-sight{stroke-dasharray:4 4; animation:tb-sight 2.6s ease-in-out infinite;}
+@keyframes tb-sight{0%,100%{stroke-dashoffset:0; opacity:.25;} 50%{stroke-dashoffset:16; opacity:.9;}}
+.tb-level-head{transform-box:fill-box; transform-origin:50% 50%; animation:tb-tilt 2.6s ease-in-out infinite;}
+@keyframes tb-tilt{0%,100%{transform:rotate(-6deg);} 50%{transform:rotate(6deg);}}
+
+/* andaime - trabalhador subindo */
+.tb-climb{transform-box:fill-box; transform-origin:50% 100%; animation:tb-climb 3.4s ease-in-out infinite;}
+@keyframes tb-climb{0%,100%{transform:translateY(0);} 50%{transform:translateY(-14px);}}
+
+/* martelo pequeno no andaime */
+.tb-hammer{transform-box:fill-box; transform-origin:0% 0%; animation:tb-hammer 1.2s ease-in-out infinite;}
+@keyframes tb-hammer{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-30deg);}}
+
+@media (prefers-reduced-motion: reduce){
+  .techint-banner *{animation:none !important;}
+}
 
 .ov-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:stretch;}
 .ov-grid > .card{min-width:0;}
@@ -957,9 +1022,221 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     </div>
   </section>
 
-  <div class="foot-note">
-    Painel gerado a partir de <span class="mono-tag">Apontamento_x_Empilhamento.xlsx</span> (abas Efetivo, Emp Semanal e Depara_Função). Datas da Emp Semanal calculadas por calendário ISO de 2026 (semana/dia da semana → data).
-  </div>
+<div class="techint-banner" aria-hidden="true">
+<svg viewBox="0 0 1200 168" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+
+  <!-- piso do canteiro -->
+  <line x1="10" y1="156" x2="1190" y2="156" stroke="var(--border)" stroke-width="2"/>
+  <g stroke="var(--border)" stroke-width="1.5" opacity=".6">
+    <line x1="20" y1="156" x2="12" y2="163"/><line x1="55" y1="156" x2="47" y2="163"/>
+    <line x1="90" y1="156" x2="82" y2="163"/><line x1="1110" y1="156" x2="1102" y2="163"/>
+    <line x1="1145" y1="156" x2="1137" y2="163"/><line x1="1180" y1="156" x2="1172" y2="163"/>
+  </g>
+
+  <!-- ===== Andaime esquerdo com trabalhador escalando ===== -->
+  <g transform="translate(30,70)">
+    <g stroke="var(--steel-strong)" stroke-width="3" fill="none" stroke-linecap="round">
+      <line x1="0" y1="0" x2="0" y2="86"/>
+      <line x1="34" y1="0" x2="34" y2="86"/>
+      <line x1="0" y1="0" x2="34" y2="28"/>
+      <line x1="34" y1="0" x2="0" y2="28"/>
+      <line x1="0" y1="28" x2="34" y2="56"/>
+      <line x1="34" y1="28" x2="0" y2="56"/>
+      <line x1="0" y1="56" x2="34" y2="84"/>
+      <line x1="34" y1="56" x2="0" y2="84"/>
+      <line x1="-4" y1="0" x2="38" y2="0"/>
+      <line x1="-4" y1="28" x2="38" y2="28"/>
+      <line x1="-4" y1="56" x2="38" y2="56"/>
+      <line x1="-4" y1="86" x2="38" y2="86"/>
+    </g>
+    <g class="tb-climb">
+      <g transform="translate(17,20)">
+        <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+        <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+        <rect x="-6" y="0" width="12" height="15" rx="3" fill="#f4a300"/>
+        <line x1="-6" y1="3" x2="-10" y2="12" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+        <g class="tb-hammer">
+          <line x1="6" y1="3" x2="13" y2="9" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+          <rect x="11" y="6" width="6" height="4" fill="var(--navy)"/>
+        </g>
+        <line x1="-4" y1="15" x2="-6" y2="24" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="4" y1="15" x2="6" y2="24" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===== Pintor ===== -->
+  <g transform="translate(130,110)">
+    <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="var(--green-dark)"/>
+    <rect x="-6" y="0" width="12" height="16" rx="3" fill="var(--steel)"/>
+    <line x1="-5" y1="16" x2="-7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-6" y1="4" x2="-11" y2="10" stroke="var(--steel)" stroke-width="3" stroke-linecap="round"/>
+    <g class="tb-roller-arm">
+      <line x1="6" y1="4" x2="15" y2="22" stroke="var(--steel)" stroke-width="3" stroke-linecap="round"/>
+      <rect x="10" y="20" width="12" height="6" rx="3" fill="var(--green)"/>
+      <circle class="tb-paint-drip" cx="12" cy="28" r="1.6" fill="var(--green)"/>
+      <circle class="tb-paint-drip" cx="18" cy="30" r="1.4" fill="var(--green)" style="animation-delay:.4s"/>
+    </g>
+  </g>
+
+  <!-- ===== Letras TECHINT em "tubulação" ===== -->
+  <g transform="translate(600,118)" text-anchor="middle">
+    <text class="tb-letters-shine" x="2" y="-2">TECHINT</text>
+    <text class="tb-letters" x="0" y="0">TECHINT</text>
+    <g class="tb-rivet">
+      <circle cx="-262" cy="-34" r="3"/><circle cx="-198" cy="-30" r="3"/>
+      <circle cx="-140" cy="-36" r="3"/><circle cx="-80" cy="-28" r="3"/>
+      <circle cx="-18" cy="-34" r="3"/><circle cx="46" cy="-30" r="3"/>
+      <circle cx="110" cy="-36" r="3"/><circle cx="172" cy="-28" r="3"/>
+      <circle cx="236" cy="-34" r="3"/>
+    </g>
+    <g class="tb-rivet alt">
+      <circle cx="-230" cy="-10" r="2.6"/><circle cx="-160" cy="-8" r="2.6"/>
+      <circle cx="-50" cy="-10" r="2.6"/><circle cx="20" cy="-8" r="2.6"/>
+      <circle cx="90" cy="-10" r="2.6"/><circle cx="200" cy="-8" r="2.6"/>
+    </g>
+  </g>
+
+  <!-- ===== Rigger apontando pra grua ===== -->
+  <g transform="translate(330,122)">
+    <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+    <rect x="-6" y="0" width="12" height="16" rx="3" fill="#f4a300"/>
+    <line x1="-5" y1="16" x2="-7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-6" y1="4" x2="-12" y2="14" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+    <line x1="6" y1="4" x2="18" y2="-10" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- ===== Trabalhador com chave na tubulacao ===== -->
+  <g transform="translate(410,124)">
+    <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+    <rect x="-6" y="0" width="12" height="16" rx="3" fill="var(--steel-strong)"/>
+    <line x1="-5" y1="16" x2="-7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-6" y1="4" x2="-12" y2="12" stroke="var(--steel-strong)" stroke-width="3" stroke-linecap="round"/>
+    <g class="tb-arm-work">
+      <line x1="6" y1="4" x2="14" y2="12" stroke="var(--steel-strong)" stroke-width="3" stroke-linecap="round"/>
+      <rect x="12" y="9" width="10" height="4" rx="1.5" fill="var(--green)" transform="rotate(20 17 11)"/>
+    </g>
+  </g>
+
+  <!-- ===== Topografo com nivel/tripé ===== -->
+  <g transform="translate(500,124)">
+    <g stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round">
+      <line x1="0" y1="26" x2="-9" y2="0"/>
+      <line x1="0" y1="26" x2="0" y2="-4"/>
+      <line x1="0" y1="26" x2="9" y2="0"/>
+    </g>
+    <g class="tb-level-head">
+      <rect x="-6" y="-10" width="12" height="7" rx="1.5" fill="var(--navy)"/>
+      <line class="tb-sight" x1="0" y1="-6" x2="30" y2="-14" stroke="var(--steel)" stroke-width="1.4"/>
+    </g>
+    <circle cx="-16" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -21 -8 A 6 6 0 0 1 -11 -8 L -11 -6 L -21 -6 Z" fill="#f4a300"/>
+    <rect x="-22" y="0" width="12" height="16" rx="3" fill="var(--steel)"/>
+    <line x1="-21" y1="16" x2="-23" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-11" y1="16" x2="-9" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-10" y1="4" x2="-2" y2="10" stroke="var(--steel)" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- ===== Eletricista com painel ===== -->
+  <g transform="translate(760,124)">
+    <rect x="14" y="-14" width="16" height="26" rx="2" fill="var(--navy)" stroke="var(--steel-strong)" stroke-width="1"/>
+    <rect x="18" y="-10" width="3" height="3" fill="var(--green)"/>
+    <rect x="24" y="-10" width="3" height="3" fill="var(--steel)"/>
+    <rect x="18" y="-4" width="3" height="3" fill="var(--steel)"/>
+    <path class="tb-spark" d="M 22 -22 L 18 -16 L 21 -16 L 17 -9 L 25 -18 L 22 -18 Z" fill="var(--green)"/>
+    <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+    <rect x="-6" y="0" width="12" height="16" rx="3" fill="var(--steel-strong)"/>
+    <line x1="-5" y1="16" x2="-7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-6" y1="4" x2="-12" y2="10" stroke="var(--steel-strong)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="6" y1="4" x2="13" y2="-2" stroke="var(--steel-strong)" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- ===== Trabalhador 2 com chave ===== -->
+  <g transform="translate(850,124)">
+    <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+    <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+    <rect x="-6" y="0" width="12" height="16" rx="3" fill="#f4a300"/>
+    <line x1="-5" y1="16" x2="-7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="7" y2="26" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-6" y1="4" x2="-13" y2="11" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+    <g class="tb-arm-work" style="animation-delay:.6s">
+      <line x1="6" y1="4" x2="13" y2="12" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+      <rect x="11" y="9" width="10" height="4" rx="1.5" fill="var(--navy)" transform="rotate(-15 16 11)"/>
+    </g>
+  </g>
+
+  <!-- ===== Andaime direito ===== -->
+  <g transform="translate(1000,70)">
+    <g stroke="var(--steel-strong)" stroke-width="3" fill="none" stroke-linecap="round">
+      <line x1="0" y1="0" x2="0" y2="86"/>
+      <line x1="34" y1="0" x2="34" y2="86"/>
+      <line x1="0" y1="0" x2="34" y2="28"/>
+      <line x1="34" y1="0" x2="0" y2="28"/>
+      <line x1="0" y1="28" x2="34" y2="56"/>
+      <line x1="34" y1="28" x2="0" y2="56"/>
+      <line x1="0" y1="56" x2="34" y2="84"/>
+      <line x1="34" y1="56" x2="0" y2="84"/>
+      <line x1="-4" y1="0" x2="38" y2="0"/>
+      <line x1="-4" y1="28" x2="38" y2="28"/>
+      <line x1="-4" y1="56" x2="38" y2="56"/>
+      <line x1="-4" y1="86" x2="38" y2="86"/>
+    </g>
+    <g class="tb-climb" style="animation-delay:1.6s">
+      <g transform="translate(17,50)">
+        <circle cx="0" cy="-4" r="5" fill="#e8b88a"/>
+        <path d="M -5 -8 A 6 6 0 0 1 5 -8 L 5 -6 L -5 -6 Z" fill="#f4a300"/>
+        <rect x="-6" y="0" width="12" height="15" rx="3" fill="#f4a300"/>
+        <line x1="-6" y1="3" x2="-11" y2="10" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+        <g class="tb-hammer" style="animation-delay:.5s">
+          <line x1="6" y1="3" x2="13" y2="9" stroke="#f4a300" stroke-width="3" stroke-linecap="round"/>
+          <rect x="11" y="6" width="6" height="4" fill="var(--navy)"/>
+        </g>
+        <line x1="-4" y1="15" x2="-6" y2="24" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+        <line x1="4" y1="15" x2="6" y2="24" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===== Grua ===== -->
+  <g transform="translate(1080,20)">
+    <line x1="0" y1="0" x2="0" y2="130" stroke="var(--navy)" stroke-width="5" stroke-linecap="round"/>
+    <line x1="-14" y1="130" x2="0" y2="100" stroke="var(--navy)" stroke-width="4" stroke-linecap="round"/>
+    <line x1="14" y1="130" x2="0" y2="100" stroke="var(--navy)" stroke-width="4" stroke-linecap="round"/>
+    <g class="tb-crane-arm">
+      <line x1="-14" y1="0" x2="60" y2="0" stroke="var(--navy)" stroke-width="5" stroke-linecap="round"/>
+      <line x1="-14" y1="0" x2="-14" y2="12" stroke="var(--navy)" stroke-width="3" stroke-linecap="round"/>
+      <line x1="0" y1="0" x2="-10" y2="14" stroke="var(--steel)" stroke-width="2"/>
+      <g transform="translate(44,0)">
+        <g class="tb-hook-drop">
+          <line x1="0" y1="0" x2="0" y2="26" stroke="var(--steel)" stroke-width="1.6"/>
+          <circle class="tb-cargo-glow" cx="0" cy="30" r="7" fill="var(--green)" opacity="0"/>
+          <rect x="-5" y="24" width="10" height="8" rx="1.5" fill="var(--steel-strong)"/>
+        </g>
+      </g>
+    </g>
+    <circle cx="0" cy="0" r="3.4" fill="var(--steel-strong)"/>
+  </g>
+
+  <!-- ===== Carrinho de carga ===== -->
+  <g transform="translate(1110,138)">
+    <g class="tb-cart">
+      <rect x="0" y="-16" width="34" height="14" rx="2" fill="var(--steel)"/>
+      <rect x="4" y="-24" width="14" height="10" rx="1.5" fill="var(--green)"/>
+      <g transform="translate(7,0)"><g class="tb-wheel"><circle r="5" fill="var(--navy)"/><circle r="1.6" fill="var(--steel-soft)"/></g></g>
+      <g transform="translate(27,0)"><g class="tb-wheel" style="animation-delay:.1s"><circle r="5" fill="var(--navy)"/><circle r="1.6" fill="var(--steel-soft)"/></g></g>
+    </g>
+  </g>
+
+</svg>
+</div>
 </div>
 
 <script id="bundle-data" type="application/json">__DATA_JSON__</script>
