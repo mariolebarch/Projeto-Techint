@@ -6,6 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 /* ============ TOKENS ============ */
@@ -219,6 +220,10 @@ button.settings-item:hover{background:var(--sand);}
 
 .view{display:none; padding-top:22px;}
 .view.active{display:block;}
+/* usada só pelo "Modelo de e-mail" pra renderizar uma aba fora da tela
+   (sem trocar a aba que o usuário está vendo) na hora de tirar o print
+   automático dos quadros pro e-mail — ver captureElementPng(). */
+.view.capturing-offscreen{display:block !important; position:fixed !important; left:-10000px !important; top:0 !important; width:1280px !important; z-index:-1 !important; visibility:visible !important;}
 
 .card{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px;}
 .card + .card{margin-top:16px;}
@@ -4113,173 +4118,58 @@ function buildEmailSummary(){
   };
 }
 
-/* ---------- Gráficos como imagem (canvas → PNG) ----------
-   E-mail não é navegador: a maioria dos clientes (Outlook desktop em
-   especial) não renderiza SVG nem a maior parte do CSS usado no painel. A
-   única forma confiável de ter os MESMOS gráficos com a mesma cara em
-   qualquer cliente é desenhar em <canvas> e embutir como <img> (PNG). */
-function roundRectPath(ctx,x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r);
-  ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
-  ctx.closePath();
-}
-function makeChartCanvas(w,h){
-  const canvas = document.createElement('canvas');
-  const scale = 2; // retina, fica nítido mesmo ampliado no cliente de e-mail
-  canvas.width = w*scale; canvas.height = h*scale;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(scale,scale);
-  ctx.textBaseline = 'middle';
-  return {canvas, ctx, w, h};
-}
-
-function drawContratoChart(s){
-  const w=600, h=168;
-  const {canvas,ctx} = makeChartCanvas(w,h);
-  roundRectPath(ctx,0,0,w,h,12); ctx.fillStyle='#002b5c'; ctx.fill();
-  const cx=92, cy=84, r=58, sw=18;
-  const grand = s.porContrato.reduce((a,c)=>a+c.presentes,0);
-  const colors = {MOA:'#2e7bc4', PCI:'#92d050'};
-  if(grand===0){
-    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=sw;
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-  } else {
-    let start = -Math.PI/2;
-    const gap = 0.05;
-    s.porContrato.forEach(c=>{
-      if(c.presentes<=0) return;
-      const frac = c.presentes/grand;
-      const sweep = frac*Math.PI*2;
-      ctx.strokeStyle = colors[c.c]||'#2e7bc4';
-      ctx.lineWidth = sw; ctx.lineCap='round';
-      ctx.beginPath();
-      ctx.arc(cx,cy,r, start+gap/2, start+sweep-gap/2);
-      ctx.stroke();
-      start += sweep;
-    });
-  }
-  ctx.fillStyle='#ffffff'; ctx.textAlign='center';
-  ctx.font='700 26px Arial, sans-serif';
-  ctx.fillText(String(grand), cx, cy-6);
-  ctx.font='400 11px Arial, sans-serif'; ctx.fillStyle='rgba(255,255,255,.7)';
-  ctx.fillText('presentes', cx, cy+14);
-
-  let ly = 46;
-  ctx.textAlign='left';
-  s.porContrato.forEach(c=>{
-    ctx.fillStyle = colors[c.c]||'#2e7bc4';
-    roundRectPath(ctx, 186, ly-7, 14, 14, 3); ctx.fill();
-    ctx.fillStyle='#ffffff'; ctx.font='700 13px Arial, sans-serif';
-    ctx.fillText(c.c, 210, ly);
-    ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='400 12px Arial, sans-serif';
-    ctx.fillText(fmtInt(c.presentes)+' presentes · '+fmtInt(c.hh)+'h', 210, ly+18);
-    ly += 46;
-  });
-  ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(430,24); ctx.lineTo(430,h-24); ctx.stroke();
-  const grandHh = s.porContrato.reduce((a,c)=>a+c.hh,0);
-  ctx.fillStyle='#ffffff'; ctx.font='700 22px Arial, sans-serif'; ctx.textAlign='left';
-  ctx.fillText(fmtInt(grandHh)+'h', 452, 78);
-  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='400 11px Arial, sans-serif';
-  ctx.fillText('HH ESTIMADO', 452, 98);
-  return canvas.toDataURL('image/png');
-}
-
-function drawBarListChart(items){
-  const w=600, rowH=30, padTop=8, padBottom=8;
-  const h = padTop+padBottom + rowH*Math.max(1,items.length);
-  const {canvas,ctx} = makeChartCanvas(w,h);
-  if(items.length===0){
-    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
-    ctx.fillText('Sem dados para os filtros atuais.', 0, h/2);
+/* ---------- Print automático dos quadros (DOM → imagem, via html2canvas) ----------
+   Pedido explícito do usuário: não é pra redesenhar os gráficos parecido,
+   é pra tirar o MESMO print que ele tirava manualmente — então captura os
+   próprios quadros do painel (os mesmos nós do DOM, com os mesmos dados e
+   estilo já renderizados) como imagem, em vez de desenhar uma versão
+   parecida em <canvas>. */
+async function captureElementPng(el){
+  if(!el || typeof html2canvas === 'undefined') return null;
+  try{
+    const canvas = await html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true, logging:false});
     return canvas.toDataURL('image/png');
+  }catch(err){
+    console.error('captureElementPng falhou', err);
+    return null;
   }
-  const max = Math.max(1, ...items.map(i=>i.value));
-  const labelW = 190, valueW = 40;
-  const barX = labelW, barMaxW = w-labelW-valueW;
-  items.forEach((it,i)=>{
-    const y = padTop + i*rowH;
-    ctx.fillStyle = '#121212'; ctx.font='500 12.5px Arial, sans-serif'; ctx.textAlign='left';
-    const label = it.label.length>26 ? it.label.slice(0,25)+'…' : it.label;
-    ctx.fillText(label, 0, y+rowH/2);
-    roundRectPath(ctx, barX, y+rowH/2-7, barMaxW, 14, 4); ctx.fillStyle='#eef1f3'; ctx.fill();
-    const bw = Math.max(2, barMaxW*it.value/max);
-    roundRectPath(ctx, barX, y+rowH/2-7, bw, 14, 4); ctx.fillStyle = it.color || '#0a3b70'; ctx.fill();
-    ctx.fillStyle='#121212'; ctx.font='700 12.5px Arial, sans-serif'; ctx.textAlign='right';
-    ctx.fillText(String(it.value), w, y+rowH/2);
-  });
-  return canvas.toDataURL('image/png');
 }
 
-function drawConfrontoChart(rows){
-  const w=600, rowH=34, padTop=8, padBottom=8;
-  const h = padTop+padBottom + rowH*Math.max(1,rows.length);
-  const {canvas,ctx} = makeChartCanvas(w,h);
-  if(rows.length===0){
-    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
-    ctx.fillText('Nenhuma divergência nos filtros atuais.', 0, h/2);
-    return canvas.toDataURL('image/png');
+/* Renderiza uma aba fora da tela (sem tirar o usuário da aba em que ele
+   está) só pelo tempo da captura, com largura fixa de desktop pra sempre
+   sair no layout de 2 colunas (igual aos prints que o usuário tirou),
+   mesmo se a janela atual estiver estreita/mobile — e desfaz em seguida. */
+async function captureOffscreen(tab, selector){
+  const view = document.getElementById('view-'+tab);
+  if(!view) return null;
+  const wasActive = view.classList.contains('active');
+  if(!wasActive) view.classList.add('capturing-offscreen');
+  if(tab==='visao') alignOvTables();
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  try{
+    const el = selector ? view.querySelector(selector) : view;
+    return await captureElementPng(el);
+  } finally {
+    if(!wasActive) view.classList.remove('capturing-offscreen');
   }
-  const labelW=100, diffW=56;
-  const trackX=labelW, trackW=w-labelW-diffW;
-  rows.forEach((o,i)=>{
-    const y = padTop + i*rowH;
-    ctx.fillStyle='#121212'; ctx.font='600 12px Arial, sans-serif'; ctx.textAlign='left';
-    ctx.fillText('OS '+o.osLabel, 0, y+8);
-    const localMax = Math.max(1, o.planejado, o.apontado);
-    roundRectPath(ctx, trackX, y+16, trackW, 10, 3); ctx.fillStyle='#f0f2f3'; ctx.fill();
-    const planW = trackW*o.planejado/localMax;
-    roundRectPath(ctx, trackX, y+16, Math.max(2,planW), 10, 3); ctx.fillStyle='rgba(10,59,112,.35)'; ctx.fill();
-    const realW = trackW*o.apontado/localMax;
-    roundRectPath(ctx, trackX, y+16, Math.max(2,realW), 10, 3); ctx.fillStyle='#92d050'; ctx.fill();
-    ctx.fillStyle='#6c6966'; ctx.font='400 10.5px Arial, sans-serif'; ctx.textAlign='left';
-    ctx.fillText('emp '+o.planejado+' · real '+o.apontado, trackX, y+8);
-    const diffColor = o.diferenca>0 ? '#0a3b70' : (o.diferenca<0 ? '#c81a21' : '#3f7a1e');
-    ctx.fillStyle=diffColor; ctx.font='700 12.5px Arial, sans-serif'; ctx.textAlign='right';
-    ctx.fillText((o.diferenca>0?'+':'')+o.diferenca, w, y+16);
-  });
-  return canvas.toDataURL('image/png');
 }
 
-function drawPctListChart(items){
-  const w=600, rowH=28, padTop=6, padBottom=6;
-  const h = padTop+padBottom+rowH*Math.max(1,items.length);
-  const {canvas,ctx} = makeChartCanvas(w,h);
-  if(items.length===0){
-    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
-    ctx.fillText('Nenhuma falta no período.', 0, h/2);
-    return canvas.toDataURL('image/png');
+async function buildEmailScreenshots(){
+  // força tema claro durante a captura — o e-mail é lido em qualquer tela
+  // (inclusive fora do painel), então os prints saem sempre no mesmo visual
+  // claro/profissional, independente do painel estar no modo escuro.
+  const prevTheme = document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', 'light');
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  try{
+    const visao = await captureOffscreen('visao', '.ov-grid');
+    const confronto = await captureOffscreen('confronto', '.card');
+    const ausencias = await captureOffscreen('ausencias', null);
+    return { visao, confronto, ausencias };
+  } finally {
+    if(prevTheme) document.documentElement.setAttribute('data-theme', prevTheme);
+    else document.documentElement.removeAttribute('data-theme');
   }
-  const labelW=200, pctW=56;
-  const barX=labelW, barMaxW=w-labelW-pctW;
-  items.forEach((it,i)=>{
-    const y=padTop+i*rowH;
-    ctx.fillStyle='#121212'; ctx.font='500 12px Arial, sans-serif'; ctx.textAlign='left';
-    const label = it.key.length>28 ? it.key.slice(0,27)+'…' : it.key;
-    ctx.fillText(label, 0, y+rowH/2);
-    roundRectPath(ctx, barX, y+rowH/2-6, barMaxW, 12, 4); ctx.fillStyle='#f0f2f3'; ctx.fill();
-    const bw = Math.max(2, barMaxW*Math.min(1,it.pct));
-    const color = it.pct>0.15 ? '#c81a21' : (it.pct>0.05 ? '#9c6f10' : '#3f7a1e');
-    roundRectPath(ctx, barX, y+rowH/2-6, bw, 12, 4); ctx.fillStyle=color; ctx.fill();
-    ctx.fillStyle=color; ctx.font='700 12px Arial, sans-serif'; ctx.textAlign='right';
-    ctx.fillText(fmtPct1(it.pct), w, y+rowH/2);
-  });
-  return canvas.toDataURL('image/png');
-}
-
-function buildEmailCharts(s){
-  return {
-    contrato: drawContratoChart(s),
-    topOs: drawBarListChart(s.topOs.map(o=>({label:'OS '+osLabel(o.os)+' ('+o.contrato+')', value:o.n, color: o.contrato==='PCI' ? '#6fa834' : '#0a3b70'}))),
-    supervisores: drawBarListChart(s.topSup.map(x=>({label:x.sup, value:x.n}))),
-    confronto: drawConfrontoChart(s.confronto.divergentes.map(o=>Object.assign({}, o, {osLabel: osLabel(o.os)}))),
-    porFuncao: drawPctListChart(s.absenteismo.byCargo),
-    porDisciplina: drawPctListChart(s.absenteismo.byDisc),
-  };
 }
 
 function emailStatusChip(status){
@@ -4287,37 +4177,21 @@ function emailStatusChip(status){
   return map[status] || map.info;
 }
 
-function buildEmailHtml(s, charts){
-  const box = (label, value, sub) => `
-    <td style="padding:4px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; border-radius:8px;">
-        <tr><td style="padding:10px 12px;">
-          <div style="font-family:Arial,sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#6c6966;">${label}</div>
-          <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#121212; line-height:1.3;">${value}</div>
-          ${sub?`<div style="font-family:Arial,sans-serif; font-size:11px; color:#6c6966;">${sub}</div>`:''}
-        </td></tr>
-      </table>
-    </td>`;
+function buildEmailHtml(s, shots){
   const sectionHead = title => `
     <tr><td style="padding:22px 24px 8px;">
       <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">${title}</div>
     </td></tr>`;
-  const imgRow = (src, w) => `
-    <tr><td style="padding:4px 24px 4px;">
-      <img src="${src}" width="${w||552}" style="display:block; width:100%; max-width:${w||552}px; height:auto; border-radius:8px;" alt="">
+  const imgRow = (src, altText, w) => {
+    if(src){
+      return `<tr><td style="padding:4px 24px 4px;">
+        <img src="${src}" width="${w||660}" style="display:block; width:100%; max-width:${w||660}px; height:auto; border-radius:8px; border:1px solid #eee;" alt="${altText}">
+      </td></tr>`;
+    }
+    return `<tr><td style="padding:10px 24px;">
+      <div style="font-family:Arial,sans-serif; font-size:12px; color:#c81a21; background:#fbe0df; border-radius:8px; padding:10px 12px;">Não foi possível gerar o print automático de "${altText}" (biblioteca de captura não carregou — provável bloqueio de rede). Confira direto no painel: <a href="${EMAIL_REPORT_LINK}" style="color:#c81a21;">${EMAIL_REPORT_LINK}</a></div>
     </td></tr>`;
-  const subLabel = text => `
-    <tr><td style="padding:10px 24px 2px;">
-      <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">${text}</div>
-    </td></tr>`;
-
-  const kpiRow = `<tr>${box('Contratados', fmtInt(s.kpi.total), s.dateLabel)}${box('Presentes', fmtInt(s.kpi.presentes), fmtPct(s.kpi.pct)+' do efetivo')}${box('Ausências', fmtInt(s.kpi.ausenciaCount), '')}${box('Férias', fmtInt(s.kpi.feriasCount), '')}</tr>`;
-  const confKpiRow = `<tr>${box('Empilhado', fmtInt(s.confronto.planejado), '')}${box('Apontado', fmtInt(s.confronto.apontado), '')}${box('Diferença', (s.confronto.diferenca>=0?'+':'')+fmtInt(s.confronto.diferenca), '')}${box('OS no resumo', fmtInt(s.confronto.osCount), '')}</tr>`;
-  const abKpiRow = `<tr>${box('Contratados'+s.absenteismo.suf, fmtInt(s.absenteismo.totalEscAb), '')}${box('Férias'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFerias), '')}${box('Ausências'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFalta), '')}${box('Absenteísmo geral', fmtPct1(s.absenteismo.pctGeral), '')}</tr>`;
-  const tableWrap = rowsHtml => `
-    <tr><td style="padding:4px 24px 4px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>${rowsHtml}</tr></table>
-    </td></tr>`;
+  };
 
   const now = new Date();
   const genAt = now.getDate().toString().padStart(2,'0')+'/'+(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear()+' às '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
@@ -4328,7 +4202,7 @@ function buildEmailHtml(s, charts){
 <body style="margin:0; padding:0; background:#dfe4e8;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8; padding:20px 0;">
     <tr><td align="center">
-      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%;">
+      <table role="presentation" width="700" cellpadding="0" cellspacing="0" style="max-width:700px; width:100%;">
 
         <!-- saudação curta, no mesmo padrão do e-mail de exemplo -->
         <tr><td style="padding:0 4px 18px; font-family:Arial,sans-serif; font-size:14px; color:#1c2126; line-height:1.6;">
@@ -4346,41 +4220,17 @@ function buildEmailHtml(s, charts){
           <div style="font-family:Arial,sans-serif; font-size:12.5px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
         </td></tr>
 
-        ${sectionHead('Efetivo')}
-        ${tableWrap(kpiRow)}
-
-        ${sectionHead('Apontamentos por contrato')}
-        ${imgRow(charts.contrato, 552)}
-        ${s.topOs.length ? subLabel('OS com mais presentes') : ''}
-        ${s.topOs.length ? imgRow(charts.topOs, 552) : ''}
-
-        ${sectionHead('Colaboradores por supervisor')}
-        ${imgRow(charts.supervisores, 552)}
+        ${sectionHead('Apontamentos por contrato &amp; Efetivo')}
+        ${imgRow(shots.visao, 'Apontamentos por Contrato e Efetivo', 652)}
 
         ${sectionHead('Confronto OS &times; Função')}
-        ${tableWrap(confKpiRow)}
-        <tr><td style="padding:4px 24px 4px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; border-radius:8px;">
-            <tr><td style="padding:10px 14px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="font-family:Arial,sans-serif; font-size:11px; color:#6c6966;">HH &middot; critério de jornada &mdash; previsto <b style="color:#121212;">${fmtInt(s.confronto.hhPlanejado)}h</b> &middot; real <b style="color:#121212;">${fmtInt(s.confronto.hhApontado)}h</b></td>
-                <td style="text-align:right; font-family:Arial,sans-serif; font-size:13px; font-weight:800; color:#002b5c;">${fmtInt(Math.round(s.confronto.hhPct*100))}% consumido</td>
-              </tr></table>
-            </td></tr>
-          </table>
-        </td></tr>
-        ${subLabel('Maiores divergências (empilhado × apontado)')}
-        ${imgRow(charts.confronto, 552)}
+        ${imgRow(shots.confronto, 'Confronto OS × Função', 652)}
 
         ${sectionHead('Absenteísmo e férias')}
-        ${tableWrap(abKpiRow)}
-        ${s.absenteismo.byCargo.length ? subLabel('Por função (maiores % de falta)') : ''}
-        ${s.absenteismo.byCargo.length ? imgRow(charts.porFuncao, 552) : ''}
-        ${s.absenteismo.byDisc.length ? subLabel('Por disciplina (maiores % de falta)') : ''}
-        ${s.absenteismo.byDisc.length ? imgRow(charts.porDisciplina, 552) : ''}
+        ${imgRow(shots.ausencias, 'Absenteísmo e Férias', 652)}
 
         <tr><td style="padding:18px 24px; border-top:1px solid #eee;">
-          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt}.</div>
+          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt} — prints tirados ao vivo do painel, com os filtros atuais.</div>
         </td></tr>
         </table>
         </td></tr>
@@ -4442,19 +4292,27 @@ function buildEmailPlainText(s){
   return lines.join('\n');
 }
 
-function openEmailModal(){
-  const summary = buildEmailSummary();
-  const charts = buildEmailCharts(summary);
-  const html = buildEmailHtml(summary, charts);
-  const text = buildEmailPlainText(summary);
-  const subject = 'Apontamentos x OS (' + fmtEmailDate(summary.refDateIso) + ')';
-  document.getElementById('email-subject-text').textContent = subject;
+async function openEmailModal(){
+  // Mostra o modal já com um aviso de carregamento — tirar os 3 prints
+  // (trocando de aba por baixo dos panos) + montar o HTML leva um instante.
+  document.getElementById('email-modal-overlay').hidden = false;
+  document.getElementById('email-subject-text').textContent = '';
   document.getElementById('email-to-text').value = EMAIL_TO_LIST.join('; ');
   document.getElementById('email-cc-text').value = EMAIL_CC_LIST.join('; ');
-  document.getElementById('email-preview-frame').srcdoc = html;
+  document.getElementById('email-preview-frame').srcdoc = '<!doctype html><body style="margin:0; padding:28px; font-family:Arial,sans-serif; color:#6c6966; background:#dfe4e8;">Gerando os prints automáticos dos quadros…</body>';
   const statusEl = document.getElementById('email-modal-status');
+  statusEl.hidden = false; statusEl.className = 'email-modal-status';
+  statusEl.textContent = 'Gerando os prints automáticos dos quadros…';
+
+  const summary = buildEmailSummary();
+  const shots = await buildEmailScreenshots();
+  const html = buildEmailHtml(summary, shots);
+  const text = buildEmailPlainText(summary);
+  const subject = 'Apontamentos x OS (' + fmtEmailDate(summary.refDateIso) + ')';
+
+  document.getElementById('email-subject-text').textContent = subject;
+  document.getElementById('email-preview-frame').srcdoc = html;
   statusEl.hidden = true;
-  document.getElementById('email-modal-overlay').hidden = false;
   document.getElementById('email-copy-btn')._emailHtml = html;
   document.getElementById('email-copy-btn')._emailText = text;
   document.getElementById('email-open-btn')._emailSubject = subject;
