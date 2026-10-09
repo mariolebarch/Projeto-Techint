@@ -131,6 +131,8 @@ button.settings-item:hover{background:var(--sand);}
 .si-icon{font-size:18px; width:26px; text-align:center; flex:none; color:var(--steel);}
 .si-text{display:flex; flex-direction:column; gap:1px; flex:1;}
 .si-title{font-size:13px; font-weight:600;}
+#settings-email-btn .si-title{color:var(--green-dark);}
+:root[data-theme="dark"] #settings-email-btn .si-title{color:var(--green);}
 .si-sub{font-size:11px; color:var(--text-muted);}
 .settings-divider{height:1px; background:var(--border-soft); margin:4px 6px;}
 .settings-theme-row{cursor:default;}
@@ -177,7 +179,7 @@ button.settings-item:hover{background:var(--sand);}
 .email-modal-overlay[hidden]{display:none;}
 .email-modal{width:100%; max-width:700px; max-height:min(88vh,860px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
 .email-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:var(--navy); color:#fff;}
-.email-modal-head h3{margin:0; font-family:var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:.04em;}
+.email-modal-head h3{margin:0; font-family:var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:.04em; color:var(--green);}
 .email-modal-head span.sub{display:block; font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.7); margin-top:2px;}
 .email-modal-close{width:30px; height:30px; border-radius:50%; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.08); color:#fff; font-size:17px; line-height:1; cursor:pointer; flex:none;}
 .email-modal-close:hover{background:rgba(255,255,255,.18);}
@@ -1362,10 +1364,8 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
     <div class="email-modal-actions">
       <button class="email-btn-primary" id="email-copy-btn" type="button">Copiar e-mail formatado (com gráficos)</button>
-      <button class="email-btn-ghost" id="email-open-tab-btn" type="button">Abrir em nova aba</button>
-      <button class="email-btn-ghost" id="email-open-btn" type="button">Abrir no e-mail (só texto)</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
-      <div class="email-modal-hint">Clique em <b>Copiar</b> e cole (Ctrl+V) numa mensagem nova do Outlook. Se não colar com formatação, use <b>Abrir em nova aba</b>, dê Ctrl+A e depois Ctrl+C na página que abrir, e cole de novo — isso usa a cópia nativa do navegador, que o Outlook aceita melhor. "Abrir no e-mail" usa o link <code>mailto:</code> do navegador, que só aceita texto simples (sem imagens) — é um limite do protocolo de e-mail, não deste painel.</div>
+      <div class="email-modal-hint">Clique em <b>Copiar</b> e cole (Ctrl+V) numa mensagem nova do Outlook/Gmail.</div>
     </div>
   </div>
 </div>
@@ -4005,10 +4005,6 @@ const EMAIL_CC_LIST = [
 ];
 const EMAIL_REPORT_LINK = 'https://mariolebarch.github.io/Projeto-Techint/';
 
-function emailOnlyAddress(entry){
-  const m = entry.match(/<([^>]+)>/);
-  return m ? m[1] : entry.trim();
-}
 /* Gate: o botão "Modelo de e-mail" só funciona pra quem está logado no
    Supabase (sbSession vem do bloco de auth já existente no rodapé do painel
    de configurações) — renderSbAuthBox() chama updateEmailAccessUI() toda vez
@@ -4321,9 +4317,6 @@ async function openEmailModal(){
   statusEl.hidden = true;
   document.getElementById('email-copy-btn')._emailHtml = html;
   document.getElementById('email-copy-btn')._emailText = text;
-  document.getElementById('email-open-tab-btn')._emailHtml = html;
-  document.getElementById('email-open-btn')._emailSubject = subject;
-  document.getElementById('email-open-btn')._emailText = text;
 }
 function closeEmailModal(){
   document.getElementById('email-modal-overlay').hidden = true;
@@ -4383,23 +4376,6 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     statusEl.hidden = false; statusEl.className = 'email-modal-status error';
     statusEl.textContent = 'Não foi possível copiar automaticamente. Selecione o conteúdo da pré-visualização e copie manualmente.';
   }
-});
-document.getElementById('email-open-tab-btn').addEventListener('click', ()=>{
-  const btn = document.getElementById('email-open-tab-btn');
-  if(!btn._emailHtml) return;
-  const blob = new Blob([btn._emailHtml], {type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  // o blob URL só precisa existir até a aba terminar de carregar a página.
-  if(win) win.addEventListener('load', ()=> setTimeout(()=>URL.revokeObjectURL(url), 2000));
-  else setTimeout(()=>URL.revokeObjectURL(url), 5000);
-});
-document.getElementById('email-open-btn').addEventListener('click', ()=>{
-  const btn = document.getElementById('email-open-btn');
-  const toAddrs = EMAIL_TO_LIST.map(emailOnlyAddress).join(',');
-  const ccAddrs = EMAIL_CC_LIST.map(emailOnlyAddress).join(',');
-  const mailto = 'mailto:' + encodeURIComponent(toAddrs).replace(/%2C/g,',') + '?cc=' + encodeURIComponent(ccAddrs).replace(/%2C/g,',') + '&subject=' + encodeURIComponent(btn._emailSubject) + '&body=' + encodeURIComponent(btn._emailText);
-  window.location.href = mailto;
 });
 
 document.getElementById('settings-upload-btn').addEventListener('click', ()=>{
