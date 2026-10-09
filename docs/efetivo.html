@@ -182,6 +182,10 @@ button.settings-item:hover{background:var(--sand);}
 .email-modal-close:hover{background:rgba(255,255,255,.18);}
 .email-modal-subject{display:flex; align-items:center; gap:8px; padding:10px 18px; border-bottom:1px solid var(--border-soft); font-size:12.5px; color:var(--text-secondary); background:var(--sand);}
 .email-modal-subject b{color:var(--text-primary); font-weight:600;}
+.email-modal-recipients{display:flex; flex-direction:column; gap:6px; padding:10px 18px; border-bottom:1px solid var(--border-soft); background:var(--sand);}
+.email-recip-row{display:flex; align-items:center; gap:8px;}
+.email-recip-row label{flex:none; width:34px; font-size:11.5px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;}
+.email-recip-row input{flex:1; min-width:0; font-family:var(--font-body); font-size:11.5px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--paper); color:var(--text-primary);}
 .email-modal-body{flex:1; overflow:auto; background:#dfe4e8; padding:16px;}
 .email-modal-body iframe{width:100%; min-height:520px; border:none; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.12);}
 .email-modal-actions{display:flex; align-items:center; gap:10px; padding:14px 18px; border-top:1px solid var(--border-soft); flex-wrap:wrap;}
@@ -191,6 +195,9 @@ button.settings-item:hover{background:var(--sand);}
 .email-btn-primary:hover{filter:brightness(1.08);}
 .email-btn-ghost{border:1px solid var(--border); background:var(--paper); color:var(--text-primary); border-radius:7px; padding:9px 14px; font-size:12.5px; font-weight:600; cursor:pointer;}
 .email-btn-ghost:hover{background:var(--sand);}
+.email-btn-ghost.small{padding:6px 10px; font-size:11.5px; flex:none;}
+.settings-item.settings-item-locked{opacity:.55; cursor:not-allowed;}
+.settings-item.settings-item-locked:hover{background:none;}
 
 /* Global filter bar */
 .global-filters{display:flex; gap:22px; align-items:flex-end; padding:13px calc((100vw - min(100vw,1360px))/2 + 24px); background:var(--navy-100); border-bottom:1px solid var(--border-soft); flex-wrap:wrap;}
@@ -1333,9 +1340,21 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       <button class="email-modal-close" id="email-modal-close" type="button" aria-label="Fechar">&times;</button>
     </div>
     <div class="email-modal-subject">Assunto: <b id="email-subject-text"></b></div>
+    <div class="email-modal-recipients">
+      <div class="email-recip-row">
+        <label>Para</label>
+        <input type="text" id="email-to-text" readonly>
+        <button class="email-btn-ghost small" id="email-copy-to-btn" type="button">Copiar</button>
+      </div>
+      <div class="email-recip-row">
+        <label>Cc</label>
+        <input type="text" id="email-cc-text" readonly>
+        <button class="email-btn-ghost small" id="email-copy-cc-btn" type="button">Copiar</button>
+      </div>
+    </div>
     <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
     <div class="email-modal-actions">
-      <button class="email-btn-primary" id="email-copy-btn" type="button">Copiar e-mail formatado</button>
+      <button class="email-btn-primary" id="email-copy-btn" type="button">Copiar e-mail formatado (com gráficos)</button>
       <button class="email-btn-ghost" id="email-open-btn" type="button">Abrir no e-mail</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
     </div>
@@ -3931,12 +3950,87 @@ function parseWorkbookToBundle(wb){
 /* ---------- Modelo de e-mail (resumo diário) ----------
    Reaproveita os mesmos acessores/cálculos das abas Visão Geral, Confronto
    Diário e Absenteísmo (efetivoForDates, buildConfrontoMulti,
-   computeAbsenteeism, etc.) para montar um e-mail HTML (tabelas + estilo
-   inline, compatível com clientes de e-mail) com o retrato do dia já
-   filtrado pelos filtros globais atuais — não é um envio automático de
-   verdade (este painel é um site estático, sem servidor/back-end pra
-   disparar e-mail sozinho): o botão gera o modelo pronto, pra copiar e
-   colar no e-mail ou abrir direto no cliente padrão. */
+   computeAbsenteeism, etc.) para montar um e-mail com os MESMOS gráficos do
+   painel (donut MOA×PCI, barras de supervisor, barras de confronto e de
+   absenteísmo, desenhados em <canvas> e embutidos como imagem — e-mail não
+   renderiza SVG/CSS de verdade, então a única forma de ter o gráfico com a
+   cara exata do painel em qualquer cliente de e-mail é mandar como imagem).
+
+   Isto NÃO é um envio automático de verdade: este painel é um site estático
+   (GitHub Pages), sem servidor por trás pra disparar e-mail sozinho todo dia.
+   O botão (liberado só pra quem está logado no Supabase) gera o modelo já
+   com destinatários, assunto e gráficos prontos — copiar e colar, ou abrir
+   direto no cliente de e-mail padrão, ainda precisa de 1 clique humano em
+   "Enviar". */
+
+/* Destinatários fixos, no formato "Nome <e-mail>" (igual ao que o Outlook
+   usa nos campos Para/Cc) — os botões "Copiar" ao lado desses campos no
+   modal colam essa string pronta, sem precisar digitar nada. */
+const EMAIL_TO_LIST = [
+  'SOARES Lantiel J. M.     TECHINT <tbrjmr@techint.com.br>',
+  'ALBUQUERQUE Eduardo  TECHINT <eduardo.albuquerque@techint.com.br>',
+  'SOARES Egon                 TECHINT <egon.soares@techint.com.br>',
+  'FREITAS Valeria S.   TECHINT <tbrvft@techint.com.br>',
+  'LOUREDO PIRES Jenesmar  TECHINT <jlouredopires@techint.com>',
+  'SANTANA DE MORAIS Gilson     TECHINT <gsantanademorais@techint.com>',
+  'CAVALCANTE OLIVEIRA Wesley     TECHINT <wesleycavalcante@techint.com>',
+  'DE JESUS NEPOMUCENO Evandro     TECHINT <edejesusnepomuceno@techint.com.br>',
+  'SA Edilson Pereira      TECHINT <epsa@techint.com.br>',
+  'SILVA DOS SANTOS Deivide     TECHINT <deivide.santos@techint.com>',
+  'DA SILVA Marcos Kayk F  TECHINT <tbrmkd@techint.com>',
+  'JACOB Jefferson N       TECHINT <jjacob@techint.com.br>',
+  'CONSTANTE Douglas           TECHINT <dcsantos@techint.com.br>',
+];
+const EMAIL_CC_LIST = [
+  'FONSECA Henrique   TECHINT <tbrchf@techint.com>',
+  'CLEMENCEAU Fernando           TECHINT <fernando.clemenceau@techint.com.br>',
+  'MELRO Bruno                  TECHINT <bruno.melro@techint.com.br>',
+  'AUGUSTO MURTINHO Lilad Souza TECHINT <laugustomurtinho@techint.com.br>',
+  'PEREIRA Ana Caroline    TECHINT <acpereira@techint.com.br>',
+  'CAVALCANTE Caio Vinicius Barbosa   TECHINT <ccavalcante@techint.com.br>',
+  'SILVA Antonio     TECHINT <asilva@techint.com.br>',
+  'RODRIGUES SOUSA Ranye  TECHINT <rrodriguesdsouza@techint.com.br>',
+  'KASSYA DE MELO Wly Ellen     TECHINT <wkassyademelo@techint.com>',
+  'BATISTA Daniel           TECHINT <daniel.batista@techint.com.br>',
+  'ARAUJO Michele D. S.  TECHINT <michele.araujo@techint.com.br>',
+];
+const EMAIL_REPORT_LINK = 'https://mariolebarch.github.io/Projeto-Techint/';
+
+function emailOnlyAddress(entry){
+  const m = entry.match(/<([^>]+)>/);
+  return m ? m[1] : entry.trim();
+}
+/* Gate: o botão "Modelo de e-mail" só funciona pra quem está logado no
+   Supabase (sbSession vem do bloco de auth já existente no rodapé do painel
+   de configurações) — renderSbAuthBox() chama updateEmailAccessUI() toda vez
+   que o estado de login muda (entrar/sair), então o botão reage na hora. */
+function emailFeatureAvailable(){ return !!(sbSession && sbSession.user); }
+function updateEmailAccessUI(){
+  const btn = document.getElementById('settings-email-btn');
+  if(!btn) return;
+  const available = emailFeatureAvailable();
+  btn.classList.toggle('settings-item-locked', !available);
+  const sub = btn.querySelector('.si-sub');
+  if(sub) sub.textContent = available ? 'Resumo diário pronto para enviar' : 'Faça login no Supabase (abaixo) para liberar';
+}
+
+function emailRefDateIso(){
+  const r = refDate();
+  if(r) return r;
+  const now = new Date();
+  return now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0');
+}
+/* Formato pedido: "07.10.26 – Quarta-Feira" — usado tanto no assunto quanto
+   na linha de saudação do corpo do e-mail. */
+function fmtEmailDate(iso){
+  const d = new Date(iso+'T00:00:00');
+  const dd = d.getDate().toString().padStart(2,'0');
+  const mm = (d.getMonth()+1).toString().padStart(2,'0');
+  const yy = (d.getFullYear()%100).toString().padStart(2,'0');
+  const dias = ['Domingo','Segunda-Feira','Terça-Feira','Quarta-Feira','Quinta-Feira','Sexta-Feira','Sábado'];
+  return dd+'.'+mm+'.'+yy+' – '+dias[d.getDay()];
+}
+
 function buildEmailSummary(){
   const ef = efetivoForDates();
   const total = ef.length;
@@ -4008,6 +4102,7 @@ function buildEmailSummary(){
 
   return {
     dateLabel: datesLabel(),
+    refDateIso: emailRefDateIso(),
     kpi: {total, presentes, pct, ausenciaCount, feriasCount},
     porContrato,
     topOs, grandOs,
@@ -4018,19 +4113,181 @@ function buildEmailSummary(){
   };
 }
 
+/* ---------- Gráficos como imagem (canvas → PNG) ----------
+   E-mail não é navegador: a maioria dos clientes (Outlook desktop em
+   especial) não renderiza SVG nem a maior parte do CSS usado no painel. A
+   única forma confiável de ter os MESMOS gráficos com a mesma cara em
+   qualquer cliente é desenhar em <canvas> e embutir como <img> (PNG). */
+function roundRectPath(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function makeChartCanvas(w,h){
+  const canvas = document.createElement('canvas');
+  const scale = 2; // retina, fica nítido mesmo ampliado no cliente de e-mail
+  canvas.width = w*scale; canvas.height = h*scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale,scale);
+  ctx.textBaseline = 'middle';
+  return {canvas, ctx, w, h};
+}
+
+function drawContratoChart(s){
+  const w=600, h=168;
+  const {canvas,ctx} = makeChartCanvas(w,h);
+  roundRectPath(ctx,0,0,w,h,12); ctx.fillStyle='#002b5c'; ctx.fill();
+  const cx=92, cy=84, r=58, sw=18;
+  const grand = s.porContrato.reduce((a,c)=>a+c.presentes,0);
+  const colors = {MOA:'#2e7bc4', PCI:'#92d050'};
+  if(grand===0){
+    ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=sw;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  } else {
+    let start = -Math.PI/2;
+    const gap = 0.05;
+    s.porContrato.forEach(c=>{
+      if(c.presentes<=0) return;
+      const frac = c.presentes/grand;
+      const sweep = frac*Math.PI*2;
+      ctx.strokeStyle = colors[c.c]||'#2e7bc4';
+      ctx.lineWidth = sw; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.arc(cx,cy,r, start+gap/2, start+sweep-gap/2);
+      ctx.stroke();
+      start += sweep;
+    });
+  }
+  ctx.fillStyle='#ffffff'; ctx.textAlign='center';
+  ctx.font='700 26px Arial, sans-serif';
+  ctx.fillText(String(grand), cx, cy-6);
+  ctx.font='400 11px Arial, sans-serif'; ctx.fillStyle='rgba(255,255,255,.7)';
+  ctx.fillText('presentes', cx, cy+14);
+
+  let ly = 46;
+  ctx.textAlign='left';
+  s.porContrato.forEach(c=>{
+    ctx.fillStyle = colors[c.c]||'#2e7bc4';
+    roundRectPath(ctx, 186, ly-7, 14, 14, 3); ctx.fill();
+    ctx.fillStyle='#ffffff'; ctx.font='700 13px Arial, sans-serif';
+    ctx.fillText(c.c, 210, ly);
+    ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='400 12px Arial, sans-serif';
+    ctx.fillText(fmtInt(c.presentes)+' presentes · '+fmtInt(c.hh)+'h', 210, ly+18);
+    ly += 46;
+  });
+  ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(430,24); ctx.lineTo(430,h-24); ctx.stroke();
+  const grandHh = s.porContrato.reduce((a,c)=>a+c.hh,0);
+  ctx.fillStyle='#ffffff'; ctx.font='700 22px Arial, sans-serif'; ctx.textAlign='left';
+  ctx.fillText(fmtInt(grandHh)+'h', 452, 78);
+  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='400 11px Arial, sans-serif';
+  ctx.fillText('HH ESTIMADO', 452, 98);
+  return canvas.toDataURL('image/png');
+}
+
+function drawBarListChart(items){
+  const w=600, rowH=30, padTop=8, padBottom=8;
+  const h = padTop+padBottom + rowH*Math.max(1,items.length);
+  const {canvas,ctx} = makeChartCanvas(w,h);
+  if(items.length===0){
+    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Sem dados para os filtros atuais.', 0, h/2);
+    return canvas.toDataURL('image/png');
+  }
+  const max = Math.max(1, ...items.map(i=>i.value));
+  const labelW = 190, valueW = 40;
+  const barX = labelW, barMaxW = w-labelW-valueW;
+  items.forEach((it,i)=>{
+    const y = padTop + i*rowH;
+    ctx.fillStyle = '#121212'; ctx.font='500 12.5px Arial, sans-serif'; ctx.textAlign='left';
+    const label = it.label.length>26 ? it.label.slice(0,25)+'…' : it.label;
+    ctx.fillText(label, 0, y+rowH/2);
+    roundRectPath(ctx, barX, y+rowH/2-7, barMaxW, 14, 4); ctx.fillStyle='#eef1f3'; ctx.fill();
+    const bw = Math.max(2, barMaxW*it.value/max);
+    roundRectPath(ctx, barX, y+rowH/2-7, bw, 14, 4); ctx.fillStyle = it.color || '#0a3b70'; ctx.fill();
+    ctx.fillStyle='#121212'; ctx.font='700 12.5px Arial, sans-serif'; ctx.textAlign='right';
+    ctx.fillText(String(it.value), w, y+rowH/2);
+  });
+  return canvas.toDataURL('image/png');
+}
+
+function drawConfrontoChart(rows){
+  const w=600, rowH=34, padTop=8, padBottom=8;
+  const h = padTop+padBottom + rowH*Math.max(1,rows.length);
+  const {canvas,ctx} = makeChartCanvas(w,h);
+  if(rows.length===0){
+    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Nenhuma divergência nos filtros atuais.', 0, h/2);
+    return canvas.toDataURL('image/png');
+  }
+  const labelW=100, diffW=56;
+  const trackX=labelW, trackW=w-labelW-diffW;
+  rows.forEach((o,i)=>{
+    const y = padTop + i*rowH;
+    ctx.fillStyle='#121212'; ctx.font='600 12px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.fillText('OS '+o.osLabel, 0, y+8);
+    const localMax = Math.max(1, o.planejado, o.apontado);
+    roundRectPath(ctx, trackX, y+16, trackW, 10, 3); ctx.fillStyle='#f0f2f3'; ctx.fill();
+    const planW = trackW*o.planejado/localMax;
+    roundRectPath(ctx, trackX, y+16, Math.max(2,planW), 10, 3); ctx.fillStyle='rgba(10,59,112,.35)'; ctx.fill();
+    const realW = trackW*o.apontado/localMax;
+    roundRectPath(ctx, trackX, y+16, Math.max(2,realW), 10, 3); ctx.fillStyle='#92d050'; ctx.fill();
+    ctx.fillStyle='#6c6966'; ctx.font='400 10.5px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.fillText('emp '+o.planejado+' · real '+o.apontado, trackX, y+8);
+    const diffColor = o.diferenca>0 ? '#0a3b70' : (o.diferenca<0 ? '#c81a21' : '#3f7a1e');
+    ctx.fillStyle=diffColor; ctx.font='700 12.5px Arial, sans-serif'; ctx.textAlign='right';
+    ctx.fillText((o.diferenca>0?'+':'')+o.diferenca, w, y+16);
+  });
+  return canvas.toDataURL('image/png');
+}
+
+function drawPctListChart(items){
+  const w=600, rowH=28, padTop=6, padBottom=6;
+  const h = padTop+padBottom+rowH*Math.max(1,items.length);
+  const {canvas,ctx} = makeChartCanvas(w,h);
+  if(items.length===0){
+    ctx.fillStyle='#6c6966'; ctx.font='400 12px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Nenhuma falta no período.', 0, h/2);
+    return canvas.toDataURL('image/png');
+  }
+  const labelW=200, pctW=56;
+  const barX=labelW, barMaxW=w-labelW-pctW;
+  items.forEach((it,i)=>{
+    const y=padTop+i*rowH;
+    ctx.fillStyle='#121212'; ctx.font='500 12px Arial, sans-serif'; ctx.textAlign='left';
+    const label = it.key.length>28 ? it.key.slice(0,27)+'…' : it.key;
+    ctx.fillText(label, 0, y+rowH/2);
+    roundRectPath(ctx, barX, y+rowH/2-6, barMaxW, 12, 4); ctx.fillStyle='#f0f2f3'; ctx.fill();
+    const bw = Math.max(2, barMaxW*Math.min(1,it.pct));
+    const color = it.pct>0.15 ? '#c81a21' : (it.pct>0.05 ? '#9c6f10' : '#3f7a1e');
+    roundRectPath(ctx, barX, y+rowH/2-6, bw, 12, 4); ctx.fillStyle=color; ctx.fill();
+    ctx.fillStyle=color; ctx.font='700 12px Arial, sans-serif'; ctx.textAlign='right';
+    ctx.fillText(fmtPct1(it.pct), w, y+rowH/2);
+  });
+  return canvas.toDataURL('image/png');
+}
+
+function buildEmailCharts(s){
+  return {
+    contrato: drawContratoChart(s),
+    topOs: drawBarListChart(s.topOs.map(o=>({label:'OS '+osLabel(o.os)+' ('+o.contrato+')', value:o.n, color: o.contrato==='PCI' ? '#6fa834' : '#0a3b70'}))),
+    supervisores: drawBarListChart(s.topSup.map(x=>({label:x.sup, value:x.n}))),
+    confronto: drawConfrontoChart(s.confronto.divergentes.map(o=>Object.assign({}, o, {osLabel: osLabel(o.os)}))),
+    porFuncao: drawPctListChart(s.absenteismo.byCargo),
+    porDisciplina: drawPctListChart(s.absenteismo.byDisc),
+  };
+}
+
 function emailStatusChip(status){
   const map = {good:'#e8f5dc;color:#3f7a1e', warning:'#fbf1d2;color:#9c6f10', critical:'#fbe0df;color:#c81a21', info:'#e6edf4;color:#0a3b70'};
   return map[status] || map.info;
 }
-function emailConfStatus(diferenca, planejado){
-  if(planejado===0 && diferenca>0) return 'info';
-  if(planejado>0 && diferenca===-planejado) return 'critical';
-  if(diferenca===0) return 'good';
-  if(Math.abs(diferenca) <= Math.max(1, Math.round(planejado*0.15))) return 'warning';
-  return 'critical';
-}
 
-function buildEmailHtml(s){
+function buildEmailHtml(s, charts){
   const box = (label, value, sub) => `
     <td style="padding:4px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8; border-radius:8px;">
@@ -4045,78 +4302,45 @@ function buildEmailHtml(s){
     <tr><td style="padding:22px 24px 8px;">
       <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">${title}</div>
     </td></tr>`;
-  const tableWrap = rowsHtml => `
+  const imgRow = (src, w) => `
     <tr><td style="padding:4px 24px 4px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-family:Arial,sans-serif; font-size:12.5px;">
-        ${rowsHtml}
-      </table>
+      <img src="${src}" width="${w||552}" style="display:block; width:100%; max-width:${w||552}px; height:auto; border-radius:8px;" alt="">
+    </td></tr>`;
+  const subLabel = text => `
+    <tr><td style="padding:10px 24px 2px;">
+      <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">${text}</div>
     </td></tr>`;
 
   const kpiRow = `<tr>${box('Contratados', fmtInt(s.kpi.total), s.dateLabel)}${box('Presentes', fmtInt(s.kpi.presentes), fmtPct(s.kpi.pct)+' do efetivo')}${box('Ausências', fmtInt(s.kpi.ausenciaCount), '')}${box('Férias', fmtInt(s.kpi.feriasCount), '')}</tr>`;
-
-  const contratoBoxes = s.porContrato.map(c=>`
-    <td style="padding:4px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#002b5c; border-radius:8px;">
-        <tr><td style="padding:12px 14px;">
-          <div style="font-family:Arial,sans-serif; font-size:12px; font-weight:700; color:#fff;">${c.c}</div>
-          <div style="font-family:Arial,sans-serif; font-size:19px; font-weight:800; color:#fff;">${fmtInt(c.presentes)} <span style="font-size:11px; font-weight:400; color:rgba(255,255,255,.75);">presentes</span></div>
-          <div style="font-family:Arial,sans-serif; font-size:11.5px; color:rgba(255,255,255,.75);">${fmtInt(c.hh)}h HH estimado</div>
-        </td></tr>
-      </table>
-    </td>`).join('');
-
-  const topOsRows = s.topOs.map(o=>`
-    <tr>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee;">OS ${escHtml(osLabel(o.os))}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee;"><span style="background:${o.contrato==='PCI'?'#eaf6dc':'#e6edf4'}; color:${o.contrato==='PCI'?'#4c7623':'#0a3b70'}; font-size:10.5px; font-weight:700; padding:2px 6px; border-radius:4px;">${o.contrato}</span></td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.n)}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right; color:#6c6966;">${fmtPct(o.pct)}</td>
-    </tr>`).join('');
-
-  const supRows = s.topSup.map(x=>`
-    <tr>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee;">${escHtml(x.sup)}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right; font-weight:700;">${fmtInt(x.n)}</td>
-    </tr>`).join('');
-
   const confKpiRow = `<tr>${box('Empilhado', fmtInt(s.confronto.planejado), '')}${box('Apontado', fmtInt(s.confronto.apontado), '')}${box('Diferença', (s.confronto.diferenca>=0?'+':'')+fmtInt(s.confronto.diferenca), '')}${box('OS no resumo', fmtInt(s.confronto.osCount), '')}</tr>`;
-
-  const divergRows = s.confronto.divergentes.map(o=>{
-    const st = emailConfStatus(o.diferenca, o.planejado);
-    const chip = emailStatusChip(st);
-    const bg = chip.split(';')[0], fg = chip.split('color:')[1];
-    return `<tr>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee;">OS ${escHtml(osLabel(o.os))}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.planejado)}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;">${fmtInt(o.apontado)}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid #eee; text-align:right;"><span style="background:${bg}; color:${fg}; font-size:11px; font-weight:700; padding:2px 7px; border-radius:10px;">${(o.diferenca>0?'+':'')+fmtInt(o.diferenca)}</span></td>
-    </tr>`;
-  }).join('');
-
   const abKpiRow = `<tr>${box('Contratados'+s.absenteismo.suf, fmtInt(s.absenteismo.totalEscAb), '')}${box('Férias'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFerias), '')}${box('Ausências'+s.absenteismo.suf, fmtInt(s.absenteismo.avgFalta), '')}${box('Absenteísmo geral', fmtPct1(s.absenteismo.pctGeral), '')}</tr>`;
-
-  const abList = (items, label) => items.length ? `
-    <tr><td style="padding:4px 24px 0;">
-      <div style="font-family:Arial,sans-serif; font-size:11.5px; font-weight:700; color:#6c6966; margin-bottom:4px;">${label}</div>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; font-family:Arial,sans-serif; font-size:12px; margin-bottom:6px;">
-        ${items.map(it=>`<tr>
-          <td style="padding:4px 8px; border-bottom:1px solid #eee;">${escHtml(it.key)}</td>
-          <td style="padding:4px 8px; border-bottom:1px solid #eee; text-align:right; color:#6c6966;">${it.faltas}/${it.escalados}</td>
-          <td style="padding:4px 8px; border-bottom:1px solid #eee; text-align:right; font-weight:700; color:${it.pct>0.15?'#c81a21':(it.pct>0.05?'#9c6f10':'#3f7a1e')};">${fmtPct1(it.pct)}</td>
-        </tr>`).join('')}
-      </table>
-    </td></tr>` : '';
+  const tableWrap = rowsHtml => `
+    <tr><td style="padding:4px 24px 4px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>${rowsHtml}</tr></table>
+    </td></tr>`;
 
   const now = new Date();
   const genAt = now.getDate().toString().padStart(2,'0')+'/'+(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear()+' às '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const dateFmt = fmtEmailDate(s.refDateIso);
 
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0; padding:0; background:#dfe4e8;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8; padding:20px 0;">
     <tr><td align="center">
-      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%; background:#ffffff; border-radius:10px; overflow:hidden; border:1px solid #ddd9d2;">
-        <tr><td style="background:#002b5c; padding:20px 24px;">
+      <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px; width:100%;">
+
+        <!-- saudação curta, no mesmo padrão do e-mail de exemplo -->
+        <tr><td style="padding:0 4px 18px; font-family:Arial,sans-serif; font-size:14px; color:#1c2126; line-height:1.6;">
+          Bom dia,<br><br>
+          Segue relatório de apontamento atualizado até hoje (${dateFmt}).<br><br>
+          Para maior detalhamento, segue link&nbsp;:<br><br>
+          <a href="${EMAIL_REPORT_LINK}" style="color:#0a3b70;">${EMAIL_REPORT_LINK}</a>
+        </td></tr>
+
+        <tr><td style="background:#ffffff; border-radius:10px; border:1px solid #ddd9d2; overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="background:#002b5c; padding:20px 24px; border-radius:10px 10px 0 0;">
           <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;">Techint &middot; Painel de Confronto · Mão de Obra</div>
           <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#fff; margin-top:2px;">Efetivo &times; Empilhamento</div>
           <div style="font-family:Arial,sans-serif; font-size:12.5px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
@@ -4126,11 +4350,12 @@ function buildEmailHtml(s){
         ${tableWrap(kpiRow)}
 
         ${sectionHead('Apontamentos por contrato')}
-        <tr><td style="padding:4px 24px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${contratoBoxes}</tr></table></td></tr>
-        ${s.topOs.length ? tableWrap(`<tr><td colspan="4" style="padding:10px 8px 4px; font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">OS com mais presentes</td></tr>${topOsRows}`) : ''}
+        ${imgRow(charts.contrato, 552)}
+        ${s.topOs.length ? subLabel('OS com mais presentes') : ''}
+        ${s.topOs.length ? imgRow(charts.topOs, 552) : ''}
 
         ${sectionHead('Colaboradores por supervisor')}
-        ${s.topSup.length ? tableWrap(supRows) : tableWrap('<tr><td style="padding:8px; color:#6c6966;">Sem dados para os filtros atuais.</td></tr>')}
+        ${imgRow(charts.supervisores, 552)}
 
         ${sectionHead('Confronto OS &times; Função')}
         ${tableWrap(confKpiRow)}
@@ -4144,16 +4369,22 @@ function buildEmailHtml(s){
             </td></tr>
           </table>
         </td></tr>
-        ${s.confronto.divergentes.length ? tableWrap(`<tr><td colspan="4" style="padding:10px 8px 4px; font-family:Arial,sans-serif; font-size:11px; font-weight:700; color:#6c6966; text-transform:uppercase;">Maiores divergências (empilhado &times; apontado)</td></tr>${divergRows}`) : tableWrap('<tr><td style="padding:8px; color:#6c6966;">Nenhuma divergência nos filtros atuais.</td></tr>')}
+        ${subLabel('Maiores divergências (empilhado × apontado)')}
+        ${imgRow(charts.confronto, 552)}
 
         ${sectionHead('Absenteísmo e férias')}
         ${tableWrap(abKpiRow)}
-        ${abList(s.absenteismo.byCargo, 'Por função (maiores % de falta)')}
-        ${abList(s.absenteismo.byDisc, 'Por disciplina (maiores % de falta)')}
+        ${s.absenteismo.byCargo.length ? subLabel('Por função (maiores % de falta)') : ''}
+        ${s.absenteismo.byCargo.length ? imgRow(charts.porFuncao, 552) : ''}
+        ${s.absenteismo.byDisc.length ? subLabel('Por disciplina (maiores % de falta)') : ''}
+        ${s.absenteismo.byDisc.length ? imgRow(charts.porDisciplina, 552) : ''}
 
         <tr><td style="padding:18px 24px; border-top:1px solid #eee;">
           <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt}.</div>
         </td></tr>
+        </table>
+        </td></tr>
+
       </table>
     </td></tr>
   </table>
@@ -4161,8 +4392,19 @@ function buildEmailHtml(s){
 }
 
 function buildEmailPlainText(s){
+  const dateFmt = fmtEmailDate(s.refDateIso);
   const lines = [];
+  lines.push('Bom dia,');
+  lines.push('');
+  lines.push('Segue relatório de apontamento atualizado até hoje (' + dateFmt + ').');
+  lines.push('');
+  lines.push('Para maior detalhamento, segue link :');
+  lines.push('');
+  lines.push(EMAIL_REPORT_LINK);
+  lines.push('');
+  lines.push('----------------------------------------');
   lines.push('RESUMO DIÁRIO — EFETIVO × EMPILHAMENTO (' + s.dateLabel + ')');
+  lines.push('(gráficos disponíveis na versão copiada/formatada — este texto simples não exibe imagem)');
   lines.push('');
   lines.push('EFETIVO');
   lines.push('Contratados: ' + fmtInt(s.kpi.total) + ' | Presentes: ' + fmtInt(s.kpi.presentes) + ' (' + fmtPct(s.kpi.pct) + ') | Ausências: ' + fmtInt(s.kpi.ausenciaCount) + ' | Férias: ' + fmtInt(s.kpi.feriasCount));
@@ -4202,15 +4444,17 @@ function buildEmailPlainText(s){
 
 function openEmailModal(){
   const summary = buildEmailSummary();
-  const html = buildEmailHtml(summary);
+  const charts = buildEmailCharts(summary);
+  const html = buildEmailHtml(summary, charts);
   const text = buildEmailPlainText(summary);
-  const subject = 'Resumo Efetivo × Empilhamento — ' + summary.dateLabel;
+  const subject = 'Apontamentos x OS (' + fmtEmailDate(summary.refDateIso) + ')';
   document.getElementById('email-subject-text').textContent = subject;
+  document.getElementById('email-to-text').value = EMAIL_TO_LIST.join('; ');
+  document.getElementById('email-cc-text').value = EMAIL_CC_LIST.join('; ');
   document.getElementById('email-preview-frame').srcdoc = html;
   const statusEl = document.getElementById('email-modal-status');
   statusEl.hidden = true;
   document.getElementById('email-modal-overlay').hidden = false;
-  document.getElementById('email-modal-overlay').dataset.html = '';
   document.getElementById('email-copy-btn')._emailHtml = html;
   document.getElementById('email-copy-btn')._emailText = text;
   document.getElementById('email-open-btn')._emailSubject = subject;
@@ -4219,7 +4463,23 @@ function openEmailModal(){
 function closeEmailModal(){
   document.getElementById('email-modal-overlay').hidden = true;
 }
+async function copyFieldToClipboard(text, statusEl, okMsg){
+  try{
+    await navigator.clipboard.writeText(text);
+    statusEl.hidden = false; statusEl.className = 'email-modal-status';
+    statusEl.textContent = okMsg;
+  }catch(err){
+    statusEl.hidden = false; statusEl.className = 'email-modal-status error';
+    statusEl.textContent = 'Não foi possível copiar automaticamente — selecione o texto do campo e copie manualmente.';
+  }
+}
 document.getElementById('settings-email-btn').addEventListener('click', ()=>{
+  if(!emailFeatureAvailable()){
+    const statusEl = document.getElementById('settings-status');
+    statusEl.hidden = false; statusEl.className = 'settings-status warn';
+    statusEl.textContent = 'Faça login no Supabase (no fim deste menu) para liberar o modelo de e-mail.';
+    return;
+  }
   document.getElementById('settings-panel').hidden = true;
   document.getElementById('settings-btn').setAttribute('aria-expanded','false');
   openEmailModal();
@@ -4230,6 +4490,12 @@ document.getElementById('email-modal-overlay').addEventListener('click', (e)=>{
 });
 document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape' && !document.getElementById('email-modal-overlay').hidden) closeEmailModal();
+});
+document.getElementById('email-copy-to-btn').addEventListener('click', ()=>{
+  copyFieldToClipboard(document.getElementById('email-to-text').value, document.getElementById('email-modal-status'), 'Lista "Para" copiada — cole direto no campo Para do Outlook.');
+});
+document.getElementById('email-copy-cc-btn').addEventListener('click', ()=>{
+  copyFieldToClipboard(document.getElementById('email-cc-text').value, document.getElementById('email-modal-status'), 'Lista "Cc" copiada — cole direto no campo Cc do Outlook.');
 });
 document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
   const btn = document.getElementById('email-copy-btn');
@@ -4246,7 +4512,7 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
       await navigator.clipboard.writeText(text);
     }
     statusEl.hidden = false; statusEl.className = 'email-modal-status';
-    statusEl.textContent = 'E-mail copiado — já pode colar no corpo do seu cliente de e-mail (Outlook, Gmail, etc.).';
+    statusEl.textContent = 'E-mail copiado (com os gráficos) — cole no corpo do Outlook/Gmail, copie os campos Para/Cc acima e envie.';
   }catch(err){
     console.error(err);
     statusEl.hidden = false; statusEl.className = 'email-modal-status error';
@@ -4255,7 +4521,9 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
 });
 document.getElementById('email-open-btn').addEventListener('click', ()=>{
   const btn = document.getElementById('email-open-btn');
-  const mailto = 'mailto:?subject=' + encodeURIComponent(btn._emailSubject) + '&body=' + encodeURIComponent(btn._emailText);
+  const toAddrs = EMAIL_TO_LIST.map(emailOnlyAddress).join(',');
+  const ccAddrs = EMAIL_CC_LIST.map(emailOnlyAddress).join(',');
+  const mailto = 'mailto:' + encodeURIComponent(toAddrs).replace(/%2C/g,',') + '?cc=' + encodeURIComponent(ccAddrs).replace(/%2C/g,',') + '&subject=' + encodeURIComponent(btn._emailSubject) + '&body=' + encodeURIComponent(btn._emailText);
   window.location.href = mailto;
 });
 
@@ -4373,6 +4641,7 @@ function sbSetStatus(dotCls, text){
 let sbAuthMode = 'signin';
 
 function renderSbAuthBox(){
+  updateEmailAccessUI();
   const box = document.getElementById('sb-auth-box');
   if(!box) return;
   if(!sb){ box.innerHTML = ''; return; }
@@ -4471,6 +4740,7 @@ setTimeout(()=>{
   const loader = document.getElementById('page-loader');
   if(loader) loader.classList.add('hide');
 }, 350);
+updateEmailAccessUI();
 sbInit();
 
 /* Liga/desliga o degradê de "essa tabela rola" (.has-hscroll/.scrolled-end,
