@@ -4406,9 +4406,12 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     } else {
       await navigator.clipboard.writeText(text);
     }
-    // Abre o Outlook Web já com Para/Cc/Assunto preenchidos (esses campos o
-    // link de composição aceita como texto simples, então vão certinhos);
-    // o corpo com os gráficos não dá pra preencher por URL (só aceita texto
+    // Abre o Outlook Web com Para/Cc/Assunto na URL de composição — "to" e
+    // "subject" vêm certinhos, mas "cc" é inconsistente (endpoint não
+    // documentado oficialmente pela Microsoft, já foi visto ignorando cc
+    // dependendo da conta/sessão) — por isso o aviso abaixo manda conferir
+    // e, se precisar, usar o botão Copiar ao lado do campo Cc como reforço.
+    // O corpo com os gráficos não dá pra preencher por URL (só aceita texto
     // simples, igual mailto:) — por isso fica copiado no clipboard, pronto
     // pra colar com Ctrl+V assim que a janela abrir. Nada é enviado
     // automaticamente, é só a composição que abre pronta pra revisão.
@@ -4417,9 +4420,14 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     const subject = document.getElementById('email-subject-text').textContent;
     const deeplink = 'https://outlook.office.com/mail/deeplink/compose?to=' + encodeURIComponent(toAddrs.join(';'))
       + '&cc=' + encodeURIComponent(ccAddrs.join(';')) + '&subject=' + encodeURIComponent(subject);
+    // Alerta BLOQUEANTE antes de abrir a aba nova: assim que a aba do
+    // Outlook abre, o foco sai desta página e o aviso discreto do rodapé do
+    // modal nunca chega a ser visto — por isso o passo a passo tem que
+    // aparecer ANTES, de um jeito que force o usuário a ler.
+    window.alert('Conteúdo copiado! Vamos abrir o Outlook Web numa aba nova.\n\nQuando abrir:\n\n1. Confira os campos Para e Cc — se o Cc vier vazio, volte aqui, clique em "Copiar" ao lado do campo Cc e cole (Ctrl+V) no campo Cc do Outlook.\n\n2. Clique dentro do corpo da mensagem (abaixo da assinatura) e pressione Ctrl+V para colar o relatório com os gráficos.\n\nNada é enviado automaticamente — revise antes de clicar em Enviar.');
     window.open(deeplink, '_blank');
     statusEl.hidden = false; statusEl.className = 'email-modal-status';
-    statusEl.textContent = 'E-mail copiado e Outlook Web aberto com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar o conteúdo com os gráficos. Nada é enviado automaticamente.';
+    statusEl.textContent = 'E-mail copiado e Outlook Web aberto — confira Para/Cc e cole (Ctrl+V) no corpo da mensagem.';
   }catch(err){
     console.error(err);
     statusEl.hidden = false; statusEl.className = 'email-modal-status error';
