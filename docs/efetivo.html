@@ -4240,21 +4240,23 @@ function buildEmailHtml(s, shots){
     <tr><td align="center" style="padding:20px 0;">
       <table role="presentation" width="${TABLE_W}" cellpadding="0" cellspacing="0" style="width:${TABLE_W}px;">
 
-        <!-- cabeçalho único: marca + saudação, tudo dentro do quadro azul.
-             Cor de texto duplicada em CSS (color) E na tag legada <font color>:
-             o motor de colagem do Outlook/Word (baseado no Word) às vezes
-             ignora "color" em CSS ao colar com "Mesclar Formatação", mas
-             respeita a tag <font> herdada do HTML antigo — por isso os dois
-             juntos, pra garantir o texto branco mesmo nesse caso. -->
-        <tr><td style="background:#002b5c; padding:28px 28px 26px; border:1px solid #ddd9d2;">
-          <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;"><font color="#92d050">Techint &middot; Painel de Confronto · Mão de Obra</font></div>
-          <div style="font-family:Arial,sans-serif; font-size:24px; font-weight:800; color:#ffffff; margin-top:3px;"><font color="#ffffff">Efetivo &times; Empilhamento</font></div>
-          <div style="font-family:Arial,sans-serif; font-size:13px; color:#c3d3e6; margin-top:2px;"><font color="#c3d3e6">Resumo diário &middot; ${escHtml(s.dateLabel)}</font></div>
-          <div style="font-family:Arial,sans-serif; font-size:14px; color:#ffffff; line-height:1.7; border-top:1px solid #335678; margin-top:18px; padding-top:16px;"><font color="#ffffff">
+        <!-- cabeçalho único: marca + saudação. Fundo CLARO com texto escuro
+             — mesmo depois de duas tentativas (CSS + tag <font>), o Outlook
+             continuava colando com texto preto em cima do fundo azul escuro
+             (ilegível). Em vez de depender do motor de colagem preservar
+             uma cor de texto clara, o design agora usa a combinação que
+             qualquer leitor de e-mail usa por padrão quando a cor é
+             perdida — texto escuro em fundo claro —, sempre legível
+             independente do que o Outlook decidir manter ao colar. -->
+        <tr><td style="background:#eef3f8; padding:28px 28px 26px; border:1px solid #ddd9d2; border-left:4px solid #002b5c;">
+          <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#1f6f3a;">Techint &middot; Painel de Confronto · Mão de Obra</div>
+          <div style="font-family:Arial,sans-serif; font-size:24px; font-weight:800; color:#002b5c; margin-top:3px;">Efetivo &times; Empilhamento</div>
+          <div style="font-family:Arial,sans-serif; font-size:13px; color:#55687a; margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
+          <div style="font-family:Arial,sans-serif; font-size:14px; color:#1c2126; line-height:1.7; border-top:1px solid #c7d4e0; margin-top:18px; padding-top:16px;">
             Prezados,<br><br>
             Segue relatório de apontamento atualizado até (${dateFmt}).<br><br>
             Para maior detalhamento, segue link&nbsp;:<br><br>
-            <a href="${EMAIL_REPORT_LINK}" style="color:#9fd4ff;"><font color="#9fd4ff">${EMAIL_REPORT_LINK}</font></a></font>
+            <a href="${EMAIL_REPORT_LINK}" style="color:#0a3b70;">${EMAIL_REPORT_LINK}</a>
           </div>
         </td></tr>
 
