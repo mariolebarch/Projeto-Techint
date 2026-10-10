@@ -1374,7 +1374,7 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
       <button class="email-btn-ghost" id="email-copy-btn" type="button">Copiar e abrir no Outlook</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
       <div class="email-modal-hint" id="email-modal-hint-graph" hidden><b>Criar rascunho no Outlook</b> usa sua conta Microsoft pra criar o e-mail (Para, Cc, Assunto e corpo com os gráficos) direto na sua caixa de entrada, como rascunho — nada colado à mão, nada enviado sozinho. Na primeira vez, uma janela vai pedir login/autorização da Microsoft.</div>
-      <div class="email-modal-hint">Clique em <b>Copiar e abrir no Outlook</b>: copiamos o conteúdo (com os gráficos) e abrimos seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão) já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Nada é enviado automaticamente.</div>
+      <div class="email-modal-hint">Clique em <b>Copiar e abrir no Outlook</b>: copiamos o conteúdo (com os gráficos) e abrimos seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão) já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Depois de colar, clique no ícone de colagem e escolha <b>Manter Formatação de Origem</b> (senão o Outlook troca as cores pelo padrão dele). Nada é enviado automaticamente.</div>
     </div>
   </div>
 </div>
@@ -4213,16 +4213,21 @@ function buildEmailHtml(s, shots){
     <tr><td align="center" style="padding:20px 0;">
       <table role="presentation" width="${TABLE_W}" cellpadding="0" cellspacing="0" style="width:${TABLE_W}px;">
 
-        <!-- cabeçalho único: marca + saudação, tudo dentro do quadro azul -->
+        <!-- cabeçalho único: marca + saudação, tudo dentro do quadro azul.
+             Cor de texto duplicada em CSS (color) E na tag legada <font color>:
+             o motor de colagem do Outlook/Word (baseado no Word) às vezes
+             ignora "color" em CSS ao colar com "Mesclar Formatação", mas
+             respeita a tag <font> herdada do HTML antigo — por isso os dois
+             juntos, pra garantir o texto branco mesmo nesse caso. -->
         <tr><td style="background:#002b5c; padding:28px 28px 26px; border:1px solid #ddd9d2;">
-          <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;">Techint &middot; Painel de Confronto · Mão de Obra</div>
-          <div style="font-family:Arial,sans-serif; font-size:24px; font-weight:800; color:#fff; margin-top:3px;">Efetivo &times; Empilhamento</div>
-          <div style="font-family:Arial,sans-serif; font-size:13px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
-          <div style="font-family:Arial,sans-serif; font-size:14px; color:#fff; line-height:1.7; border-top:1px solid rgba(255,255,255,.2); margin-top:18px; padding-top:16px;">
+          <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;"><font color="#92d050">Techint &middot; Painel de Confronto · Mão de Obra</font></div>
+          <div style="font-family:Arial,sans-serif; font-size:24px; font-weight:800; color:#ffffff; margin-top:3px;"><font color="#ffffff">Efetivo &times; Empilhamento</font></div>
+          <div style="font-family:Arial,sans-serif; font-size:13px; color:#c3d3e6; margin-top:2px;"><font color="#c3d3e6">Resumo diário &middot; ${escHtml(s.dateLabel)}</font></div>
+          <div style="font-family:Arial,sans-serif; font-size:14px; color:#ffffff; line-height:1.7; border-top:1px solid #335678; margin-top:18px; padding-top:16px;"><font color="#ffffff">
             Prezados,<br><br>
             Segue relatório de apontamento atualizado até hoje (${dateFmt}).<br><br>
             Para maior detalhamento, segue link&nbsp;:<br><br>
-            <a href="${EMAIL_REPORT_LINK}" style="color:#9fd4ff;">${EMAIL_REPORT_LINK}</a>
+            <a href="${EMAIL_REPORT_LINK}" style="color:#9fd4ff;"><font color="#9fd4ff">${EMAIL_REPORT_LINK}</font></a></font>
           </div>
         </td></tr>
 
@@ -4230,26 +4235,26 @@ function buildEmailHtml(s, shots){
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Apontamentos por contrato &amp; Efetivo</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.visao ? `<img src="${shots.visao}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Apontamentos por Contrato e Efetivo">` : imgFallback('Apontamentos por Contrato e Efetivo')}
+          ${shots.visao ? `<img src="${shots.visao}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eeeeee;" alt="Apontamentos por Contrato e Efetivo">` : imgFallback('Apontamentos por Contrato e Efetivo')}
         </td></tr>
 
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Confronto OS &times; Função</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.confronto ? `<img src="${shots.confronto}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
+          ${shots.confronto ? `<img src="${shots.confronto}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eeeeee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
         </td></tr>
 
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Absenteísmo e férias</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.ausencias ? `<img src="${shots.ausencias}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
+          ${shots.ausencias ? `<img src="${shots.ausencias}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eeeeee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
         </td></tr>
 
-        <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eee; padding:22px 24px; text-align:center;">
+        <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eeeeee; padding:22px 24px; text-align:center;">
           ${shots.techintBanner
-            ? `<img src="${shots.techintBanner}" width="480" style="display:block; margin:0 auto; width:480px; max-width:100%; height:auto;" alt="TECHINT">`
+            ? `<img src="${shots.techintBanner}" width="560" style="display:block; margin:0 auto; width:560px; max-width:100%; height:auto;" alt="TECHINT">`
             : `<div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt}.</div>`}
         </td></tr>
 
@@ -4574,7 +4579,7 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     // ganha foco, o aviso discreto do rodapé do modal nunca chega a ser
     // visto — por isso o passo a passo tem que aparecer ANTES, de um
     // jeito que force o usuário a ler.
-    window.alert('Conteúdo copiado! Vamos abrir seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão).\n\nQuando abrir:\n\n1. Confira os campos Para e Cc — se o Cc vier vazio, volte aqui, clique em "Copiar" ao lado do campo Cc e cole (Ctrl+V) no campo Cc do Outlook.\n\n2. Clique dentro do corpo da mensagem (abaixo da assinatura) e pressione Ctrl+V para colar o relatório com os gráficos.\n\nNada é enviado automaticamente — revise antes de clicar em Enviar.');
+    window.alert('Conteúdo copiado! Vamos abrir seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão).\n\nQuando abrir:\n\n1. Confira os campos Para e Cc — se o Cc vier vazio, volte aqui, clique em "Copiar" ao lado do campo Cc e cole (Ctrl+V) no campo Cc do Outlook.\n\n2. Clique dentro do corpo da mensagem (abaixo da assinatura) e pressione Ctrl+V para colar o relatório com os gráficos.\n\n3. IMPORTANTE: assim que colar, aparece um ícone pequeno de colagem perto do texto — clique nele e escolha "Manter Formatação de Origem" (ou aperte Ctrl+Alt+V e escolha "Formato HTML"). Sem isso, o Outlook troca as cores do quadro azul pelo padrão dele e o texto pode sair preto em vez de branco.\n\nNada é enviado automaticamente — revise antes de clicar em Enviar.');
     window.location.href = mailto;
     statusEl.hidden = false; statusEl.className = 'email-modal-status';
     statusEl.textContent = 'E-mail copiado e aplicativo de e-mail aberto — confira Para/Cc e cole (Ctrl+V) no corpo da mensagem.';
