@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/3.7.1/js/msal-browser.min.js"></script>
 
 <style>
 /* ============ TOKENS ============ */
@@ -1369,9 +1370,11 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     </div>
     <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
     <div class="email-modal-actions">
-      <button class="email-btn-primary" id="email-copy-btn" type="button">Montar e-mail</button>
+      <button class="email-btn-primary" id="email-graph-btn" type="button" hidden>Criar rascunho no Outlook</button>
+      <button class="email-btn-ghost" id="email-copy-btn" type="button">Copiar e abrir no navegador</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
-      <div class="email-modal-hint">Clique em <b>Montar e-mail</b>: copiamos o conteúdo (com os gráficos) e abrimos o Outlook Web já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Nada é enviado automaticamente.</div>
+      <div class="email-modal-hint" id="email-modal-hint-graph" hidden><b>Criar rascunho no Outlook</b> usa sua conta Microsoft pra criar o e-mail (Para, Cc, Assunto e corpo com os gráficos) direto na sua caixa de entrada, como rascunho — nada colado à mão, nada enviado sozinho. Na primeira vez, uma janela vai pedir login/autorização da Microsoft.</div>
+      <div class="email-modal-hint">Clique em <b>Copiar e abrir no navegador</b>: copiamos o conteúdo (com os gráficos) e abrimos o Outlook Web já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Nada é enviado automaticamente.</div>
     </div>
   </div>
 </div>
@@ -4310,6 +4313,118 @@ function extractEmails(str){
   }).map(s=>s.trim()).filter(Boolean);
 }
 
+/* ---------- Criar rascunho no Outlook via Microsoft Graph (sem colar nada) ----------
+   É a única forma de verdade de o botão deixar o e-mail JÁ PRONTO no
+   Outlook sem a pessoa colar nada: em vez de tentar escrever em outra
+   janela (impossível — trava de segurança do navegador), o painel se
+   autentica com a conta Microsoft da pessoa (OAuth) e pede pra própria
+   Microsoft criar o rascunho direto na caixa de entrada dela. Nada é
+   enviado — a chamada abaixo cria RASCUNHO (comportamento padrão do
+   POST /me/messages), nunca envia.
+
+   Pra isso funcionar precisa de um app cadastrado no Azure AD (Microsoft
+   Entra ID) do tenant da Techint — ver instruções no fim deste bloco.
+   Enquanto MS_GRAPH_CLIENT_ID/TENANT_ID estiverem vazios, o botão fica
+   escondido e só aparece o "Copiar e abrir no navegador". */
+const MS_GRAPH_CLIENT_ID = ''; // Application (client) ID do app cadastrado no Azure AD
+const MS_GRAPH_TENANT_ID = ''; // Directory (tenant) ID da Techint
+function msGraphConfigured(){ return !!(MS_GRAPH_CLIENT_ID && MS_GRAPH_TENANT_ID); }
+
+let _msalApp = null;
+function msalApp(){
+  if(_msalApp) return _msalApp;
+  if(!msGraphConfigured() || typeof msal === 'undefined') return null;
+  _msalApp = new msal.PublicClientApplication({
+    auth: {
+      clientId: MS_GRAPH_CLIENT_ID,
+      authority: 'https://login.microsoftonline.com/' + MS_GRAPH_TENANT_ID,
+      redirectUri: window.location.origin + window.location.pathname,
+    },
+    cache: { cacheLocation: 'localStorage' },
+  });
+  return _msalApp;
+}
+async function msGraphGetToken(){
+  const app = msalApp();
+  if(!app) throw new Error('Integração com a Microsoft não configurada neste painel.');
+  const scopes = ['Mail.ReadWrite'];
+  const accounts = app.getAllAccounts();
+  if(accounts.length > 0){
+    try{
+      const res = await app.acquireTokenSilent({ scopes, account: accounts[0] });
+      return res.accessToken;
+    }catch(e){ /* token expirado/sem sessão — cai pro login interativo abaixo */ }
+  }
+  const res = await app.loginPopup({ scopes });
+  return res.accessToken;
+}
+/* Troca cada <img src="data:image/...;base64,..."> por <img src="cid:imgN">
+   e devolve a lista de anexos inline correspondente — é como o Graph
+   espera imagem embutida no corpo (anexo com isInline:true + contentId
+   batendo com o cid: usado no HTML), bem mais confiável do que tentar
+   deixar o data: URI direto no body. */
+function extractInlineImagesForGraph(html){
+  let i = 0;
+  const attachments = [];
+  const newHtml = html.replace(/src="data:(image\/[a-zA-Z0-9.+-]+);base64,([^"]+)"/g, (match, mime, b64)=>{
+    i++;
+    const cid = 'img' + i;
+    const ext = (mime.split('/')[1] || 'png').split('+')[0];
+    attachments.push({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: cid + '.' + ext,
+      contentType: mime,
+      contentBytes: b64,
+      isInline: true,
+      contentId: cid,
+    });
+    return 'src="cid:' + cid + '"';
+  });
+  return { html: newHtml, attachments };
+}
+async function createOutlookDraftViaGraph(toAddrs, ccAddrs, subject, html){
+  const token = await msGraphGetToken();
+  const { html: cidHtml, attachments } = extractInlineImagesForGraph(html);
+  const payload = {
+    subject,
+    body: { contentType: 'HTML', content: cidHtml },
+    toRecipients: toAddrs.map(a=>({emailAddress:{address:a}})),
+    ccRecipients: ccAddrs.map(a=>({emailAddress:{address:a}})),
+    attachments,
+  };
+  const res = await fetch('https://graph.microsoft.com/v1.0/me/messages', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if(!res.ok){
+    let detail = '';
+    try{ detail = (await res.json()).error.message; }catch(e){}
+    throw new Error('Graph API retornou ' + res.status + (detail ? ': ' + detail : ''));
+  }
+  return res.json(); // inclui webLink pra abrir o rascunho direto no Outlook Web
+}
+/*
+   Passo a passo pra configurar MS_GRAPH_CLIENT_ID/MS_GRAPH_TENANT_ID
+   (precisa de acesso de administrador do Microsoft 365 da Techint):
+   1. portal.azure.com → Microsoft Entra ID → Registros de aplicativo →
+      Novo registro.
+   2. Nome: ex. "Painel Efetivo x Empilhamento".
+   3. Tipos de conta com suporte: "Contas somente neste diretório
+      organizacional" (single tenant — só gente da Techint usa).
+   4. Redirecionar URI: plataforma "Aplicativo de página única (SPA)",
+      URI = a própria URL deste painel (ex.:
+      https://mariolebarch.github.io/Projeto-Techint/efetivo.html).
+   5. Na tela "Visão geral" do app criado, copiar "ID do aplicativo
+      (cliente)" → MS_GRAPH_CLIENT_ID, e "ID do diretório (locatário)"
+      → MS_GRAPH_TENANT_ID.
+   6. "Permissões de API" → Adicionar uma permissão → Microsoft Graph →
+      Permissões delegadas → procurar "Mail.ReadWrite" → Adicionar.
+   7. Se o tenant exigir consentimento de admin, clicar em "Conceder
+      consentimento de administrador" (senão cada usuário consente
+      sozinho no primeiro login).
+*/
+
 async function openEmailModal(){
   // Mostra o modal já com um aviso de carregamento — tirar os 3 prints
   // (trocando de aba por baixo dos panos) + montar o HTML leva um instante.
@@ -4337,6 +4452,9 @@ async function openEmailModal(){
   statusEl.hidden = true;
   document.getElementById('email-copy-btn')._emailHtml = html;
   document.getElementById('email-copy-btn')._emailText = text;
+  document.getElementById('email-graph-btn')._emailHtml = html;
+  document.getElementById('email-graph-btn').hidden = !msGraphConfigured();
+  document.getElementById('email-modal-hint-graph').hidden = !msGraphConfigured();
 }
 function closeEmailModal(){
   document.getElementById('email-modal-overlay').hidden = true;
@@ -4391,6 +4509,29 @@ function wireEditRecipient(btnId, inputId){
 }
 wireEditRecipient('email-edit-to-btn', 'email-to-text');
 wireEditRecipient('email-edit-cc-btn', 'email-cc-text');
+
+document.getElementById('email-graph-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('email-graph-btn');
+  const statusEl = document.getElementById('email-modal-status');
+  const html = btn._emailHtml;
+  if(!html) return;
+  statusEl.hidden = false; statusEl.className = 'email-modal-status';
+  statusEl.textContent = 'Conectando com sua conta Microsoft…';
+  try{
+    const toAddrs = extractEmails(document.getElementById('email-to-text').value);
+    const ccAddrs = extractEmails(document.getElementById('email-cc-text').value);
+    const subject = document.getElementById('email-subject-text').textContent;
+    statusEl.textContent = 'Criando o rascunho no Outlook…';
+    const msg = await createOutlookDraftViaGraph(toAddrs, ccAddrs, subject, html);
+    statusEl.className = 'email-modal-status';
+    statusEl.textContent = 'Rascunho criado na sua caixa de entrada do Outlook — nada foi enviado. Abrindo pra revisão…';
+    if(msg && msg.webLink) window.open(msg.webLink, '_blank');
+  }catch(err){
+    console.error(err);
+    statusEl.className = 'email-modal-status error';
+    statusEl.textContent = 'Não foi possível criar o rascunho automaticamente (' + (err && err.message ? err.message : err) + '). Use "Copiar e abrir no navegador" como alternativa.';
+  }
+});
 
 document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
   const btn = document.getElementById('email-copy-btn');
