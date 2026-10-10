@@ -3789,10 +3789,32 @@ function parseWorkbookToBundle(wb){
   /* ---- Emp Semanal ---- */
   const wsEs = sheet('Emp Semanal');
   const esMax = maxRow(wsEs);
+  const esMaxCol = maxCol(wsEs);
+
+  // As colunas de Título/Status/Cargo (Mão de Obra Direta) já vieram uma
+  // posição deslocadas pra esquerda numa planilha real (coluna "Planejador"
+  // excluída sem querer) — em vez de número de coluna fixo, localiza pelo
+  // texto do cabeçalho, com fallback pro layout histórico (6/7/8) se o
+  // texto não for encontrado. A linha com "Nº OS" (cabeçalho da tabela de
+  // blocos) também é localizada assim, com fallback pra linha 27.
+  function findHeaderCol(row, predicate){
+    for(let c=1;c<=esMaxCol;c++){ if(predicate(cellVal(wsEs,row,c))) return c; }
+    return null;
+  }
+  let headerTableRow = null;
+  for(let r=1;r<=Math.min(esMax,60);r++){
+    if(normStr(cellVal(wsEs,r,2))==='nº os'){ headerTableRow = r; break; }
+  }
+  if(headerTableRow===null) headerTableRow = 27;
+  const dataStartRow = headerTableRow+1;
+  const colTitulo = findHeaderCol(headerTableRow, v=>normStr(v)==='titulo os') || 6;
+  const colCargo = findHeaderCol(5, v=>normStr(v)==='mão de obra direta') || 8;
+  const colStatus = findHeaderCol(5, v=>normStr(v)==='status');
+
   const weekBlocks = [];
   {
     let c=1;
-    const maxWeekCol = Math.max(maxCol(wsEs), 40);
+    const maxWeekCol = Math.max(esMaxCol, 40);
     while(c<=maxWeekCol){
       const v2 = cellVal(wsEs,2,c);
       if(typeof v2==='string' && v2.startsWith('Sem')){
@@ -3809,7 +3831,7 @@ function parseWorkbookToBundle(wb){
   const blocks = [];
   {
     let curOs=null, curStart=null;
-    for(let r=28;r<=esMax;r++){
+    for(let r=dataStartRow;r<=esMax;r++){
       const raw = cellVal(wsEs,r,2);
       // Célula da coluna "Nº OS" em branco = continuação do bloco anterior
       // (comum quando a planilha só preenche o rótulo na primeira linha do bloco).
@@ -3828,9 +3850,9 @@ function parseWorkbookToBundle(wb){
   blocks.forEach(([osVal, s, e])=>{
     if(osVal===null || osVal===undefined) return;
     const headerRow = s;
-    const titulo = cleanStr(cellVal(wsEs,headerRow,6));
-    const statusOs = cleanStr(cellVal(wsEs,headerRow,7));
-    const disciplina = cleanStr(cellVal(wsEs,headerRow,8));
+    const titulo = cleanStr(cellVal(wsEs,headerRow,colTitulo));
+    const statusOs = colStatus ? cleanStr(cellVal(wsEs,headerRow,colStatus)) : null;
+    const disciplina = cleanStr(cellVal(wsEs,headerRow,colCargo));
     // Bloco "PCI" na Emp Semanal representa um empilhamento único e conjunto
     // para as 4 OS do contrato PCI (não é discriminado por OS individual) —
     // fica sob a chave especial "PCI", como já ocorre com "Apoio".
@@ -3840,7 +3862,7 @@ function parseWorkbookToBundle(wb){
     });
 
     for(let r=s+1;r<=e;r++){
-      const cargoRaw = cleanStr(cellVal(wsEs,r,8));
+      const cargoRaw = cleanStr(cellVal(wsEs,r,colCargo));
       if(!cargoRaw) continue;
       const n = normStr(cargoRaw);
       let cargoCorrigido, via;
@@ -4627,6 +4649,43 @@ document.getElementById('export-download-btn').addEventListener('click', ()=>{
     statusEl.textContent = 'Erro ao gerar o Excel: ' + err.message;
   }
 });
+// Mescla "pra frente" com o último snapshot publicado no Supabase: linhas
+// de Emp Semanal (empilhamento) que existiam antes mas sumiram do arquivo
+// novo — normalmente por exclusão acidental na planilha mestre — são
+// mantidas, em vez de descartadas no "substitui tudo" de cada importação.
+// Uma linha nova com a MESMA chave (OS+cargo+semana+dia) sempre vence (é
+// uma atualização de verdade); só o que simplesmente não veio no arquivo
+// novo é preservado. O Efetivo (apontamento do dia) não entra nessa
+// mesclagem — ali o arquivo novo é sempre a verdade, dia a dia.
+function mergeEmpSemanalForward(newBundle, prevBundle){
+  if(!prevBundle || !Array.isArray(prevBundle.emp_semanal)) return {bundle:newBundle, carried:0};
+  const keyOf = r => r.os+'||'+r.cargo+'||'+r.semana+'||'+r.dia;
+  const newKeys = new Set(newBundle.emp_semanal.map(keyOf));
+  const carriedRows = prevBundle.emp_semanal.filter(r=>!newKeys.has(keyOf(r)));
+  if(carriedRows.length) newBundle.emp_semanal = newBundle.emp_semanal.concat(carriedRows);
+
+  const prevOsMeta = prevBundle.os_meta || {};
+  newBundle.os_meta = newBundle.os_meta || {};
+  Object.keys(prevOsMeta).forEach(k=>{
+    if(!Object.prototype.hasOwnProperty.call(newBundle.os_meta, k)) newBundle.os_meta[k] = prevOsMeta[k];
+  });
+
+  const semMap = new Map((newBundle.semanas||[]).map(s=>[s.semana,s]));
+  (prevBundle.semanas||[]).forEach(s=>{ if(!semMap.has(s.semana)) semMap.set(s.semana,s); });
+  newBundle.semanas = Array.from(semMap.values()).sort((a,b)=>a.semana-b.semana);
+
+  const diaKey = d=>d.semana+'||'+d.dia;
+  const diaMap = new Map((newBundle.dias_grid||[]).map(d=>[diaKey(d),d]));
+  (prevBundle.dias_grid||[]).forEach(d=>{ if(!diaMap.has(diaKey(d))) diaMap.set(diaKey(d),d); });
+  newBundle.dias_grid = Array.from(diaMap.values());
+
+  const cargoSet = new Set(newBundle.cargos||[]);
+  (prevBundle.cargos||[]).forEach(c=>cargoSet.add(c));
+  newBundle.cargos = Array.from(cargoSet).sort();
+
+  return {bundle:newBundle, carried:carriedRows.length};
+}
+
 document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   const file = e.target.files && e.target.files[0];
   if(!file) return;
@@ -4643,10 +4702,23 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
   const reader = new FileReader();
   reader.onload = async function(ev){
     let bundle;
+    let carriedCount = 0;
     try{
       if(typeof XLSX === 'undefined') throw new Error('Biblioteca de planilhas não disponível (bloqueio de rede?).');
       const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
       bundle = parseWorkbookToBundle(wb);
+
+      if(sb){
+        try{
+          const { data: prevRow } = await sb.from('painel_snapshots').select('bundle').order('created_at',{ascending:false}).limit(1).maybeSingle();
+          if(prevRow && prevRow.bundle){
+            const merged = mergeEmpSemanalForward(bundle, prevRow.bundle);
+            bundle = merged.bundle;
+            carriedCount = merged.carried;
+          }
+        }catch(mergeErr){ console.error('Falha ao mesclar com snapshot anterior (seguindo só com o arquivo novo)', mergeErr); }
+      }
+
       DATA = bundle;
       state.dates = new Set(DATA.datas_apontamento.length ? [DATA.datas_apontamento[DATA.datas_apontamento.length-1]] : []);
       state.contrato = 'all';
@@ -4660,7 +4732,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
       renderAll();
       renderQualidade();
       statusEl.className = 'settings-status ok';
-      statusEl.textContent = 'Dados atualizados: ' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros, ' + DATA.datas_apontamento.length + ' datas (' + DATA.datas_apontamento[0] + ' a ' + DATA.datas_apontamento[DATA.datas_apontamento.length-1] + ').';
+      statusEl.textContent = 'Dados atualizados: ' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros, ' + DATA.datas_apontamento.length + ' datas (' + DATA.datas_apontamento[0] + ' a ' + DATA.datas_apontamento[DATA.datas_apontamento.length-1] + ').' + (carriedCount>0 ? ' ' + carriedCount.toLocaleString('pt-BR') + ' registro(s) de empilhamento de versões anteriores foram mantidos (não vieram neste arquivo).' : '');
     }catch(err){
       console.error(err);
       statusEl.className = 'settings-status error';
@@ -4677,7 +4749,7 @@ document.getElementById('settings-file-input').addEventListener('change', (e)=>{
         });
         if(insErr) throw insErr;
         statusEl.className = 'settings-status ok';
-        statusEl.textContent = 'Dados atualizados e publicados no Supabase (' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros) — todos que abrirem o painel verão essa base.';
+        statusEl.textContent = 'Dados atualizados e publicados no Supabase (' + DATA.efetivo.length.toLocaleString('pt-BR') + ' registros) — todos que abrirem o painel verão essa base.' + (carriedCount>0 ? ' ' + carriedCount.toLocaleString('pt-BR') + ' registro(s) de empilhamento anteriores mantidos.' : '');
         sbSetStatus('ok', 'Conectado — snapshot publicado agora (' + file.name + ').');
       }catch(insErr){
         statusEl.className = 'settings-status error';
