@@ -178,7 +178,7 @@ button.settings-item:hover{background:var(--sand);}
 /* Modal "Modelo de e-mail" (resumo diário pronto pra copiar/enviar) */
 .email-modal-overlay{position:fixed; inset:0; z-index:600; background:rgba(10,20,30,.55); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; padding:24px;}
 .email-modal-overlay[hidden]{display:none;}
-.email-modal{width:100%; max-width:980px; max-height:min(90vh,920px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
+.email-modal{width:100%; max-width:1180px; max-height:min(92vh,960px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
 .email-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:var(--navy); color:#fff;}
 .email-modal-head h3{margin:0; font-family:var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:.04em; color:var(--green);}
 .email-modal-head span.sub{display:block; font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.7); margin-top:2px;}
@@ -1371,10 +1371,10 @@ td.confronto-col .os-mini-nums{display:block; margin-top:3px;}
     <div class="email-modal-body"><iframe id="email-preview-frame" title="Pré-visualização do e-mail"></iframe></div>
     <div class="email-modal-actions">
       <button class="email-btn-primary" id="email-graph-btn" type="button" hidden>Criar rascunho no Outlook</button>
-      <button class="email-btn-ghost" id="email-copy-btn" type="button">Copiar e abrir no navegador</button>
+      <button class="email-btn-ghost" id="email-copy-btn" type="button">Copiar e abrir no Outlook</button>
       <span class="email-modal-status" id="email-modal-status" hidden></span>
       <div class="email-modal-hint" id="email-modal-hint-graph" hidden><b>Criar rascunho no Outlook</b> usa sua conta Microsoft pra criar o e-mail (Para, Cc, Assunto e corpo com os gráficos) direto na sua caixa de entrada, como rascunho — nada colado à mão, nada enviado sozinho. Na primeira vez, uma janela vai pedir login/autorização da Microsoft.</div>
-      <div class="email-modal-hint">Clique em <b>Copiar e abrir no navegador</b>: copiamos o conteúdo (com os gráficos) e abrimos o Outlook Web já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Nada é enviado automaticamente.</div>
+      <div class="email-modal-hint">Clique em <b>Copiar e abrir no Outlook</b>: copiamos o conteúdo (com os gráficos) e abrimos seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão) já com Para/Cc/Assunto preenchidos — clique no corpo da mensagem e dê Ctrl+V pra colar. Nada é enviado automaticamente.</div>
     </div>
   </div>
 </div>
@@ -4174,7 +4174,11 @@ async function buildEmailScreenshots(){
     const visao = await captureOffscreen('visao', '.ov-grid');
     const confronto = await captureOffscreen('confronto', '.card');
     const ausencias = await captureOffscreen('ausencias', null);
-    return { visao, confronto, ausencias };
+    // banner "canteiro de obras" TECHINT do rodapé do painel — está fora
+    // das abas (sempre visível), então captura direto, sem o truque de
+    // renderizar fora da tela.
+    const techintBanner = await captureElementPng(document.querySelector('.techint-banner'));
+    return { visao, confronto, ausencias, techintBanner };
   } finally {
     if(prevTheme) document.documentElement.setAttribute('data-theme', prevTheme);
     else document.documentElement.removeAttribute('data-theme');
@@ -4200,50 +4204,53 @@ function buildEmailHtml(s, shots){
   // seleção, sem formatação de verdade). Uma tabela só, com o visual do
   // "cartão" simulado por bordas esquerda/direita em cada linha, cola bem
   // mais confiável.
+  const IMG_W = 1100, TABLE_W = 1150;
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
 <body style="margin:0; padding:0; background:#dfe4e8;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#dfe4e8;">
     <tr><td align="center" style="padding:20px 0;">
-      <table role="presentation" width="960" cellpadding="0" cellspacing="0" style="width:960px;">
+      <table role="presentation" width="${TABLE_W}" cellpadding="0" cellspacing="0" style="width:${TABLE_W}px;">
 
-        <!-- saudação curta, no mesmo padrão do e-mail de exemplo -->
-        <tr><td style="padding:0 4px 18px; font-family:Arial,sans-serif; font-size:14px; color:#1c2126; line-height:1.6;">
-          Bom dia,<br><br>
-          Segue relatório de apontamento atualizado até hoje (${dateFmt}).<br><br>
-          Para maior detalhamento, segue link&nbsp;:<br><br>
-          <a href="${EMAIL_REPORT_LINK}" style="color:#0a3b70;">${EMAIL_REPORT_LINK}</a>
-        </td></tr>
-
-        <tr><td style="background:#002b5c; padding:20px 24px; border:1px solid #ddd9d2; border-bottom:none;">
+        <!-- cabeçalho único: marca + saudação, tudo dentro do quadro azul -->
+        <tr><td style="background:#002b5c; padding:28px 28px 26px; border:1px solid #ddd9d2;">
           <div style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#92d050;">Techint &middot; Painel de Confronto · Mão de Obra</div>
-          <div style="font-family:Arial,sans-serif; font-size:21px; font-weight:800; color:#fff; margin-top:2px;">Efetivo &times; Empilhamento</div>
-          <div style="font-family:Arial,sans-serif; font-size:12.5px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
+          <div style="font-family:Arial,sans-serif; font-size:24px; font-weight:800; color:#fff; margin-top:3px;">Efetivo &times; Empilhamento</div>
+          <div style="font-family:Arial,sans-serif; font-size:13px; color:rgba(255,255,255,.75); margin-top:2px;">Resumo diário &middot; ${escHtml(s.dateLabel)}</div>
+          <div style="font-family:Arial,sans-serif; font-size:14px; color:#fff; line-height:1.7; border-top:1px solid rgba(255,255,255,.2); margin-top:18px; padding-top:16px;">
+            Prezados,<br><br>
+            Segue relatório de apontamento atualizado até hoje (${dateFmt}).<br><br>
+            Para maior detalhamento, segue link&nbsp;:<br><br>
+            <a href="${EMAIL_REPORT_LINK}" style="color:#9fd4ff;">${EMAIL_REPORT_LINK}</a>
+          </div>
         </td></tr>
 
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Apontamentos por contrato &amp; Efetivo</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.visao ? `<img src="${shots.visao}" width="912" style="display:block; width:912px; height:auto; border:1px solid #eee;" alt="Apontamentos por Contrato e Efetivo">` : imgFallback('Apontamentos por Contrato e Efetivo')}
+          ${shots.visao ? `<img src="${shots.visao}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Apontamentos por Contrato e Efetivo">` : imgFallback('Apontamentos por Contrato e Efetivo')}
         </td></tr>
 
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Confronto OS &times; Função</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.confronto ? `<img src="${shots.confronto}" width="912" style="display:block; width:912px; height:auto; border:1px solid #eee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
+          ${shots.confronto ? `<img src="${shots.confronto}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
         </td></tr>
 
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Absenteísmo e férias</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
-          ${shots.ausencias ? `<img src="${shots.ausencias}" width="912" style="display:block; width:912px; height:auto; border:1px solid #eee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
+          ${shots.ausencias ? `<img src="${shots.ausencias}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
         </td></tr>
 
-        <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eee; padding:18px 24px;">
-          <div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt} — prints tirados ao vivo do painel, com os filtros atuais.</div>
+        <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eee; padding:22px 24px; text-align:center;">
+          ${shots.techintBanner
+            ? `<img src="${shots.techintBanner}" width="480" style="display:block; margin:0 auto; width:480px; max-width:100%; height:auto;" alt="TECHINT">`
+            : `<div style="font-family:Arial,sans-serif; font-size:10.5px; color:#aba7a2;">Gerado automaticamente pelo Painel Efetivo &times; Empilhamento (Techint) em ${genAt}.</div>`}
         </td></tr>
 
       </table>
@@ -4255,7 +4262,7 @@ function buildEmailHtml(s, shots){
 function buildEmailPlainText(s){
   const dateFmt = fmtEmailDate(s.refDateIso);
   const lines = [];
-  lines.push('Bom dia,');
+  lines.push('Prezados,');
   lines.push('');
   lines.push('Segue relatório de apontamento atualizado até hoje (' + dateFmt + ').');
   lines.push('');
@@ -4547,28 +4554,30 @@ document.getElementById('email-copy-btn').addEventListener('click', async ()=>{
     } else {
       await navigator.clipboard.writeText(text);
     }
-    // Abre o Outlook Web com Para/Cc/Assunto na URL de composição — "to" e
-    // "subject" vêm certinhos, mas "cc" é inconsistente (endpoint não
-    // documentado oficialmente pela Microsoft, já foi visto ignorando cc
-    // dependendo da conta/sessão) — por isso o aviso abaixo manda conferir
-    // e, se precisar, usar o botão Copiar ao lado do campo Cc como reforço.
-    // O corpo com os gráficos não dá pra preencher por URL (só aceita texto
-    // simples, igual mailto:) — por isso fica copiado no clipboard, pronto
-    // pra colar com Ctrl+V assim que a janela abrir. Nada é enviado
+    // Usa mailto: em vez de forçar uma aba do Outlook Web no navegador —
+    // mailto: é tratado pelo sistema operacional, que abre o que estiver
+    // configurado como aplicativo de e-mail padrão NESTA máquina (o
+    // Outlook instalado, na maioria dos casos), não uma aba de navegador.
+    // "to" e "subject" vêm certinhos; "cc" pode não vir dependendo do
+    // cliente de e-mail — por isso o aviso abaixo manda conferir e, se
+    // precisar, usar o botão Copiar ao lado do campo Cc como reforço. O
+    // corpo com os gráficos não dá pra preencher via mailto: (só aceita
+    // texto simples) — por isso fica copiado no clipboard, pronto pra
+    // colar com Ctrl+V assim que a janela abrir. Nada é enviado
     // automaticamente, é só a composição que abre pronta pra revisão.
     const toAddrs = extractEmails(document.getElementById('email-to-text').value);
     const ccAddrs = extractEmails(document.getElementById('email-cc-text').value);
     const subject = document.getElementById('email-subject-text').textContent;
-    const deeplink = 'https://outlook.office.com/mail/deeplink/compose?to=' + encodeURIComponent(toAddrs.join(';'))
-      + '&cc=' + encodeURIComponent(ccAddrs.join(';')) + '&subject=' + encodeURIComponent(subject);
-    // Alerta BLOQUEANTE antes de abrir a aba nova: assim que a aba do
-    // Outlook abre, o foco sai desta página e o aviso discreto do rodapé do
-    // modal nunca chega a ser visto — por isso o passo a passo tem que
-    // aparecer ANTES, de um jeito que force o usuário a ler.
-    window.alert('Conteúdo copiado! Vamos abrir o Outlook Web numa aba nova.\n\nQuando abrir:\n\n1. Confira os campos Para e Cc — se o Cc vier vazio, volte aqui, clique em "Copiar" ao lado do campo Cc e cole (Ctrl+V) no campo Cc do Outlook.\n\n2. Clique dentro do corpo da mensagem (abaixo da assinatura) e pressione Ctrl+V para colar o relatório com os gráficos.\n\nNada é enviado automaticamente — revise antes de clicar em Enviar.');
-    window.open(deeplink, '_blank');
+    const mailto = 'mailto:' + encodeURIComponent(toAddrs.join(';')).replace(/%2C/g,',')
+      + '?cc=' + encodeURIComponent(ccAddrs.join(';')) + '&subject=' + encodeURIComponent(subject);
+    // Alerta BLOQUEANTE antes de abrir o app de e-mail: assim que ele
+    // ganha foco, o aviso discreto do rodapé do modal nunca chega a ser
+    // visto — por isso o passo a passo tem que aparecer ANTES, de um
+    // jeito que force o usuário a ler.
+    window.alert('Conteúdo copiado! Vamos abrir seu aplicativo de e-mail padrão nesta máquina (o Outlook instalado, se for o programa padrão).\n\nQuando abrir:\n\n1. Confira os campos Para e Cc — se o Cc vier vazio, volte aqui, clique em "Copiar" ao lado do campo Cc e cole (Ctrl+V) no campo Cc do Outlook.\n\n2. Clique dentro do corpo da mensagem (abaixo da assinatura) e pressione Ctrl+V para colar o relatório com os gráficos.\n\nNada é enviado automaticamente — revise antes de clicar em Enviar.');
+    window.location.href = mailto;
     statusEl.hidden = false; statusEl.className = 'email-modal-status';
-    statusEl.textContent = 'E-mail copiado e Outlook Web aberto — confira Para/Cc e cole (Ctrl+V) no corpo da mensagem.';
+    statusEl.textContent = 'E-mail copiado e aplicativo de e-mail aberto — confira Para/Cc e cole (Ctrl+V) no corpo da mensagem.';
   }catch(err){
     console.error(err);
     statusEl.hidden = false; statusEl.className = 'email-modal-status error';
