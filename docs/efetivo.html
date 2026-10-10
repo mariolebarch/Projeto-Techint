@@ -178,7 +178,7 @@ button.settings-item:hover{background:var(--sand);}
 /* Modal "Modelo de e-mail" (resumo diário pronto pra copiar/enviar) */
 .email-modal-overlay{position:fixed; inset:0; z-index:600; background:rgba(10,20,30,.55); backdrop-filter:blur(2px); display:flex; align-items:center; justify-content:center; padding:24px;}
 .email-modal-overlay[hidden]{display:none;}
-.email-modal{width:100%; max-width:1180px; max-height:min(92vh,960px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
+.email-modal{width:100%; max-width:920px; max-height:min(92vh,900px); background:var(--paper); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); display:flex; flex-direction:column; overflow:hidden;}
 .email-modal-head{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; background:var(--navy); color:#fff;}
 .email-modal-head h3{margin:0; font-family:var(--font-display); font-size:16px; text-transform:uppercase; letter-spacing:.04em; color:var(--green);}
 .email-modal-head span.sub{display:block; font-size:11.5px; font-weight:400; text-transform:none; letter-spacing:0; color:rgba(255,255,255,.7); margin-top:2px;}
@@ -4204,7 +4204,7 @@ function buildEmailHtml(s, shots){
   // seleção, sem formatação de verdade). Uma tabela só, com o visual do
   // "cartão" simulado por bordas esquerda/direita em cada linha, cola bem
   // mais confiável.
-  const IMG_W = 1100, TABLE_W = 1150;
+  const IMG_W = 820, TABLE_W = 860;
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
