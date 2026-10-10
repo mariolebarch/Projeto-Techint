@@ -4252,7 +4252,7 @@ function buildEmailHtml(s, shots){
           <div style="font-family:Arial,sans-serif; font-size:13px; color:#c3d3e6; margin-top:2px;"><font color="#c3d3e6">Resumo diário &middot; ${escHtml(s.dateLabel)}</font></div>
           <div style="font-family:Arial,sans-serif; font-size:14px; color:#ffffff; line-height:1.7; border-top:1px solid #335678; margin-top:18px; padding-top:16px;"><font color="#ffffff">
             Prezados,<br><br>
-            Segue relatório de apontamento atualizado até hoje (${dateFmt}).<br><br>
+            Segue relatório de apontamento atualizado (${dateFmt}).<br><br>
             Para maior detalhamento, segue link&nbsp;:<br><br>
             <a href="${EMAIL_REPORT_LINK}" style="color:#9fd4ff;"><font color="#9fd4ff">${EMAIL_REPORT_LINK}</font></a></font>
           </div>
@@ -4297,7 +4297,7 @@ function buildEmailPlainText(s){
   const lines = [];
   lines.push('Prezados,');
   lines.push('');
-  lines.push('Segue relatório de apontamento atualizado até hoje (' + dateFmt + ').');
+  lines.push('Segue relatório de apontamento atualizado (' + dateFmt + ').');
   lines.push('');
   lines.push('Para maior detalhamento, segue link :');
   lines.push('');
