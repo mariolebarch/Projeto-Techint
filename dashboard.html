@@ -4185,7 +4185,7 @@ async function captureOffscreen(tab, selector){
   }
 }
 
-async function buildEmailScreenshots(){
+async function buildEmailScreenshots(refDateIso){
   // força tema claro durante a captura — o e-mail é lido em qualquer tela
   // (inclusive fora do painel), então os prints saem sempre no mesmo visual
   // claro/profissional, independente do painel estar no modo escuro.
@@ -4195,12 +4195,17 @@ async function buildEmailScreenshots(){
   try{
     const visao = await captureOffscreen('visao', '.ov-grid');
     const confronto = await captureOffscreen('confronto', '.card');
-    const ausencias = await captureOffscreen('ausencias', null);
+    // Sábado, domingo e feriado não têm apontamento — o cálculo de
+    // Absenteísmo já exclui esses dias (mesma regra do card no painel), o
+    // que deixa o quadro vazio. Em vez de mandar um print em branco, a
+    // seção inteira é omitida do e-mail nesse caso.
+    const skipAusencias = refDateIso ? isWeekendOrHoliday(refDateIso) : false;
+    const ausencias = skipAusencias ? null : await captureOffscreen('ausencias', null);
     // banner "canteiro de obras" TECHINT do rodapé do painel — está fora
     // das abas (sempre visível), então captura direto, sem o truque de
     // renderizar fora da tela.
     const techintBanner = await captureElementPng(document.querySelector('.techint-banner'));
-    return { visao, confronto, ausencias, techintBanner };
+    return { visao, confronto, ausencias, techintBanner, ausenciasSkipped: skipAusencias };
   } finally {
     if(prevTheme) document.documentElement.setAttribute('data-theme', prevTheme);
     else document.documentElement.removeAttribute('data-theme');
@@ -4267,12 +4272,13 @@ function buildEmailHtml(s, shots){
           ${shots.confronto ? `<img src="${shots.confronto}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eeeeee;" alt="Confronto OS x Função">` : imgFallback('Confronto OS × Função')}
         </td></tr>
 
+        ${shots.ausenciasSkipped ? '' : `
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:22px 24px 8px;">
           <div style="font-family:Arial,sans-serif; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#002b5c; border-left:3px solid #92d050; padding-left:8px;">Absenteísmo e férias</div>
         </td></tr>
         <tr><td style="background:#ffffff; border-left:1px solid #ddd9d2; border-right:1px solid #ddd9d2; padding:4px 24px 4px;">
           ${shots.ausencias ? `<img src="${shots.ausencias}" width="${IMG_W}" style="display:block; width:${IMG_W}px; height:auto; border:1px solid #eeeeee;" alt="Absenteismo e Ferias">` : imgFallback('Absenteísmo e Férias')}
-        </td></tr>
+        </td></tr>`}
 
         <tr><td style="background:#ffffff; border:1px solid #ddd9d2; border-top:1px solid #eeeeee; padding:22px 24px; text-align:center;">
           ${shots.techintBanner
@@ -4321,16 +4327,21 @@ function buildEmailPlainText(s){
     lines.push('Maiores divergências:');
     s.confronto.divergentes.slice(0,6).forEach(o=> lines.push('  OS ' + osLabel(o.os) + ': emp ' + o.planejado + ' · real ' + o.apontado + ' (' + (o.diferenca>0?'+':'') + o.diferenca + ')'));
   }
-  lines.push('');
-  lines.push('ABSENTEÍSMO E FÉRIAS');
-  lines.push('Contratados' + s.absenteismo.suf + ': ' + fmtInt(s.absenteismo.totalEscAb) + ' | Férias: ' + fmtInt(s.absenteismo.avgFerias) + ' | Ausências: ' + fmtInt(s.absenteismo.avgFalta) + ' | Absenteísmo geral: ' + fmtPct1(s.absenteismo.pctGeral));
-  if(s.absenteismo.byCargo.length){
-    lines.push('Por função:');
-    s.absenteismo.byCargo.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
-  }
-  if(s.absenteismo.byDisc.length){
-    lines.push('Por disciplina:');
-    s.absenteismo.byDisc.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
+  // Sábado, domingo e feriado não têm apontamento (o cálculo de Absenteísmo
+  // já exclui esses dias) — a seção inteira é omitida nesse caso, igual na
+  // versão em HTML.
+  if(!isWeekendOrHoliday(s.refDateIso)){
+    lines.push('');
+    lines.push('ABSENTEÍSMO E FÉRIAS');
+    lines.push('Contratados' + s.absenteismo.suf + ': ' + fmtInt(s.absenteismo.totalEscAb) + ' | Férias: ' + fmtInt(s.absenteismo.avgFerias) + ' | Ausências: ' + fmtInt(s.absenteismo.avgFalta) + ' | Absenteísmo geral: ' + fmtPct1(s.absenteismo.pctGeral));
+    if(s.absenteismo.byCargo.length){
+      lines.push('Por função:');
+      s.absenteismo.byCargo.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
+    }
+    if(s.absenteismo.byDisc.length){
+      lines.push('Por disciplina:');
+      s.absenteismo.byDisc.forEach(it=> lines.push('  ' + it.key + ': ' + it.faltas + '/' + it.escalados + ' — ' + fmtPct1(it.pct)));
+    }
   }
   lines.push('');
   lines.push('Gerado automaticamente pelo Painel Efetivo × Empilhamento (Techint).');
@@ -4476,7 +4487,7 @@ async function openEmailModal(){
   statusEl.textContent = 'Gerando os prints automáticos dos quadros…';
 
   const summary = buildEmailSummary();
-  const shots = await buildEmailScreenshots();
+  const shots = await buildEmailScreenshots(summary.refDateIso);
   const html = buildEmailHtml(summary, shots);
   const text = buildEmailPlainText(summary);
   const subject = 'Apontamentos x OS (' + fmtEmailDate(summary.refDateIso) + ')';
