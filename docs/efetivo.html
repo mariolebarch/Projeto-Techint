@@ -3868,7 +3868,19 @@ function parseWorkbookToBundle(wb){
       let cargoCorrigido, via;
       if(Object.prototype.hasOwnProperty.call(depara,n)){ cargoCorrigido = depara[n]; via='depara'; }
       else if(efCargosSet.has(cargoRaw)){ cargoCorrigido = cargoRaw; via='direto'; }
-      else { cargoCorrigido = cargoRaw; via='NAO_MAPEADO'; }
+      else {
+        // Nomes com especialidade após "|" (ex.: "Ajudante | Andaime") que
+        // ainda não foram cadastrados no Depara_Função — tenta resolver pela
+        // parte base, antes do "|" (ex.: "Ajudante"), que normalmente já
+        // está mapeada, em vez de deixar a linha inteira como função não
+        // reconhecida (o que some do cruzamento com o Efetivo).
+        const pipeIdx = cargoRaw.indexOf('|');
+        const base = pipeIdx>=0 ? cleanStr(cargoRaw.slice(0,pipeIdx)) : null;
+        const baseNorm = base ? normStr(base) : null;
+        if(baseNorm && Object.prototype.hasOwnProperty.call(depara,baseNorm)){ cargoCorrigido = depara[baseNorm]; via='depara-base'; }
+        else if(base && efCargosSet.has(base)){ cargoCorrigido = base; via='direto-base'; }
+        else { cargoCorrigido = cargoRaw; via='NAO_MAPEADO'; }
+      }
 
       weekBlocks.forEach(([wk,days])=>{
         Object.keys(days).forEach(dname=>{
