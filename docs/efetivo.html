@@ -3821,7 +3821,19 @@ function parseWorkbookToBundle(wb){
         const m = v2.match(/\d+/);
         const wk = m ? parseInt(m[0],10) : null;
         const days = {};
-        for(let dc=c; dc<=c+6; dc++){ days[cellVal(wsEs,5,dc)] = dc; }
+        const dayNamesOrder = Object.keys(DAY_ISO_IMPORT);
+        for(let i=0;i<=6;i++){
+          const dc = c+i;
+          const raw = cellVal(wsEs,5,dc);
+          const rawNorm = typeof raw==='string' ? raw.trim().toLowerCase() : null;
+          // Casa o nome do dia ignorando maiúsculas/minúsculas e, se a célula
+          // vier vazia ou com erro de digitação (já aconteceu: célula em
+          // branco, "seG" com maiúscula errada), cai pra posição padrão
+          // (Seg..Dom) — a ordem das colunas dentro do bloco da semana é
+          // sempre fixa, então a posição é um fallback confiável.
+          const matched = dayNamesOrder.find(d=>d.toLowerCase()===rawNorm);
+          days[matched || dayNamesOrder[i]] = dc;
+        }
         weekBlocks.push([wk,days]);
         c+=8;
       } else c+=1;
