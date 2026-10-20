@@ -4503,8 +4503,12 @@ async function openEmailModal(){
   document.getElementById('email-subject-text').textContent = '';
   const toInput = document.getElementById('email-to-text');
   const ccInput = document.getElementById('email-cc-text');
-  toInput.value = EMAIL_TO_LIST.join('; '); toInput.readOnly = true;
-  ccInput.value = EMAIL_CC_LIST.join('; '); ccInput.readOnly = true;
+  // Se a pessoa já editou Para/Cc antes (lápis), reaproveita o que ficou
+  // salvo no navegador em vez de voltar sempre pra lista padrão.
+  const savedTo = emailRecipientGet('emailToOverride');
+  const savedCc = emailRecipientGet('emailCcOverride');
+  toInput.value = savedTo!==null ? savedTo : EMAIL_TO_LIST.join('; '); toInput.readOnly = true;
+  ccInput.value = savedCc!==null ? savedCc : EMAIL_CC_LIST.join('; '); ccInput.readOnly = true;
   document.getElementById('email-edit-to-btn').classList.remove('active');
   document.getElementById('email-edit-cc-btn').classList.remove('active');
   document.getElementById('email-preview-frame').srcdoc = '<!doctype html><body style="margin:0; padding:28px; font-family:Arial,sans-serif; color:#6c6966; background:#dfe4e8;">Gerando os prints automáticos dos quadros…</body>';
@@ -4564,22 +4568,28 @@ document.getElementById('email-copy-to-btn').addEventListener('click', ()=>{
 document.getElementById('email-copy-cc-btn').addEventListener('click', ()=>{
   copyFieldToClipboard(document.getElementById('email-cc-text').value, document.getElementById('email-modal-status'), 'Lista "Cc" copiada — cole direto no campo Cc do Outlook.');
 });
-/* Lápis ao lado de Para/Cc: destrava o campo pra edição manual — o
-   usuário pode remover/trocar/adicionar alguém pra aquele envio
-   específico, sem afetar a lista padrão (que volta ao normal da próxima
-   vez que o modal abrir). */
-function wireEditRecipient(btnId, inputId){
+/* Lápis ao lado de Para/Cc: destrava o campo pra edição manual — o que
+   for digitado fica salvo no navegador (localStorage) e volta a aparecer
+   da próxima vez que o modal abrir, até a pessoa editar de novo. */
+function emailRecipientGet(key){
+  try{ return localStorage.getItem(key); }catch(e){ return null; }
+}
+function emailRecipientSet(key, value){
+  try{ localStorage.setItem(key, value); }catch(e){}
+}
+function wireEditRecipient(btnId, inputId, storageKey){
+  const input = document.getElementById(inputId);
   document.getElementById(btnId).addEventListener('click', ()=>{
-    const input = document.getElementById(inputId);
     const btn = document.getElementById(btnId);
     input.readOnly = false;
     input.focus();
     input.select();
     btn.classList.add('active');
   });
+  input.addEventListener('input', ()=> emailRecipientSet(storageKey, input.value));
 }
-wireEditRecipient('email-edit-to-btn', 'email-to-text');
-wireEditRecipient('email-edit-cc-btn', 'email-cc-text');
+wireEditRecipient('email-edit-to-btn', 'email-to-text', 'emailToOverride');
+wireEditRecipient('email-edit-cc-btn', 'email-cc-text', 'emailCcOverride');
 
 document.getElementById('email-graph-btn').addEventListener('click', async ()=>{
   const btn = document.getElementById('email-graph-btn');
