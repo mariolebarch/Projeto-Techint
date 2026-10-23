@@ -262,6 +262,11 @@ select, .search-input{font-family:var(--font-body); font-size:13.5px; padding:7p
 .msel-actions{display:flex; gap:14px; padding:4px 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px;}
 .msel-actions button{font-size:11.5px; border:none; background:none; color:var(--steel); cursor:pointer; font-weight:600; padding:2px 0;}
 .msel-actions button:hover{text-decoration:underline;}
+.msel-until{display:flex; align-items:center; gap:6px; padding:0 6px 8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px; font-size:11.5px;}
+.msel-until label{color:var(--text-muted); font-weight:600; white-space:nowrap;}
+.msel-until input[type=date]{font-size:11.5px; padding:3px 4px; border:1px solid var(--border-soft); border-radius:5px; background:var(--paper); color:var(--text-primary); flex:1; min-width:0;}
+.msel-until button{font-size:11.5px; border:none; background:var(--steel); color:#fff; cursor:pointer; font-weight:600; padding:4px 9px; border-radius:5px; white-space:nowrap;}
+.msel-until button:hover{filter:brightness(1.1);}
 .msel-group-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700; padding:7px 6px 3px;}
 #saldo-date-msel-global .msel-panel{width:300px; max-height:none; overflow-y:visible;}
 .msel-calendar{padding:2px 2px 6px;}
@@ -1478,6 +1483,23 @@ function buildSaldoDateMultiSelect(){
   actions.className = 'msel-actions';
   actions.innerHTML = `<button type="button" data-act="all">Selecionar todas</button><button type="button" data-act="last">Só a mais recente</button>`;
   panel.appendChild(actions);
+
+  // Atalho "consumo até uma data": marca de uma vez todas as datas da
+  // apuração (Aprop./Mobile/Pendência) desde o início até a data escolhida
+  // — sem isso, pra ver o consumo "até 16/10" a pessoa teria que marcar
+  // manualmente cada um dos ~90 dias um por um no calendário abaixo.
+  const untilRow = document.createElement('div');
+  untilRow.className = 'msel-until';
+  untilRow.innerHTML = `<label for="saldo-date-until-input">Consumo até:</label><input type="date" id="saldo-date-until-input" min="${datas[0]}" max="${datas[datas.length-1]}"><button type="button" data-act="until">Aplicar</button>`;
+  panel.appendChild(untilRow);
+  untilRow.addEventListener('click', e=>e.stopPropagation());
+  untilRow.querySelector('[data-act="until"]').addEventListener('click', ()=>{
+    const val = untilRow.querySelector('#saldo-date-until-input').value;
+    if(!val) return;
+    state.saldoDates = new Set(datas.filter(d=> d<=val));
+    monthIdx = Math.max(0, monthKeys.indexOf(val.slice(0,7)));
+    updateBtnLabel(); renderMonth(); setTimeout(renderAll, 0);
+  });
 
   const weekMap = new Map();
   datas.forEach(d=>{
