@@ -405,25 +405,34 @@ tbody tr:hover td{background:var(--border-soft);}
   .bar-val, .bar-val.wide{width:auto;}
 }
 
-.contrato-health-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:16px;}
-.contrato-health-card{position:relative; border-radius:12px; padding:18px 18px 16px; background:var(--paper); border:1px solid var(--border-soft); box-shadow:0 1px 4px rgba(18,18,18,.06); overflow:hidden;}
-.contrato-health-card::before{content:""; position:absolute; top:0; left:0; right:0; height:4px; background:var(--chc-accent, var(--steel-strong));}
-.contrato-health-card.active{box-shadow:0 0 0 2px var(--steel-strong), 0 1px 4px rgba(18,18,18,.06);}
-.chc-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:12px;}
-.chc-name{font-family:var(--font-display); font-weight:800; font-size:17px; letter-spacing:.02em; text-transform:uppercase; color:var(--steel-strong);}
-.chc-count{font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
-.chc-ring-row{display:flex; align-items:center; gap:16px;}
+/* Saúde por Contrato — mesmo "hero navy" usado no painel Efetivo
+   (quadro Apontamentos por Contrato): fundo navy, faixa lime no topo,
+   anel com glow e números brancos em negrito. Cores de status na
+   versão "glow" (mais claras/saturadas), não as var(--good/warning/
+   critical) padrão do resto do painel — essas foram pensadas pra
+   fundo claro e ficam apagadas em cima do navy. */
+.contrato-health-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:16px;}
+.chc-hero{position:relative; border-radius:14px; overflow:hidden; background:var(--navy); box-shadow:0 10px 26px rgba(0,43,92,.22);}
+.chc-hero.active{box-shadow:0 10px 26px rgba(0,43,92,.22), 0 0 0 2px var(--green);}
+.chc-hero-accent{height:5px; background:var(--chc-glow, var(--green));}
+.chc-hero-body{padding:16px 20px 20px;}
+.chc-hero-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:14px;}
+.chc-hero-name{font-family:var(--font-display); font-weight:800; font-size:19px; letter-spacing:.02em; text-transform:uppercase; color:#fff;}
+.chc-hero-count{font-size:10.5px; color:rgba(255,255,255,.62); white-space:nowrap; text-transform:uppercase; letter-spacing:.04em; font-weight:600;}
+.chc-ring-row{display:flex; align-items:center; gap:18px;}
 .chc-ring{position:relative; width:102px; height:102px; flex:none;}
 .chc-ring svg{width:100%; height:100%; display:block;}
+.chc-ring-arc{filter:drop-shadow(0 0 5px var(--chc-glow));}
 .chc-ring-pct{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-.chc-ring-pct .n{font-family:var(--font-mono); font-size:19px; font-weight:800; line-height:1;}
-.chc-ring-pct .lbl{font-size:8px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-top:3px;}
-.chc-stats-v{display:flex; flex-direction:column; gap:8px; flex:1; min-width:0;}
-.chc-stats-v .s{display:flex; align-items:baseline; justify-content:space-between; gap:8px; border-bottom:1px dashed var(--border-soft); padding-bottom:6px;}
+.chc-ring-pct .n{font-family:var(--font-mono); font-size:20px; font-weight:800; line-height:1; color:#fff;}
+.chc-ring-pct .lbl{font-size:8px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.55); margin-top:4px;}
+.chc-stats-v{display:flex; flex-direction:column; gap:9px; flex:1; min-width:0;}
+.chc-stats-v .s{display:flex; align-items:baseline; justify-content:space-between; gap:8px; border-bottom:1px solid rgba(255,255,255,.14); padding-bottom:7px;}
 .chc-stats-v .s:last-child{border-bottom:none; padding-bottom:0;}
-.chc-stats-v .s .k{font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
-.chc-stats-v .s .v{font-family:var(--font-mono); font-weight:700; font-size:12.5px; color:var(--text-primary); white-space:nowrap; text-align:right;}
-.chc-stats-v .s .v.good{color:var(--good);} .chc-stats-v .s .v.warning{color:var(--warning);} .chc-stats-v .s .v.critical{color:var(--critical);}
+.chc-stats-v .s .k{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.55); font-weight:600; white-space:nowrap;}
+.chc-stats-v .s .v{font-family:var(--font-mono); font-weight:800; font-size:13px; color:#fff; white-space:nowrap; text-align:right;}
+.chc-stats-v .s .v.good{color:#8ed45a;} .chc-stats-v .s .v.warning{color:#f0c64c;} .chc-stats-v .s .v.critical{color:#f0564f;}
+@media (max-width:520px){ .chc-ring-row{flex-direction:column; align-items:stretch;} .chc-ring{align-self:center;} }
 
 .mono-tag{font-family:var(--font-mono); font-size:12px; background:var(--steel-soft); color:var(--steel-strong); padding:1px 7px; border-radius:5px;}
 .ov-table-name{font-weight:600;}
@@ -1828,36 +1837,43 @@ function renderContratoHealth(){
     return {pep, label:contratoLabel(pep), rows, hhPrev, hhReal, saldoRs, estouradas, emRisco, pct};
   }).filter(g=>g.rows.length>0).sort((a,b)=>b.hhPrev-a.hhPrev);
 
-  // Anel SVG (não barra reta) — mesma linguagem visual do velocímetro do
-  // Panorama Geral acima, só que compacto o bastante pra caber 3 lado a
-  // lado: raio/perímetro fixos, só o stroke-dashoffset muda por contrato.
+  // Hero navy (padrão Techint do quadro "Apontamentos por Contrato" do
+  // painel Efetivo): anel com glow em vez de barra reta, dentro de um
+  // cartão navy com faixa lime no topo — cores de status na versão
+  // "glow" (saturadas, pensadas pra fundo escuro), não var(--good/
+  // warning/critical), que ficam apagadas em cima do navy.
+  const GLOW = {good:'#8ed45a', warning:'#f0c64c', critical:'#f0564f'};
   const RING_R = 42, RING_CIRC = 2*Math.PI*RING_R;
   box.innerHTML = `<div class="contrato-health-grid">` + groups.map(g=>{
-    const pctCls = g.pct>=0.9 ? 'critical' : g.pct>=0.7 ? 'warning' : 'good';
+    const statusKey = g.pct>=0.9 ? 'critical' : g.pct>=0.7 ? 'warning' : 'good';
+    const glow = GLOW[statusKey];
     const isActive = state.contrato===g.pep;
     const ringPct = Math.max(0, Math.min(1, g.pct));
     const ringOffset = RING_CIRC*(1-ringPct);
-    return `<div class="contrato-health-card${isActive?' active':''}" style="--chc-accent:var(--${pctCls});">
-      <div class="chc-head">
-        <span class="chc-name">${escHtml(g.label)}</span>
-        <span class="chc-count">${g.rows.length} OS's</span>
-      </div>
-      <div class="chc-ring-row">
-        <div class="chc-ring">
-          <svg viewBox="0 0 102 102">
-            <circle cx="51" cy="51" r="${RING_R}" fill="none" stroke="var(--border-soft)" stroke-width="9"/>
-            <circle cx="51" cy="51" r="${RING_R}" fill="none" stroke="var(--${pctCls})" stroke-width="9" stroke-linecap="round" stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${ringOffset.toFixed(2)}" transform="rotate(-90 51 51)"/>
-          </svg>
-          <div class="chc-ring-pct">
-            <span class="n" style="color:var(--${pctCls});">${fmtPct(g.pct)}</span>
-            <span class="lbl">consumido</span>
-          </div>
+    return `<div class="chc-hero${isActive?' active':''}" style="--chc-glow:${glow};">
+      <div class="chc-hero-accent"></div>
+      <div class="chc-hero-body">
+        <div class="chc-hero-head">
+          <span class="chc-hero-name">${escHtml(g.label)}</span>
+          <span class="chc-hero-count">${g.rows.length} OS's</span>
         </div>
-        <div class="chc-stats-v">
-          <div class="s"><span class="k">HH previsto</span><span class="v">${fmtInt(g.hhPrev)}h</span></div>
-          <div class="s"><span class="k">Saldo final (R$)</span><span class="v ${g.saldoRs<0?'critical':'good'}">${fmtRs(g.saldoRs)}</span></div>
-          <div class="s"><span class="k">Estouradas</span><span class="v ${g.estouradas>0?'critical':''}">${fmtInt(g.estouradas)}</span></div>
-          <div class="s"><span class="k">Em risco</span><span class="v ${g.emRisco>0?'warning':''}">${fmtInt(g.emRisco)}</span></div>
+        <div class="chc-ring-row">
+          <div class="chc-ring">
+            <svg viewBox="0 0 102 102">
+              <circle cx="51" cy="51" r="${RING_R}" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="9"/>
+              <circle class="chc-ring-arc" cx="51" cy="51" r="${RING_R}" fill="none" stroke="${glow}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${ringOffset.toFixed(2)}" transform="rotate(-90 51 51)"/>
+            </svg>
+            <div class="chc-ring-pct">
+              <span class="n">${fmtPct(g.pct)}</span>
+              <span class="lbl">consumido</span>
+            </div>
+          </div>
+          <div class="chc-stats-v">
+            <div class="s"><span class="k">HH previsto</span><span class="v">${fmtInt(g.hhPrev)}h</span></div>
+            <div class="s"><span class="k">Saldo final (R$)</span><span class="v ${g.saldoRs<0?'critical':'good'}">${fmtRs(g.saldoRs)}</span></div>
+            <div class="s"><span class="k">Estouradas</span><span class="v ${g.estouradas>0?'critical':''}">${fmtInt(g.estouradas)}</span></div>
+            <div class="s"><span class="k">Em risco</span><span class="v ${g.emRisco>0?'warning':''}">${fmtInt(g.emRisco)}</span></div>
+          </div>
         </div>
       </div>
     </div>`;
