@@ -405,6 +405,21 @@ tbody tr:hover td{background:var(--border-soft);}
   .bar-val, .bar-val.wide{width:auto;}
 }
 
+.contrato-health-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px;}
+.contrato-health-card{border:1px solid var(--border-soft); border-radius:10px; padding:14px 16px; background:var(--sand);}
+.contrato-health-card.active{border-color:var(--steel); box-shadow:0 0 0 1px var(--steel) inset;}
+.chc-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.chc-name{font-weight:700; font-size:13.5px; color:var(--text-primary);}
+.chc-count{font-size:11px; color:var(--text-muted); white-space:nowrap;}
+.chc-pct{font-family:var(--font-mono); font-size:26px; font-weight:700; margin-top:4px;}
+.chc-pct.good{color:var(--good);} .chc-pct.warning{color:var(--warning);} .chc-pct.critical{color:var(--critical);}
+.chc-sub{font-size:11px; color:var(--text-muted);}
+.chc-stats{display:flex; gap:14px; margin-top:4px;}
+.chc-stats .s{display:flex; flex-direction:column; gap:1px;}
+.chc-stats .s .v{font-family:var(--font-mono); font-size:13px; font-weight:700; color:var(--text-primary);}
+.chc-stats .s .v.good{color:var(--good);} .chc-stats .s .v.warning{color:var(--warning);} .chc-stats .s .v.critical{color:var(--critical);}
+.chc-stats .s .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);}
+
 .andamento-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; background:var(--sand); border:1px solid var(--border-soft);}
 .andamento-seg{height:100%; min-width:3px; transition:width .2s;}
 .andamento-legend{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px;}
@@ -839,6 +854,11 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     </div>
 
     <div class="card">
+      <div class="card-head"><h3>Saúde por Contrato</h3><span class="card-note">PCI × MOA × UNIGAL lado a lado &mdash; onde está o maior risco de estouro, independente do filtro de Contrato acima</span></div>
+      <div id="contrato-health"></div>
+    </div>
+
+    <div class="card">
       <div class="card-head"><h3>Concentração de HH por OS</h3><span class="card-note">Onde o orçamento do portfólio está concentrado &mdash; risco de dependência de poucas OS's</span></div>
       <p class="concentracao-stat" id="concentracao-stat"></p>
       <div id="concentracao-list"></div>
@@ -850,9 +870,14 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         <div id="andamento-chart"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>OS's a Suplementar</h3><span class="card-note">Em execução com saldo se esgotando &mdash; maior urgência de suplementação</span></div>
+        <div class="card-head"><h3>Maior Urgência de Suplementação</h3><span class="card-note">Estouradas e perto de esgotar o saldo &mdash; ordenado pelo maior impacto financeiro (R$)</span></div>
         <div id="suplementar-bars"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Risco por Líder</h3><span class="card-note">Estouro financeiro (R$) somado por líder &mdash; quem concentra o maior risco no portfólio</span></div>
+      <div id="lider-risco-list"></div>
     </div>
   </section>
 
@@ -1349,6 +1374,20 @@ function passCommon(r){
   return true;
 }
 function filteredOS(){ return DATA.os_list.filter(passCommon); }
+/* Mesmos filtros de passCommon, exceto Contrato — usado pelo card "Saúde
+   por Contrato", que precisa comparar PCI × MOA × UNIGAL lado a lado
+   mesmo quando a pessoa já filtrou a tela inteira por um contrato só. */
+function filteredOSIgnoringContrato(){
+  return DATA.os_list.filter(r=>{
+    if(state.osSearch){
+      const q = state.osSearch.toLowerCase();
+      const hay = (String(r.os||'') + ' ' + (r.os_label||'') + ' ' + (r.pep||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    if(state.sit.size>0 && !state.sit.has(r.sit)) return false;
+    return true;
+  });
+}
 
 /* ---------- Multi-select genérico (Situação) ---------- */
 function buildSitMultiSelect(){
@@ -1791,6 +1830,79 @@ function classifyAndamento(r){
   if(pct<0.9) return 'atencao';
   return 'critico';
 }
+/* Saúde por Contrato: PCI × MOA × UNIGAL lado a lado — os botões de filtro
+   Contrato no topo só deixam ver um de cada vez, então hoje não dá pra
+   comparar visualmente onde o risco está mais concentrado sem clicar em
+   cada um. Ignora state.contrato de propósito (filteredOSIgnoringContrato)
+   pra continuar comparável mesmo com um contrato específico selecionado;
+   respeita Situação/busca/filtro de data normalmente. */
+function renderContratoHealth(){
+  const box = document.getElementById('contrato-health');
+  const contratos = DATA.contratos || [];
+  const rowsAll = filteredOSIgnoringContrato();
+  if(contratos.length===0 || rowsAll.length===0){
+    box.innerHTML = '<div class="empty-state">Nenhum contrato encontrado para os filtros atuais.</div>';
+    return;
+  }
+  const groups = contratos.map(pep=>{
+    const rows = rowsAll.filter(r=>r.contrato===pep).filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA');
+    const hhPrev = rows.reduce((a,r)=>a+(r.hh_previsto||0),0);
+    const hhReal = rows.reduce((a,r)=>a+hhTotalRealizadoForOs(r),0);
+    const saldoRs = rows.reduce((a,r)=>a+saldoFinalRsForOs(r),0);
+    const estouradas = rows.filter(r=>saldoFinalForOs(r)<0).length;
+    const emRisco = rows.filter(r=>{ const c=classifyAndamento(r); return c==='atencao'||c==='critico'||c==='estourado'; }).length;
+    const pct = hhPrev>0 ? hhReal/hhPrev : 0;
+    return {pep, label:contratoLabel(pep), rows, hhPrev, hhReal, saldoRs, estouradas, emRisco, pct};
+  }).filter(g=>g.rows.length>0).sort((a,b)=>b.hhPrev-a.hhPrev);
+
+  box.innerHTML = `<div class="contrato-health-grid">` + groups.map(g=>{
+    const pctCls = g.pct>=0.9 ? 'critical' : g.pct>=0.7 ? 'warning' : 'good';
+    const isActive = state.contrato===g.pep;
+    return `<div class="contrato-health-card${isActive?' active':''}">
+      <div class="chc-head">
+        <span class="chc-name">${escHtml(g.label)}</span>
+        <span class="chc-count">${g.rows.length} OS's</span>
+      </div>
+      <div class="chc-pct ${pctCls}">${fmtPct(g.pct)}</div>
+      <div class="chc-sub">consumido &middot; ${fmtInt(g.hhPrev)}h previsto</div>
+      <div class="bar-track" style="margin:8px 0;"><span class="bar-fill" style="width:${Math.max(2,Math.min(100,g.pct*100))}%; background:var(--${pctCls});"></span></div>
+      <div class="chc-stats">
+        <div class="s"><span class="v ${g.saldoRs<0?'critical':'good'}">${fmtRs(g.saldoRs)}</span><span class="k">Saldo final (R$)</span></div>
+        <div class="s"><span class="v ${g.estouradas>0?'critical':''}">${fmtInt(g.estouradas)}</span><span class="k">Estouradas</span></div>
+        <div class="s"><span class="v ${g.emRisco>0?'warning':''}">${fmtInt(g.emRisco)}</span><span class="k">Em risco</span></div>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* Risco por Líder: soma, por líder, o R$ de estouro (saldo final negativo)
+   só das OS's que já romperam o previsto — uma leitura de responsabilidade
+   que não existia no painel (hoje só dá pra ver estouro OS a OS, sem
+   agregação por quem responde pelo quê). */
+function renderLiderRisco(){
+  const box = document.getElementById('lider-risco-list');
+  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && saldoFinalForOs(r)<0);
+  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS estourada para os filtros atuais.</div>'; return; }
+  const byLider = new Map();
+  rows.forEach(r=>{
+    const key = r.lider || 'Sem líder definido';
+    if(!byLider.has(key)) byLider.set(key, {lider:key, estouroRs:0, n:0});
+    const g = byLider.get(key);
+    g.estouroRs += saldoFinalRsForOs(r);
+    g.n += 1;
+  });
+  const entries = Array.from(byLider.values()).sort((a,b)=>a.estouroRs-b.estouroRs).slice(0,10);
+  const maxAbs = Math.max(...entries.map(e=>Math.abs(e.estouroRs)), 1);
+  box.innerHTML = entries.map(e=>{
+    const barPct = Math.max(2, Math.abs(e.estouroRs)/maxAbs*100);
+    return `<div class="bar-row">
+      <span class="label" title="${escHtml(e.lider)}">${escHtml(e.lider)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--critical);"></span></span>
+      <span class="bar-val wide">${fmtRs(e.estouroRs)} &middot; ${e.n} OS${e.n>1?"'s":''}</span>
+    </div>`;
+  }).join('');
+}
+
 /* Concentração (Pareto): quanto do HH Previsto do filtro atual está
    concentrado nas maiores OS's — mostra risco de dependência de poucas
    OS's grandes, uma leitura que nenhum outro card do painel dá hoje. */
@@ -1854,28 +1966,37 @@ function renderAndamentoChart(){
   `;
 }
 
-/* OS's que já estão em execução (HH realizado > 0) e ainda não estouraram
-   o previsto, mas o saldo restante já está abaixo de 15% do HH previsto —
-   candidatas a suplementação antes de virarem estouro. */
+/* OS's que já estouraram o previsto (saldo negativo) OU estão em execução
+   com saldo restante abaixo de 15% do previsto — candidatas a
+   suplementação antes (ou depois) de virarem estouro. Ordenado pelo maior
+   impacto financeiro (R$), não pelo % restante: uma OS grande a 85%
+   consumida pode pesar muito mais em R$ do que uma pequena a 95% —
+   visão gerencial prioriza por dinheiro em risco, não só por percentual. */
 const SUPLEMENTAR_THRESHOLD = 0.15;
 function renderSuplementarBars(){
   const box = document.getElementById('suplementar-bars');
   // saldoFinalForOs(r), não r.saldo_final_hh — mesmo motivo de classifyAndamento.
   const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA'
-    && r.hh_previsto>0 && (r.hh_realizado||0)>0 && saldoFinalForOs(r)>0
-    && (saldoFinalForOs(r)/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD);
-  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS em execução com saldo abaixo de 15% do previsto.</div>'; return; }
+    && r.hh_previsto>0 && (r.hh_realizado||0)>0
+    && (saldoFinalForOs(r)<0 || (saldoFinalForOs(r)/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD));
+  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS estourada ou com saldo abaixo de 15% do previsto.</div>'; return; }
   const entries = rows.slice()
-    .sort((a,b)=>(saldoFinalForOs(a)/a.hh_previsto)-(saldoFinalForOs(b)/b.hh_previsto))
+    .sort((a,b)=>saldoFinalRsForOs(a)-saldoFinalRsForOs(b))
     .slice(0,15)
-    .map(r=>({label:(r.os_label||'')+(r.pep?(' — '+r.pep):''), pctRestante:saldoFinalForOs(r)/r.hh_previsto, saldo:saldoFinalForOs(r)}));
+    .map(r=>({
+      label:(r.os_label||'')+(r.pep?(' — '+r.pep):''),
+      pctRestante: saldoFinalForOs(r)/r.hh_previsto,
+      estourado: saldoFinalForOs(r)<0,
+      saldoRs: saldoFinalRsForOs(r),
+    }));
+  const maxAbsRs = Math.max(...entries.map(e=>Math.abs(e.saldoRs)), 1);
   box.innerHTML = entries.map(e=>{
-    // Barra representa urgência (quanto MENOS sobra, maior a barra) — não o % restante em si.
-    const urgencia = Math.max(2, (1 - e.pctRestante/SUPLEMENTAR_THRESHOLD)*100);
+    const barPct = Math.max(2, Math.abs(e.saldoRs)/maxAbsRs*100);
+    const situ = e.estourado ? 'Estourado' : fmtPct(e.pctRestante)+' restante';
     return `<div class="bar-row">
       <span class="label" title="${escHtml(e.label)}">${escHtml(e.label)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${urgencia}%; background:var(--critical);"></span></span>
-      <span class="bar-val wide">${fmtPct(e.pctRestante)} restante &middot; ${fmtH(e.saldo)}h</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--critical);"></span></span>
+      <span class="bar-val wide">${fmtRs(e.saldoRs)} &middot; ${situ}</span>
     </div>`;
   }).join('');
 }
@@ -2506,9 +2627,11 @@ function renderAll(){
   renderGlobalFilters();
   renderKPIs();
   renderGauge();
+  renderContratoHealth();
   renderConcentracao();
   renderAndamentoChart();
   renderSuplementarBars();
+  renderLiderRisco();
   renderDetalheControls();
   renderDetalheTable();
   renderSuplementacaoTable();
