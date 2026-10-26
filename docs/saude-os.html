@@ -405,29 +405,25 @@ tbody tr:hover td{background:var(--border-soft);}
   .bar-val, .bar-val.wide{width:auto;}
 }
 
-.contrato-health-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px;}
-.contrato-health-card{border:1px solid var(--border-soft); border-radius:10px; padding:14px 16px; background:var(--sand);}
-.contrato-health-card.active{border-color:var(--steel); box-shadow:0 0 0 1px var(--steel) inset;}
-.chc-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
-.chc-name{font-weight:700; font-size:13.5px; color:var(--text-primary);}
-.chc-count{font-size:11px; color:var(--text-muted); white-space:nowrap;}
-.chc-pct{font-family:var(--font-mono); font-size:26px; font-weight:700; margin-top:4px;}
-.chc-pct.good{color:var(--good);} .chc-pct.warning{color:var(--warning);} .chc-pct.critical{color:var(--critical);}
-.chc-sub{font-size:11px; color:var(--text-muted);}
-.chc-stats{display:flex; gap:14px; margin-top:4px;}
-.chc-stats .s{display:flex; flex-direction:column; gap:1px;}
-.chc-stats .s .v{font-family:var(--font-mono); font-size:13px; font-weight:700; color:var(--text-primary);}
-.chc-stats .s .v.good{color:var(--good);} .chc-stats .s .v.warning{color:var(--warning);} .chc-stats .s .v.critical{color:var(--critical);}
-.chc-stats .s .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted);}
-
-.andamento-bar{display:flex; height:22px; border-radius:6px; overflow:hidden; background:var(--sand); border:1px solid var(--border-soft);}
-.andamento-seg{height:100%; min-width:3px; transition:width .2s;}
-.andamento-legend{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px;}
-.andamento-legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);}
-.andamento-legend-item .dot{width:9px; height:9px; border-radius:50%; flex:none;}
-.andamento-legend-item .lbl{font-weight:600; color:var(--text-primary);}
-.andamento-legend-item .sub{color:var(--text-muted); font-size:11px;}
-.andamento-legend-item .cnt{font-family:var(--font-mono); font-weight:700; color:var(--text-primary); margin-left:2px;}
+.contrato-health-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:16px;}
+.contrato-health-card{position:relative; border-radius:12px; padding:18px 18px 16px; background:var(--paper); border:1px solid var(--border-soft); box-shadow:0 1px 4px rgba(18,18,18,.06); overflow:hidden;}
+.contrato-health-card::before{content:""; position:absolute; top:0; left:0; right:0; height:4px; background:var(--chc-accent, var(--steel-strong));}
+.contrato-health-card.active{box-shadow:0 0 0 2px var(--steel-strong), 0 1px 4px rgba(18,18,18,.06);}
+.chc-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:12px;}
+.chc-name{font-family:var(--font-display); font-weight:800; font-size:17px; letter-spacing:.02em; text-transform:uppercase; color:var(--steel-strong);}
+.chc-count{font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
+.chc-ring-row{display:flex; align-items:center; gap:16px;}
+.chc-ring{position:relative; width:102px; height:102px; flex:none;}
+.chc-ring svg{width:100%; height:100%; display:block;}
+.chc-ring-pct{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.chc-ring-pct .n{font-family:var(--font-mono); font-size:19px; font-weight:800; line-height:1;}
+.chc-ring-pct .lbl{font-size:8px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-top:3px;}
+.chc-stats-v{display:flex; flex-direction:column; gap:8px; flex:1; min-width:0;}
+.chc-stats-v .s{display:flex; align-items:baseline; justify-content:space-between; gap:8px; border-bottom:1px dashed var(--border-soft); padding-bottom:6px;}
+.chc-stats-v .s:last-child{border-bottom:none; padding-bottom:0;}
+.chc-stats-v .s .k{font-size:10.5px; color:var(--text-muted); white-space:nowrap;}
+.chc-stats-v .s .v{font-family:var(--font-mono); font-weight:700; font-size:12.5px; color:var(--text-primary); white-space:nowrap; text-align:right;}
+.chc-stats-v .s .v.good{color:var(--good);} .chc-stats-v .s .v.warning{color:var(--warning);} .chc-stats-v .s .v.critical{color:var(--critical);}
 
 .mono-tag{font-family:var(--font-mono); font-size:12px; background:var(--steel-soft); color:var(--steel-strong); padding:1px 7px; border-radius:5px;}
 .ov-table-name{font-weight:600;}
@@ -862,22 +858,6 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
       <div class="card-head"><h3>Concentração de HH por OS</h3><span class="card-note">Onde o orçamento do portfólio está concentrado &mdash; risco de dependência de poucas OS's</span></div>
       <p class="concentracao-stat" id="concentracao-stat"></p>
       <div id="concentracao-list"></div>
-    </div>
-
-    <div class="two-col">
-      <div class="card">
-        <div class="card-head"><h3>OS's em Andamento</h3><span class="card-note">Distribuição por faixa de consumo do HH previsto &mdash; visão gerencial</span></div>
-        <div id="andamento-chart"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Maior Urgência de Suplementação</h3><span class="card-note">Estouradas e perto de esgotar o saldo &mdash; ordenado pelo maior impacto financeiro (R$)</span></div>
-        <div id="suplementar-bars"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h3>Risco por Líder</h3><span class="card-note">Estouro financeiro (R$) somado por líder &mdash; quem concentra o maior risco no portfólio</span></div>
-      <div id="lider-risco-list"></div>
     </div>
   </section>
 
@@ -1809,13 +1789,6 @@ function renderGauge(){
 /* Classifica cada OS por faixa de consumo do HH previsto — visão gerencial
    de quantas OS's estão saudáveis vs. em risco, sem depender do texto livre
    de "Situação" que varia de relatório pra relatório. */
-const ANDAMENTO_BUCKETS = [
-  {key:'confortavel', label:'Confortável', sub:'&lt; 70% consumido', color:'var(--good)'},
-  {key:'atencao', label:'Atenção', sub:'70–90% consumido', color:'var(--warning)'},
-  {key:'critico', label:'Crítico', sub:'90–100% consumido', color:'var(--critical)'},
-  {key:'estourado', label:'Estourado', sub:'saldo negativo', color:'var(--steel-strong)'},
-  {key:'naoIniciado', label:'Não iniciada', sub:'sem HH realizado', color:'var(--border)'},
-];
 function classifyAndamento(r){
   // Usa saldoFinalForOs (mesmo cálculo função a função do Detalhamento por
   // OS — HH Previsto/Realizado consolidados por função, menos Pendência e
@@ -1855,52 +1828,40 @@ function renderContratoHealth(){
     return {pep, label:contratoLabel(pep), rows, hhPrev, hhReal, saldoRs, estouradas, emRisco, pct};
   }).filter(g=>g.rows.length>0).sort((a,b)=>b.hhPrev-a.hhPrev);
 
+  // Anel SVG (não barra reta) — mesma linguagem visual do velocímetro do
+  // Panorama Geral acima, só que compacto o bastante pra caber 3 lado a
+  // lado: raio/perímetro fixos, só o stroke-dashoffset muda por contrato.
+  const RING_R = 42, RING_CIRC = 2*Math.PI*RING_R;
   box.innerHTML = `<div class="contrato-health-grid">` + groups.map(g=>{
     const pctCls = g.pct>=0.9 ? 'critical' : g.pct>=0.7 ? 'warning' : 'good';
     const isActive = state.contrato===g.pep;
-    return `<div class="contrato-health-card${isActive?' active':''}">
+    const ringPct = Math.max(0, Math.min(1, g.pct));
+    const ringOffset = RING_CIRC*(1-ringPct);
+    return `<div class="contrato-health-card${isActive?' active':''}" style="--chc-accent:var(--${pctCls});">
       <div class="chc-head">
         <span class="chc-name">${escHtml(g.label)}</span>
         <span class="chc-count">${g.rows.length} OS's</span>
       </div>
-      <div class="chc-pct ${pctCls}">${fmtPct(g.pct)}</div>
-      <div class="chc-sub">consumido &middot; ${fmtInt(g.hhPrev)}h previsto</div>
-      <div class="bar-track" style="margin:8px 0;"><span class="bar-fill" style="width:${Math.max(2,Math.min(100,g.pct*100))}%; background:var(--${pctCls});"></span></div>
-      <div class="chc-stats">
-        <div class="s"><span class="v ${g.saldoRs<0?'critical':'good'}">${fmtRs(g.saldoRs)}</span><span class="k">Saldo final (R$)</span></div>
-        <div class="s"><span class="v ${g.estouradas>0?'critical':''}">${fmtInt(g.estouradas)}</span><span class="k">Estouradas</span></div>
-        <div class="s"><span class="v ${g.emRisco>0?'warning':''}">${fmtInt(g.emRisco)}</span><span class="k">Em risco</span></div>
+      <div class="chc-ring-row">
+        <div class="chc-ring">
+          <svg viewBox="0 0 102 102">
+            <circle cx="51" cy="51" r="${RING_R}" fill="none" stroke="var(--border-soft)" stroke-width="9"/>
+            <circle cx="51" cy="51" r="${RING_R}" fill="none" stroke="var(--${pctCls})" stroke-width="9" stroke-linecap="round" stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${ringOffset.toFixed(2)}" transform="rotate(-90 51 51)"/>
+          </svg>
+          <div class="chc-ring-pct">
+            <span class="n" style="color:var(--${pctCls});">${fmtPct(g.pct)}</span>
+            <span class="lbl">consumido</span>
+          </div>
+        </div>
+        <div class="chc-stats-v">
+          <div class="s"><span class="k">HH previsto</span><span class="v">${fmtInt(g.hhPrev)}h</span></div>
+          <div class="s"><span class="k">Saldo final (R$)</span><span class="v ${g.saldoRs<0?'critical':'good'}">${fmtRs(g.saldoRs)}</span></div>
+          <div class="s"><span class="k">Estouradas</span><span class="v ${g.estouradas>0?'critical':''}">${fmtInt(g.estouradas)}</span></div>
+          <div class="s"><span class="k">Em risco</span><span class="v ${g.emRisco>0?'warning':''}">${fmtInt(g.emRisco)}</span></div>
+        </div>
       </div>
     </div>`;
   }).join('') + `</div>`;
-}
-
-/* Risco por Líder: soma, por líder, o R$ de estouro (saldo final negativo)
-   só das OS's que já romperam o previsto — uma leitura de responsabilidade
-   que não existia no painel (hoje só dá pra ver estouro OS a OS, sem
-   agregação por quem responde pelo quê). */
-function renderLiderRisco(){
-  const box = document.getElementById('lider-risco-list');
-  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && saldoFinalForOs(r)<0);
-  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS estourada para os filtros atuais.</div>'; return; }
-  const byLider = new Map();
-  rows.forEach(r=>{
-    const key = r.lider || 'Sem líder definido';
-    if(!byLider.has(key)) byLider.set(key, {lider:key, estouroRs:0, n:0});
-    const g = byLider.get(key);
-    g.estouroRs += saldoFinalRsForOs(r);
-    g.n += 1;
-  });
-  const entries = Array.from(byLider.values()).sort((a,b)=>a.estouroRs-b.estouroRs).slice(0,10);
-  const maxAbs = Math.max(...entries.map(e=>Math.abs(e.estouroRs)), 1);
-  box.innerHTML = entries.map(e=>{
-    const barPct = Math.max(2, Math.abs(e.estouroRs)/maxAbs*100);
-    return `<div class="bar-row">
-      <span class="label" title="${escHtml(e.lider)}">${escHtml(e.lider)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--critical);"></span></span>
-      <span class="bar-val wide">${fmtRs(e.estouroRs)} &middot; ${e.n} OS${e.n>1?"'s":''}</span>
-    </div>`;
-  }).join('');
 }
 
 /* Concentração (Pareto): quanto do HH Previsto do filtro atual está
@@ -1932,71 +1893,6 @@ function renderConcentracao(){
       <span class="label" title="${escHtml(label)}">${escHtml(label)}</span>
       <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--steel);"></span></span>
       <span class="bar-val wide">${fmtInt(r.hh_previsto)}h &middot; ${fmtPct(share)}</span>
-    </div>`;
-  }).join('');
-}
-
-function renderAndamentoChart(){
-  const box = document.getElementById('andamento-chart');
-  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA' && r.hh_previsto>0);
-  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS com HH Previsto para os filtros atuais.</div>'; return; }
-
-  const counts = {}; ANDAMENTO_BUCKETS.forEach(b=>counts[b.key]=0);
-  rows.forEach(r=>counts[classifyAndamento(r)]++);
-  const total = rows.length;
-  const emAndamento = total - counts.naoIniciado;
-  const emRisco = counts.atencao + counts.critico + counts.estourado;
-
-  const active = ANDAMENTO_BUCKETS.filter(b=>counts[b.key]>0);
-  const segHtml = active.map(b=>
-    `<span class="andamento-seg" style="width:${(counts[b.key]/total*100).toFixed(2)}%; background:${b.color};" title="${b.label}: ${counts[b.key]} OS's"></span>`
-  ).join('');
-  const legendHtml = active.map(b=>
-    `<div class="andamento-legend-item"><span class="dot" style="background:${b.color};"></span><span class="lbl">${b.label}</span><span class="sub">${b.sub}</span><span class="cnt">${counts[b.key]}</span></div>`
-  ).join('');
-
-  box.innerHTML = `
-    <div class="andamento-bar">${segHtml}</div>
-    <div class="andamento-legend">${legendHtml}</div>
-    <div class="stat-strip" style="justify-content:center; margin-top:14px;">
-      <div class="s"><span class="v num">${fmtInt(emAndamento)}</span><span class="k">OS's em andamento</span></div>
-      <div class="s"><span class="v num" style="color:${emRisco>0?'var(--critical)':'var(--good)'};">${fmtInt(emRisco)}</span><span class="k">Em risco (atenção+)</span></div>
-      <div class="s"><span class="v num" style="color:${counts.estourado>0?'var(--critical)':'var(--good)'};">${fmtInt(counts.estourado)}</span><span class="k">Estouradas</span></div>
-    </div>
-  `;
-}
-
-/* OS's que já estouraram o previsto (saldo negativo) OU estão em execução
-   com saldo restante abaixo de 15% do previsto — candidatas a
-   suplementação antes (ou depois) de virarem estouro. Ordenado pelo maior
-   impacto financeiro (R$), não pelo % restante: uma OS grande a 85%
-   consumida pode pesar muito mais em R$ do que uma pequena a 95% —
-   visão gerencial prioriza por dinheiro em risco, não só por percentual. */
-const SUPLEMENTAR_THRESHOLD = 0.15;
-function renderSuplementarBars(){
-  const box = document.getElementById('suplementar-bars');
-  // saldoFinalForOs(r), não r.saldo_final_hh — mesmo motivo de classifyAndamento.
-  const rows = filteredOS().filter(r=>r.os_label && r.os_label!=='OS_PCI' && r.os_label!=='OS_MOA'
-    && r.hh_previsto>0 && (r.hh_realizado||0)>0
-    && (saldoFinalForOs(r)<0 || (saldoFinalForOs(r)/r.hh_previsto)<=SUPLEMENTAR_THRESHOLD));
-  if(rows.length===0){ box.innerHTML = '<div class="empty-state">Nenhuma OS estourada ou com saldo abaixo de 15% do previsto.</div>'; return; }
-  const entries = rows.slice()
-    .sort((a,b)=>saldoFinalRsForOs(a)-saldoFinalRsForOs(b))
-    .slice(0,15)
-    .map(r=>({
-      label:(r.os_label||'')+(r.pep?(' — '+r.pep):''),
-      pctRestante: saldoFinalForOs(r)/r.hh_previsto,
-      estourado: saldoFinalForOs(r)<0,
-      saldoRs: saldoFinalRsForOs(r),
-    }));
-  const maxAbsRs = Math.max(...entries.map(e=>Math.abs(e.saldoRs)), 1);
-  box.innerHTML = entries.map(e=>{
-    const barPct = Math.max(2, Math.abs(e.saldoRs)/maxAbsRs*100);
-    const situ = e.estourado ? 'Estourado' : fmtPct(e.pctRestante)+' restante';
-    return `<div class="bar-row">
-      <span class="label" title="${escHtml(e.label)}">${escHtml(e.label)}</span>
-      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%; background:var(--critical);"></span></span>
-      <span class="bar-val wide">${fmtRs(e.saldoRs)} &middot; ${situ}</span>
     </div>`;
   }).join('');
 }
@@ -2629,9 +2525,6 @@ function renderAll(){
   renderGauge();
   renderContratoHealth();
   renderConcentracao();
-  renderAndamentoChart();
-  renderSuplementarBars();
-  renderLiderRisco();
   renderDetalheControls();
   renderDetalheTable();
   renderSuplementacaoTable();
