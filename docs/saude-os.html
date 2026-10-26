@@ -215,18 +215,41 @@ button.settings-item:hover{background:var(--sand);}
 .card-note{font-size:12.5px; color:var(--text-muted);}
 
 .ov-right-col{display:flex; flex-direction:column; gap:16px;}
-.kpi-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;}
-@media (max-width:640px){.kpi-grid{grid-template-columns:minmax(0,1fr);}}
 .two-col{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:stretch; margin-top:16px;}
 @media (max-width:900px){.two-col{grid-template-columns:minmax(0,1fr);}}
 .concentracao-stat{font-size:13.5px; color:var(--text-secondary); margin:2px 0 14px;}
 .concentracao-stat .conc-pct{font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--steel-strong);}
-.kpi{background:var(--paper); border:1px solid var(--border-soft); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
-.kpi::before{content:"";position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--steel);}
-.kpi.good::before{background:var(--good);} .kpi.warning::before{background:var(--warning);} .kpi.critical::before{background:var(--critical);}
-.kpi .kpi-label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-weight:600;}
-.kpi .kpi-value{font-family:var(--font-mono); font-size:26px; font-weight:600; line-height:1;}
-.kpi .kpi-sub{font-size:12px; color:var(--text-secondary);}
+
+/* Panorama Geral — mesmo hero navy/lime do resto do painel (ver
+   Saúde por Contrato): um cartão só, estatísticas + velocímetro juntos
+   em vez de 4 caixas brancas soltas ao lado de um painel branco separado. */
+.pg-hero{position:relative; border-radius:14px; overflow:hidden; background:var(--navy); box-shadow:0 10px 26px rgba(0,43,92,.22);}
+.pg-hero-accent{height:5px; background:var(--green);}
+.pg-hero-body{display:flex; align-items:center; gap:30px; flex-wrap:wrap; padding:22px 26px;}
+.pg-stats{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 28px; flex:1 1 320px;}
+.pg-stat{display:flex; align-items:center; gap:11px;}
+.pg-stat-icon{width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; flex:none;}
+.pg-stat-icon svg{width:18px; height:18px; stroke:var(--green);}
+.pg-stat-nums{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.pg-stat-nums .v{font-family:var(--font-mono); font-size:21px; font-weight:800; color:#fff; line-height:1; white-space:nowrap;}
+.pg-stat-nums .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.6); font-weight:700; white-space:nowrap;}
+.pg-gauge{flex:none; width:220px;}
+.pg-gauge.critical{animation:pgGaugePulse 1.7s ease-in-out infinite;}
+@keyframes pgGaugePulse{
+  0%,100%{filter:drop-shadow(0 0 0 rgba(240,86,79,0));}
+  50%{filter:drop-shadow(0 0 9px rgba(240,86,79,.6));}
+}
+.gauge-readouts{display:flex; justify-content:center; gap:26px; margin-top:2px; position:relative;}
+.gauge-readout{display:flex; flex-direction:column; align-items:center; gap:2px;}
+.gauge-readout .gv{font-family:var(--font-mono); font-size:16px; font-weight:700; color:#fff;}
+.gauge-readout .gk{font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.55);}
+@media (max-width:760px){
+  .pg-hero-body{flex-direction:column; align-items:stretch; gap:22px; padding:20px;}
+  .pg-gauge{width:100%; max-width:280px; margin:0 auto;}
+}
+@media (max-width:480px){
+  .pg-stats{grid-template-columns:minmax(0,1fr);}
+}
 
 .callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
 .callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
@@ -341,26 +364,6 @@ tbody tr:hover td{background:var(--border-soft);}
 .stat-strip .s{display:flex; flex-direction:column; gap:2px;}
 .stat-strip .s .v{font-family:var(--font-mono); font-size:19px; font-weight:600;}
 .stat-strip .s .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
-
-.ov-panorama{display:flex; gap:32px; align-items:stretch; flex-wrap:wrap;}
-.ov-panorama .kpi-grid{flex:1; min-width:340px;}
-.ov-panorama-donut{flex:none; min-width:280px; display:flex;}
-@media (max-width:760px){.ov-panorama{flex-direction:column; align-items:stretch;}}
-@media (max-width:400px){
-  .ov-panorama .kpi-grid{min-width:0;}
-  .ov-panorama-donut{min-width:0; width:100%;}
-}
-
-.gauge-panel{flex:1; background:var(--paper); border:1px solid var(--border-soft); border-radius:16px; padding:16px 18px 14px; position:relative; box-shadow:var(--shadow); display:flex; flex-direction:column; justify-content:center;}
-.gauge-panel-critical{animation:gaugePulse 1.7s ease-in-out infinite;}
-@keyframes gaugePulse{
-  0%,100%{box-shadow:var(--shadow);}
-  50%{box-shadow:0 0 0 1px rgba(200,26,33,.4), 0 10px 26px rgba(200,26,33,.22);}
-}
-.gauge-readouts{display:flex; justify-content:center; gap:26px; margin-top:2px; position:relative;}
-.gauge-readout{display:flex; flex-direction:column; align-items:center; gap:2px;}
-.gauge-readout .gv{font-family:var(--font-mono); font-size:17px; font-weight:700; color:var(--text-primary);}
-.gauge-readout .gk{font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted);}
 
 .sev-bar-row{display:flex; align-items:center; gap:10px; padding:7px 0;}
 .sev-bar-row .rank{width:18px; flex:none; font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted); text-align:right;}
@@ -734,7 +737,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
 
   .card{padding:14px 16px;}
   .card-head h3{font-size:15px;}
-  .kpi .kpi-value{font-size:22px;}
+  .pg-stat-nums .v{font-size:18px;}
 
   .donut-wrap{flex-direction:column; align-items:flex-start; gap:14px;}
   .donut-legend{min-width:0; width:100%;}
@@ -852,19 +855,22 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
   <section class="view active" id="view-visao">
     <div class="card">
       <div class="card-head"><h3>Panorama Geral</h3></div>
-      <div class="ov-panorama">
-        <div class="kpi-grid" id="kpi-grid"></div>
-        <div class="ov-panorama-donut ov-gauge-tech" id="ov-gauge"></div>
+      <div class="pg-hero">
+        <div class="pg-hero-accent"></div>
+        <div class="pg-hero-body">
+          <div class="pg-stats" id="kpi-grid"></div>
+          <div class="pg-gauge" id="ov-gauge"></div>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>Saúde por Contrato</h3><span class="card-note">PCI × MOA × UNIGAL lado a lado &mdash; onde está o maior risco de estouro, independente do filtro de Contrato acima</span></div>
+      <div class="card-head"><h3>Saúde por Contrato</h3></div>
       <div id="contrato-health"></div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>Concentração de HH por OS</h3><span class="card-note">Onde o orçamento do portfólio está concentrado &mdash; risco de dependência de poucas OS's</span></div>
+      <div class="card-head"><h3>Concentração de HH por OS</h3></div>
       <p class="concentracao-stat" id="concentracao-stat"></p>
       <div id="concentracao-list"></div>
     </div>
@@ -1701,12 +1707,16 @@ function renderKPIs(){
   // exatamente com o que aparece no detalhamento, incluindo OS's com saldo
   // positivo.
   const saldoFinalRsTotal = rows.reduce((a,r)=>a+saldoFinalRsForOs(r), 0);
+  const ICON_LAYERS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>';
+  const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>';
+  const ICON_TREND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>';
+  const ICON_CIFRAO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v10M15 9.3c0-1.3-1.3-2.3-3-2.3s-3 1-3 2.3 1.3 1.8 3 1.8 3 .5 3 1.9-1.3 2.3-3 2.3-3-1-3-2.3"/></svg>';
   const grid = document.getElementById('kpi-grid');
   grid.innerHTML = `
-    <div class="kpi"><span class="kpi-label">HH Previsto</span><span class="kpi-value">${fmtInt(hhPrev)}</span><span class="kpi-sub">${rows.length} OS's</span></div>
-    <div class="kpi"><span class="kpi-label">HH Realizado</span><span class="kpi-value">${fmtInt(hhReal)}</span><span class="kpi-sub">${fmtPct(pctCons)} consumido</span></div>
-    <div class="kpi ${hhSaldoFinal<0?'critical':'good'}"><span class="kpi-label">HH Saldo Final</span><span class="kpi-value">${fmtInt(hhSaldoFinal)}</span><span class="kpi-sub">Saldo sistema &minus; (Pendência + Projeção)</span></div>
-    <div class="kpi ${saldoFinalRsTotal<0?'critical':'good'}"><span class="kpi-label">Saldo Final (R$)</span><span class="kpi-value" style="font-size:19px;">${fmtRs(saldoFinalRsTotal)}</span><span class="kpi-sub">Previsto &minus; (Realizado + Pendência + Projeção), em R$</span></div>
+    <div class="pg-stat"><span class="pg-stat-icon">${ICON_LAYERS}</span><span class="pg-stat-nums"><span class="v">${fmtInt(hhPrev)}</span><span class="k">HH Previsto &middot; ${rows.length} OS's</span></span></div>
+    <div class="pg-stat"><span class="pg-stat-icon">${ICON_CHECK}</span><span class="pg-stat-nums"><span class="v">${fmtInt(hhReal)}</span><span class="k">HH Realizado &middot; ${fmtPct(pctCons)}</span></span></div>
+    <div class="pg-stat"><span class="pg-stat-icon">${ICON_TREND}</span><span class="pg-stat-nums"><span class="v" style="${hhSaldoFinal<0?'color:#f0564f;':''}">${fmtInt(hhSaldoFinal)}</span><span class="k">HH Saldo Final</span></span></div>
+    <div class="pg-stat"><span class="pg-stat-icon">${ICON_CIFRAO}</span><span class="pg-stat-nums"><span class="v" style="${saldoFinalRsTotal<0?'color:#f0564f;':''}font-size:17px;">${fmtRs(saldoFinalRsTotal)}</span><span class="k">Saldo Final (R$)</span></span></div>
   `;
 }
 
@@ -1752,17 +1762,16 @@ function renderGauge(){
     const major = i%2===0;
     const [tx1,ty1] = pt(p, r - sw/2 - (major?9:4));
     const [tx2,ty2] = pt(p, r - sw/2 + 2);
-    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="${major?'var(--text-secondary)':'var(--border)'}" stroke-width="${major?2:1.3}"/>`);
+    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="${major?'rgba(255,255,255,.7)':'rgba(255,255,255,.3)'}" stroke-width="${major?2:1.3}"/>`);
     if(major){
       const [lx,ly] = pt(p, r + sw/2 + 13);
-      ticks.push(`<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="var(--text-primary)">${i*10}</text>`);
+      ticks.push(`<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="#fff">${i*10}</text>`);
     }
   }
 
-  // Ponteiro: aponta pra leitura atual sobre a escala fixa; fica na cor
-  // navy do padrão Techint em condição normal e crítico (vermelho) quando
-  // estourado/acima de 90%, já que as zonas de fundo não mudam de cor
-  // conforme o valor.
+  // Ponteiro: branco em condição normal (visível sobre o fundo navy do
+  // hero) e vermelho (glow) quando estourado/acima de 90%, já que as
+  // zonas de fundo não mudam de cor conforme o valor.
   const needleAngle = angleAt(pctClamped);
   const needleLen = r - sw/2 - 6;
   const tipX = cx + needleLen*Math.cos(needleAngle), tipY = cy - needleLen*Math.sin(needleAngle);
@@ -1770,7 +1779,7 @@ function renderGauge(){
   const baseW = 4.5;
   const b1x = cx + baseW*Math.cos(baseA1), b1y = cy - baseW*Math.sin(baseA1);
   const b2x = cx + baseW*Math.cos(baseA2), b2y = cy - baseW*Math.sin(baseA2);
-  const needleColor = critical ? 'var(--critical)' : 'var(--navy)';
+  const needleColor = critical ? '#f0564f' : '#fff';
 
   const comPrevisto = rows.filter(r=>r.hh_previsto>0);
   const mediaPorOs = comPrevisto.length
@@ -1778,20 +1787,19 @@ function renderGauge(){
     : 0;
 
   const box = document.getElementById('ov-gauge');
+  box.classList.toggle('critical', critical);
   box.innerHTML = `
-    <div class="gauge-panel${critical?' gauge-panel-critical':''}">
       <svg viewBox="0 0 220 170" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido, estilo velocímetro">
         ${zoneArcs}
         ${ticks.join('')}
         <polygon points="${tipX.toFixed(1)},${tipY.toFixed(1)} ${b1x.toFixed(1)},${b1y.toFixed(1)} ${b2x.toFixed(1)},${b2y.toFixed(1)}" fill="${needleColor}"/>
-        <circle cx="${cx}" cy="${cy}" r="10" fill="var(--paper)" stroke="var(--border)" stroke-width="2"/>
+        <circle cx="${cx}" cy="${cy}" r="10" fill="var(--navy)" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
         <circle cx="${cx}" cy="${cy}" r="4.5" fill="${needleColor}"/>
       </svg>
       <div class="gauge-readouts">
-        <div class="gauge-readout"><span class="gv" style="${critical?'color:var(--critical);':''}">${fmtPct(pct)}</span><span class="gk">Consumido (portfólio)</span></div>
+        <div class="gauge-readout"><span class="gv" style="${critical?'color:#f0564f;':''}">${fmtPct(pct)}</span><span class="gk">Consumido (portfólio)</span></div>
         <div class="gauge-readout"><span class="gv">${fmtPct(mediaPorOs)}</span><span class="gk">Média simples por OS</span></div>
       </div>
-    </div>
   `;
 }
 
