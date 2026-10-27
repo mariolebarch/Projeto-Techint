@@ -1784,11 +1784,6 @@ function renderGauge(){
   const b2x = cx + baseW*Math.cos(baseA2), b2y = cy - baseW*Math.sin(baseA2);
   const needleColor = critical ? '#f0564f' : '#fff';
 
-  const comPrevisto = rows.filter(r=>r.hh_previsto>0);
-  const mediaPorOs = comPrevisto.length
-    ? comPrevisto.reduce((a,r)=>a+Math.min(2, r.hh_realizado/r.hh_previsto),0)/comPrevisto.length
-    : 0;
-
   const box = document.getElementById('ov-gauge');
   box.classList.toggle('critical', critical);
   box.innerHTML = `
@@ -1800,8 +1795,7 @@ function renderGauge(){
         <circle cx="${cx}" cy="${cy}" r="4.5" fill="${needleColor}"/>
       </svg>
       <div class="gauge-readouts">
-        <div class="gauge-readout"><span class="gv" style="${critical?'color:#f0564f;':''}">${fmtPct(pct)}</span><span class="gk">Consumido (portfólio)</span></div>
-        <div class="gauge-readout"><span class="gv">${fmtPct(mediaPorOs)}</span><span class="gk">Média simples por OS</span></div>
+        <div class="gauge-readout"><span class="gv" style="${critical?'color:#f0564f;':''}">${fmtPct(pct)}</span><span class="gk">HH Realizado / HH Previsto</span></div>
       </div>
   `;
 }
