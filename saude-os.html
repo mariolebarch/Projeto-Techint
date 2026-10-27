@@ -1850,13 +1850,20 @@ function renderContratoHealth(){
 
   // Hero navy (padrão Techint do quadro "Apontamentos por Contrato" do
   // painel Efetivo): anel com glow em vez de barra reta, dentro de um
-  // cartão navy com faixa lime no topo — cores de status na versão
-  // "glow" (saturadas, pensadas pra fundo escuro), não var(--good/
-  // warning/critical), que ficam apagadas em cima do navy.
-  const RING_GLOW = '#4ea8de';
+  // cartão navy com faixa lime no topo. Cor do anel fixa por contrato
+  // (identidade visual), não por status de consumo — o status já
+  // aparece nas linhas "Estouradas" e "Em risco" do mesmo card.
+  const RING_BY_CONTRATO = [
+    {match:'PCI', glow:'#8ed45a'},
+    {match:'MOA', glow:'#4ea8de'},
+    {match:'UNIGAL', glow:'#f0a84c'},
+  ];
+  const DEFAULT_RING_GLOW = '#4ea8de';
   const RING_R = 42, RING_CIRC = 2*Math.PI*RING_R;
   box.innerHTML = `<div class="contrato-health-grid">` + groups.map(g=>{
-    const glow = RING_GLOW;
+    const labelUpper = String(g.label||'').toUpperCase();
+    const match = RING_BY_CONTRATO.find(c=>labelUpper.includes(c.match));
+    const glow = match ? match.glow : DEFAULT_RING_GLOW;
     const isActive = state.contrato===g.pep;
     const ringPct = Math.max(0, Math.min(1, g.pct));
     const ringOffset = RING_CIRC*(1-ringPct);
