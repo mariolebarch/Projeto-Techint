@@ -1853,11 +1853,10 @@ function renderContratoHealth(){
   // cartão navy com faixa lime no topo — cores de status na versão
   // "glow" (saturadas, pensadas pra fundo escuro), não var(--good/
   // warning/critical), que ficam apagadas em cima do navy.
-  const GLOW = {good:'#8ed45a', warning:'#f0c64c', critical:'#f0564f'};
+  const RING_GLOW = '#4ea8de';
   const RING_R = 42, RING_CIRC = 2*Math.PI*RING_R;
   box.innerHTML = `<div class="contrato-health-grid">` + groups.map(g=>{
-    const statusKey = g.pct>=0.9 ? 'critical' : g.pct>=0.7 ? 'warning' : 'good';
-    const glow = GLOW[statusKey];
+    const glow = RING_GLOW;
     const isActive = state.contrato===g.pep;
     const ringPct = Math.max(0, Math.min(1, g.pct));
     const ringOffset = RING_CIRC*(1-ringPct);
