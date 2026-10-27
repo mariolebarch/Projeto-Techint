@@ -233,7 +233,7 @@ button.settings-item:hover{background:var(--sand);}
 .pg-stat-nums{display:flex; flex-direction:column; gap:2px; min-width:0;}
 .pg-stat-nums .v{font-family:var(--font-mono); font-size:19px; font-weight:800; color:#fff; line-height:1; white-space:nowrap;}
 .pg-stat-nums .k{font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.6); font-weight:700; white-space:nowrap;}
-.pg-gauge{flex:none; width:168px;}
+.pg-gauge{flex:none; width:192px;}
 .pg-gauge.critical{animation:pgGaugePulse 1.7s ease-in-out infinite;}
 @keyframes pgGaugePulse{
   0%,100%{filter:drop-shadow(0 0 0 rgba(240,86,79,0));}
@@ -1740,7 +1740,7 @@ function renderGauge(){
   const over = pct>1;
   const critical = over || pctClamped>=0.9;
 
-  const cx=110, cy=112, r=78, sw=16;
+  const cx=110, cy=106, r=78, sw=16;
   const angleAt = p => Math.PI*(1-p);
   const pt = (p,rad) => { const a=angleAt(p); return [cx+rad*Math.cos(a), cy-rad*Math.sin(a)]; };
 
@@ -1787,7 +1787,7 @@ function renderGauge(){
   const box = document.getElementById('ov-gauge');
   box.classList.toggle('critical', critical);
   box.innerHTML = `
-      <svg viewBox="0 0 220 170" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido, estilo velocímetro">
+      <svg viewBox="0 0 220 130" style="width:100%; height:auto; display:block;" role="img" aria-label="Percentual de HH consumido, estilo velocímetro">
         ${zoneArcs}
         ${ticks.join('')}
         <polygon points="${tipX.toFixed(1)},${tipY.toFixed(1)} ${b1x.toFixed(1)},${b1y.toFixed(1)} ${b2x.toFixed(1)},${b2y.toFixed(1)}" fill="${needleColor}"/>
