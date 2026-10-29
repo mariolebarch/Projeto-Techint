@@ -254,6 +254,62 @@ button.settings-item:hover{background:var(--sand);}
   .pg-stats{grid-template-columns:minmax(0,1fr);}
 }
 
+/* Planejamento — cronograma de consumo projetado por cargo, mesmo hero
+   navy/lime do resto do painel. Cada cargo vira um cartão "pista de
+   pouso": barra de consumo + contador digital com os dias restantes
+   (ou dias de estouro) no ritmo médio diário apurado nos apontamentos
+   (Aprop./Mobile) dentro do período filtrado. */
+.plan-hero{position:relative; border-radius:14px; overflow:hidden; background:var(--navy); box-shadow:0 10px 26px rgba(0,43,92,.22);}
+.plan-hero-accent{height:5px; background:var(--green);}
+.plan-hero-body{display:flex; flex-wrap:wrap; gap:26px; padding:18px 24px 20px; align-items:flex-start;}
+.plan-hero-intro{flex:1 1 300px; display:flex; flex-direction:column; gap:8px;}
+.plan-hero-intro p{margin:0; font-size:12.5px; line-height:1.55; color:rgba(255,255,255,.72); max-width:480px;}
+.plan-hero-base{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--green); font-weight:700;}
+
+.plan-stats{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; flex:1 1 420px;}
+.plan-stat{display:flex; flex-direction:column; gap:2px; border-left:3px solid var(--plan-c,#7a93b8); padding-left:10px;}
+.plan-stat .v{font-family:var(--font-mono); font-size:22px; font-weight:800; color:#fff; line-height:1;}
+.plan-stat .k{font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.6); font-weight:700; margin-top:3px;}
+.plan-stat.estourado{--plan-c:#f0564f;}
+.plan-stat.critico{--plan-c:#f0564f;}
+.plan-stat.atencao{--plan-c:#f0c64c;}
+.plan-stat.confortavel{--plan-c:#8ed45a;}
+.plan-stat.semdados{--plan-c:#7a93b8;}
+@media (max-width:760px){ .plan-hero-body{flex-direction:column;} }
+@media (max-width:620px){ .plan-stats{grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+.plan-list{display:flex; flex-direction:column; gap:12px; margin-top:6px;}
+.plan-card{position:relative; border-radius:12px; background:var(--navy); box-shadow:0 6px 18px rgba(0,43,92,.18); padding:16px 18px; display:flex; flex-wrap:wrap; align-items:center; gap:18px; border-left:4px solid var(--plan-c,#7a93b8);}
+.plan-card.estourado{animation:planCardPulse 2.2s ease-in-out infinite;}
+@keyframes planCardPulse{
+  0%,100%{box-shadow:0 6px 18px rgba(0,43,92,.18);}
+  50%{box-shadow:0 6px 18px rgba(0,43,92,.18), 0 0 18px 1px rgba(240,86,79,.4);}
+}
+.plan-card-main{flex:1 1 320px; min-width:0; display:flex; flex-direction:column; gap:8px;}
+.plan-card-head{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
+.plan-os-chip{font-family:var(--font-mono); font-size:10.5px; font-weight:700; color:rgba(255,255,255,.55); letter-spacing:.03em;}
+.plan-contrato-chip{font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:rgba(255,255,255,.12); border-radius:4px; padding:2px 6px;}
+.plan-funcao{font-family:var(--font-display); font-weight:800; font-size:16px; color:#fff; text-transform:uppercase; letter-spacing:.01em;}
+.plan-status-pill{font-family:var(--font-mono); font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:3px 9px; border-radius:20px; color:#08182e; background:var(--plan-c,#7a93b8); margin-left:auto;}
+
+.plan-bar{position:relative; height:10px; border-radius:6px; background:rgba(255,255,255,.1);}
+.plan-bar-fill{height:100%; border-radius:6px; background:var(--plan-c,#7a93b8); transition:width .3s;}
+.plan-bar-overflow{position:absolute; top:-3px; bottom:-3px; right:-3px; width:10px; border-radius:6px; background:#f0564f; box-shadow:0 0 8px 2px rgba(240,86,79,.65);}
+.plan-meta{font-size:11.5px; color:rgba(255,255,255,.65); display:flex; flex-wrap:wrap; gap:4px 14px;}
+.plan-meta b{color:#fff; font-weight:700;}
+
+.plan-countdown{flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:96px; padding:7px 16px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);}
+.plan-countdown .n{font-family:var(--font-mono); font-size:26px; font-weight:800; line-height:1; color:var(--plan-c,#7a93b8); text-shadow:0 0 10px var(--plan-c, transparent);}
+.plan-countdown .k{font-size:8.5px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.55); margin-top:4px; text-align:center;}
+
+.plan-list-foot{display:flex; justify-content:center; margin-top:14px;}
+.plan-showmore-btn{appearance:none; border:1px solid var(--border-soft); background:#fff; color:var(--steel-strong); font-family:var(--font-mono); font-size:12px; font-weight:700; letter-spacing:.03em; padding:9px 20px; border-radius:20px; cursor:pointer;}
+.plan-showmore-btn:hover{background:var(--steel); color:#fff; border-color:var(--steel);}
+@media (max-width:640px){
+  .plan-card{flex-direction:column; align-items:stretch;}
+  .plan-countdown{align-self:center;}
+}
+
 .callout{border:1px solid var(--warning); background:var(--warning-soft); border-radius:var(--radius); padding:14px 18px; display:flex; gap:14px; align-items:flex-start; margin-top:16px;}
 .callout .glyph{font-family:var(--font-display); font-weight:900; font-size:20px; color:var(--warning); border:2px solid var(--warning); border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; flex:none;}
 .callout h4{font-size:14.5px; margin-bottom:3px; color:var(--text-primary); text-transform:none;}
@@ -851,6 +907,7 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
     <button class="tabbtn" data-tab="visao" aria-selected="true">Visão Geral</button>
     <button class="tabbtn" data-tab="detalhe" aria-selected="false">Detalhamento por OS</button>
     <button class="tabbtn" data-tab="suplementacao" aria-selected="false">Suplementação Pendência</button>
+    <button class="tabbtn" data-tab="planejamento" aria-selected="false">Planejamento</button>
   </nav>
 
 
@@ -922,6 +979,37 @@ tr.detail-group-header .chip{text-transform:none; letter-spacing:normal;}
         </table>
       </div>
       <div class="empty-state" id="supl-empty" style="display:none;">Nenhuma pendência para os filtros atuais.</div>
+    </div>
+  </section>
+
+  <!-- ================= PLANEJAMENTO (cronograma de consumo projetado) ================= -->
+  <section class="view" id="view-planejamento">
+    <div class="card plan-card-wrap">
+      <div class="card-head"><h3>Cronograma de Consumo Projetado</h3></div>
+      <div class="plan-hero">
+        <div class="plan-hero-accent"></div>
+        <div class="plan-hero-body">
+          <div class="plan-hero-intro">
+            <p>Projeção por cargo, com base no ritmo médio diário de HH apontado em cada OS dentro do período filtrado — mostra em quantos dias o saldo acaba (ou há quanto tempo estourou), pra apoiar o planejamento de equipe.</p>
+            <span class="plan-hero-base" id="plan-base-date"></span>
+          </div>
+          <div class="plan-stats" id="plan-stats"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>Linha do tempo por cargo</h3>
+        <div class="filters">
+          <div class="field"><label>Buscar</label><input class="search-input" id="plan-search" placeholder="OS, título ou cargo&hellip;"></div>
+        </div>
+      </div>
+      <div class="plan-list" id="plan-list"></div>
+      <div class="plan-list-foot" id="plan-list-foot" hidden>
+        <button type="button" class="plan-showmore-btn" id="plan-showmore-btn"></button>
+      </div>
+      <div class="empty-state" id="plan-empty" style="display:none;">Nenhum cargo com Previsto ou Realizado para os filtros atuais.</div>
     </div>
   </section>
 
@@ -1347,6 +1435,17 @@ function fmtDateTimeLabel(ts){
   const time = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
   return date+' às '+time;
 }
+/* Data curta (dd/mm/aaaa), sem dia da semana — usada nas datas projetadas
+   do Planejamento. */
+function fmtDateShort(iso){
+  const d = new Date(iso+'T00:00:00');
+  return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
+}
+function addDaysIso(iso, days){
+  const d = new Date(iso+'T00:00:00');
+  d.setDate(d.getDate() + Math.round(days));
+  return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');
+}
 
 /* ---------- Estado & filtros globais ---------- */
 const state = {
@@ -1355,6 +1454,7 @@ const state = {
   sit: new Set(),
   detalhe: {search:'', sortKey:'saldo_final', sortDir:'asc', modalOs:null},
   supl: {search:'', motivos: new Set(), selected: new Set()},
+  plan: {search:'', showAll:false},
   // Filtro de período do saldo consumido (Aprop./Mobile/Pendências) — Set
   // de dias individualmente marcados, mesmo padrão do filtro de data do
   // Efetivo. Vazio (padrão) = filtro desligado, totais "desde sempre".
@@ -2024,6 +2124,180 @@ function computeOsSummary(r, funcoes){
 
   return { hhPrevisto, hhRealizadoBase, saldoHh, provTotal, pendTotal, hhTotalRealizado, saldoFinal, saldoFinalRs, funcRows };
 }
+
+/* ========================================================================
+   PLANEJAMENTO — cronograma de consumo projetado por cargo
+   ========================================================================
+   Ideia: cada linha de Aprop./Mobile já tem OS + Função + Data + HH (ver
+   scanFixedCols). Agrupando essas linhas por OS+Função dá o "ritmo médio
+   diário" de consumo daquele cargo naquela OS (soma de HH ÷ nº de dias com
+   apontamento) — o mesmo tipo de conta do exemplo do usuário ("consumo
+   médio de 9h/dia"). Com o Saldo Final por cargo (computeOsSummary) e esse
+   ritmo, projeta quantos dias faltam pra esgotar (ou há quantos dias já
+   estourou), gerando uma lista ordenada por urgência pra apoiar o
+   planejamento de equipe. Respeita o filtro global "Saldo consumido até"
+   igual ao resto do painel: com o filtro ativo, só entram no ritmo os
+   apontamentos dentro do período escolhido. */
+let planAggCache = null, planAggCacheKey = null;
+function planAggregates(){
+  const key = Array.from(state.saldoDates).sort().join(',') + '|' + (DATA && DATA.os_list ? DATA.os_list.length : 0);
+  if(planAggCache && planAggCacheKey === key) return planAggCache;
+  const byKey = {};
+  const add = r=>{
+    if(!r.funcao || !r.data || !r.hh) return;
+    if(!passSaldoDate(r.data)) return;
+    const k = r.os+'|'+r.funcao;
+    if(!byKey[k]) byKey[k] = {totalHh:0, dates:new Set()};
+    byKey[k].totalHh += r.hh;
+    byKey[k].dates.add(r.data);
+  };
+  (DATA.apropriacao_rows||[]).forEach(add);
+  (DATA.mobile_rows||[]).forEach(add);
+  planAggCache = byKey;
+  planAggCacheKey = key;
+  return planAggCache;
+}
+const PLAN_GLOW = {estourado:'#f0564f', critico:'#f0564f', atencao:'#f0c64c', confortavel:'#8ed45a', semdados:'#7a93b8'};
+const PLAN_LABEL = {estourado:'Estourado', critico:'Crítico', atencao:'Atenção', confortavel:'Confortável', semdados:'Sem dados'};
+function computePlanRows(){
+  const rows = filteredOS();
+  const agg = planAggregates();
+  // Âncora da projeção pra frente: a data mais recente da base (não a
+  // última data daquele cargo específico) — senão um cargo cujo ritmo foi
+  // apurado há semanas, mas com saldo ainda positivo, projetaria uma data
+  // de esgotamento no passado, o que confunde mais do que ajuda.
+  const baseDate = DATA.datas_saldo && DATA.datas_saldo.length ? DATA.datas_saldo[DATA.datas_saldo.length-1] : null;
+  const out = [];
+  rows.forEach(r=>{
+    const funcoes = funcoesForOs(r.os);
+    if(funcoes.length===0) return;
+    const summary = computeOsSummary(r, funcoes);
+    summary.funcRows.forEach(f=>{
+      if(!f.funcao || (!f.previsto && !f.totalRealizado)) return;
+      const a = agg[r.os+'|'+f.funcao];
+      const ritmo = a && a.dates.size>0 ? a.totalHh/a.dates.size : null;
+      const lastDate = a && a.dates.size>0 ? Array.from(a.dates).sort().pop() : null;
+      let status, diasRestantes=null, diasEstouro=null, dataProjetada=null;
+      if(f.saldoFinal<0){
+        status = 'estourado';
+        if(ritmo) diasEstouro = Math.abs(f.saldoFinal)/ritmo;
+      } else if(!ritmo){
+        status = 'semdados';
+      } else {
+        diasRestantes = f.saldoFinal/ritmo;
+        status = diasRestantes<=3 ? 'critico' : diasRestantes<=10 ? 'atencao' : 'confortavel';
+        if(baseDate) dataProjetada = addDaysIso(baseDate, Math.ceil(diasRestantes));
+      }
+      const pctConsumido = f.previsto>0 ? Math.max(0, f.totalRealizado/f.previsto) : (f.totalRealizado>0 ? 1 : 0);
+      out.push({
+        os:r.os, osLabel:r.os_label, contrato:r.contrato, funcao:f.funcao,
+        previsto:f.previsto, totalRealizado:f.totalRealizado, saldoFinal:f.saldoFinal,
+        ritmo, lastDate, status, diasRestantes, diasEstouro, dataProjetada, pctConsumido,
+      });
+    });
+  });
+  out.sort((a,b)=>{
+    const rank = {estourado:0, critico:1, atencao:2, confortavel:3, semdados:4};
+    if(rank[a.status]!==rank[b.status]) return rank[a.status]-rank[b.status];
+    if(a.status==='estourado') return (b.diasEstouro||0)-(a.diasEstouro||0);
+    if(a.status==='critico'||a.status==='atencao'||a.status==='confortavel') return (a.diasRestantes||0)-(b.diasRestantes||0);
+    return (a.saldoFinal<b.saldoFinal) ? 1 : -1;
+  });
+  return out;
+}
+const PLAN_PAGE_SIZE = 40;
+function renderPlanejamento(){
+  const allRows = computePlanRows();
+  const base = DATA.datas_saldo && DATA.datas_saldo.length ? DATA.datas_saldo[DATA.datas_saldo.length-1] : null;
+  document.getElementById('plan-base-date').textContent = base
+    ? 'Base de cálculo: apontamentos até ' + fmtDateShort(base) + (dateFilterActive() ? ' · período filtrado: ' + fmtSaldoDateRangeLabel() : '')
+    : '';
+
+  const counts = {estourado:0, critico:0, atencao:0, confortavel:0, semdados:0};
+  allRows.forEach(r=>counts[r.status]++);
+  const statsEl = document.getElementById('plan-stats');
+  const statDefs = [
+    ['estourado','Estourados'], ['critico','Críticos (≤3 dias)'], ['atencao','Atenção (≤10 dias)'], ['confortavel','Confortáveis'],
+  ];
+  statsEl.innerHTML = statDefs.map(([k,label])=>
+    `<div class="plan-stat ${k}"><span class="v">${fmtInt(counts[k])}</span><span class="k">${label}</span></div>`
+  ).join('');
+
+  const q = state.plan.search.trim().toLowerCase();
+  const filtered = q
+    ? allRows.filter(r=> (String(r.os)+' '+(r.osLabel||'')+' '+r.funcao).toLowerCase().includes(q))
+    : allRows;
+
+  const listEl = document.getElementById('plan-list');
+  const emptyEl = document.getElementById('plan-empty');
+  const footEl = document.getElementById('plan-list-foot');
+  const moreBtn = document.getElementById('plan-showmore-btn');
+
+  if(filtered.length===0){
+    listEl.innerHTML = '';
+    emptyEl.style.display = '';
+    footEl.hidden = true;
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const shown = state.plan.showAll ? filtered : filtered.slice(0, PLAN_PAGE_SIZE);
+  listEl.innerHTML = shown.map(renderPlanCard).join('');
+
+  if(filtered.length > PLAN_PAGE_SIZE){
+    footEl.hidden = false;
+    moreBtn.textContent = state.plan.showAll
+      ? 'Mostrar menos'
+      : `Mostrar todas as ${filtered.length.toLocaleString('pt-BR')} combinações OS × cargo`;
+  } else {
+    footEl.hidden = true;
+  }
+}
+function renderPlanCard(row){
+  const glow = PLAN_GLOW[row.status];
+  const pct = Math.min(1, row.pctConsumido);
+  const overflow = row.status==='estourado';
+  let countdownN, countdownK, metaHtml;
+  if(row.status==='estourado'){
+    countdownN = row.diasEstouro!=null ? '+' + Math.ceil(row.diasEstouro) : '—';
+    countdownK = row.diasEstouro!=null ? 'dias estourado' : 'estourado';
+    metaHtml = row.ritmo
+      ? `Estourou em <b>${fmtH(Math.abs(row.saldoFinal))}h</b> &middot; equivalente a <b>${Math.ceil(row.diasEstouro)} dia(s)</b> no ritmo de <b>${fmtH(row.ritmo)}h/dia</b>`
+      : `Estourou em <b>${fmtH(Math.abs(row.saldoFinal))}h</b> &middot; sem apontamento diário no período pra estimar em dias`;
+  } else if(row.status==='semdados'){
+    countdownN = '—';
+    countdownK = 'sem ritmo recente';
+    metaHtml = `Saldo de <b>${fmtH(row.saldoFinal)}h</b>, mas sem apontamento diário (Aprop./Mobile) no período filtrado pra projetar consumo`;
+  } else {
+    countdownN = Math.ceil(row.diasRestantes);
+    countdownK = 'dias restantes';
+    metaHtml = `Ritmo atual de <b>${fmtH(row.ritmo)}h/dia</b> &middot; projeção de esgotar em <b>${row.dataProjetada ? fmtDateShort(row.dataProjetada) : '—'}</b>`;
+  }
+  return `<div class="plan-card ${row.status}" style="--plan-c:${glow};">
+      <div class="plan-card-main">
+        <div class="plan-card-head">
+          <span class="plan-os-chip">${escHtml(row.osLabel)}</span>
+          ${row.contrato ? `<span class="plan-contrato-chip">${escHtml(contratoLabel(row.contrato))}</span>` : ''}
+          <span class="plan-funcao">${escHtml(row.funcao)}</span>
+          <span class="plan-status-pill">${PLAN_LABEL[row.status]}</span>
+        </div>
+        <div class="plan-bar">
+          <div class="plan-bar-fill" style="width:${(pct*100).toFixed(1)}%;"></div>
+          ${overflow ? '<div class="plan-bar-overflow"></div>' : ''}
+        </div>
+        <div class="plan-meta">
+          <span>Previsto <b>${fmtH(row.previsto)}h</b></span>
+          <span>Realizado <b>${fmtH(row.totalRealizado)}h</b></span>
+          <span>${metaHtml}</span>
+        </div>
+      </div>
+      <div class="plan-countdown">
+        <span class="n">${countdownN}</span>
+        <span class="k">${countdownK}</span>
+      </div>
+    </div>`;
+}
+
 function renderOsModalActions(){
   return `<div class="os-detail-download-wrap">
       <button type="button" class="os-detail-download" id="os-detail-download-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download</button>
@@ -2536,6 +2810,8 @@ document.getElementById('global-clear-btn').addEventListener('click', ()=>{
   renderAll();
 });
 document.getElementById('detalhe-search').addEventListener('input', e=>{ state.detalhe.search=e.target.value; renderDetalheTable(); });
+document.getElementById('plan-search').addEventListener('input', e=>{ state.plan.search=e.target.value; renderPlanejamento(); });
+document.getElementById('plan-showmore-btn').addEventListener('click', ()=>{ state.plan.showAll = !state.plan.showAll; renderPlanejamento(); });
 
 
 /* ---------- Abas ---------- */
@@ -2555,6 +2831,7 @@ function renderAll(){
   renderDetalheControls();
   renderDetalheTable();
   renderSuplementacaoTable();
+  renderPlanejamento();
   renderAlerts();
 }
 
