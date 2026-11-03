@@ -525,10 +525,10 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 /* Projeção por cargo — mini "readout" navy/glow (mesmo DNA dos heroes
    navy/lime do painel), embutido na célula: lê como um display digital
    dentro da tabela clara, em vez de mais uma barra de progresso. */
-.proj-chip{display:inline-flex; align-items:center; gap:6px; background:var(--navy); border-radius:8px; padding:5px 10px 5px 9px; cursor:help; line-height:1;}
+.proj-chip{display:inline-flex; align-items:center; justify-content:center; gap:6px; width:128px; background:var(--navy); border-radius:8px; padding:5px 8px; cursor:help; line-height:1;}
 .proj-chip svg{width:12px; height:12px; stroke:var(--pc,#7a93b8); flex:none;}
 .proj-chip-n{font-family:var(--font-mono); font-weight:800; font-size:14px; color:var(--pc,#7a93b8); text-shadow:0 0 7px var(--pc,transparent);}
-.proj-chip-k{font-family:var(--font-mono); font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.65); margin-left:1px;}
+.proj-chip-k{font-family:var(--font-mono); font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.65); margin-left:1px; white-space:nowrap;}
 .proj-chip-est{font-family:var(--font-mono); font-size:11px; font-weight:800; color:rgba(255,255,255,.45); margin-left:2px;}
 .proj-none{display:inline-flex; align-items:center; justify-content:center; color:var(--text-muted); font-family:var(--font-mono); font-size:12px;}
 .os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
