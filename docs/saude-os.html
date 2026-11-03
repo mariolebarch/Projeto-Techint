@@ -568,7 +568,7 @@ tr.detail-group-header td:first-child{padding-left:20px; text-transform:uppercas
 .os-detail-func-wrap{position:relative; border:1px solid var(--border-soft); border-radius:9px; overflow-x:auto;}
 .os-detail-func-wrap::after{content:""; position:absolute; top:0; right:0; bottom:0; width:22px; background:linear-gradient(to right, transparent, var(--paper)); pointer-events:none; opacity:0; transition:opacity .15s ease;}
 .os-detail-func-wrap.has-hscroll:not(.scrolled-end)::after{opacity:1;}
-table.os-detail-func-table{width:100%; min-width:760px; font-size:12.5px;}
+table.os-detail-func-table{width:100%; min-width:900px; font-size:12.5px;}
 table.os-detail-func-table thead th{position:static; background:var(--sand); color:var(--text-secondary); font-size:10px; letter-spacing:.05em; padding:7px 10px; border-bottom:1px solid var(--border-soft); cursor:default;}
 table.os-detail-func-table thead th.num-col, table.os-detail-func-table td.num-col{text-align:center;}
 table.os-detail-func-table tbody td{padding:6px 10px; border-top:1px solid var(--border-soft); vertical-align:middle;}
@@ -577,6 +577,12 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
 .odf-flag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--critical); background:var(--critical-soft); border-radius:4px; padding:1px 6px; width:fit-content; cursor:help;}
+.odf-proj-cell{display:flex; flex-direction:column; align-items:center; gap:4px; min-width:96px; cursor:help;}
+.odf-proj-label{font-family:var(--font-mono); font-size:10.5px; font-weight:700; white-space:nowrap;}
+.odf-proj-label .n{font-size:13px;}
+.odf-proj-bar{position:relative; width:100%; height:5px; border-radius:4px; background:var(--border-soft);}
+.odf-proj-bar-fill{height:100%; border-radius:4px;}
+.odf-proj-bar-overflow{position:absolute; top:-2px; bottom:-2px; right:-2px; width:5px; border-radius:4px; background:var(--critical); box-shadow:0 0 4px 1px var(--critical);}
 .os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .os-detail-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
 .os-detail-close svg{width:12px; height:12px; flex:none;}
@@ -2159,14 +2165,37 @@ function planAggregates(){
 }
 const PLAN_GLOW = {estourado:'#f0564f', critico:'#f0564f', atencao:'#f0c64c', confortavel:'#8ed45a', semdados:'#7a93b8'};
 const PLAN_LABEL = {estourado:'Estourado', critico:'Crítico', atencao:'Atenção', confortavel:'Confortável', semdados:'Sem dados'};
+// Âncora da projeção pra frente: a data mais recente da base (não a última
+// data daquele cargo específico) — senão um cargo cujo ritmo foi apurado há
+// semanas, mas com saldo ainda positivo, projetaria uma data de esgotamento
+// no passado, o que confunde mais do que ajuda.
+function planBaseDate(){
+  return DATA.datas_saldo && DATA.datas_saldo.length ? DATA.datas_saldo[DATA.datas_saldo.length-1] : null;
+}
+/* Núcleo do cálculo de projeção por cargo — reaproveitado pela aba
+   Planejamento (lista cruzando todas as OS's) e pela coluna "Projeção" do
+   Detalhamento por OS (um cargo de cada vez), pra nunca divergir entre os
+   dois lugares. */
+function projecaoCargo(os, f){
+  const a = planAggregates()[os+'|'+f.funcao];
+  const ritmo = a && a.dates.size>0 ? a.totalHh/a.dates.size : null;
+  const lastDate = a && a.dates.size>0 ? Array.from(a.dates).sort().pop() : null;
+  let status, diasRestantes=null, diasEstouro=null, dataProjetada=null;
+  if(f.saldoFinal<0){
+    status = 'estourado';
+    if(ritmo) diasEstouro = Math.abs(f.saldoFinal)/ritmo;
+  } else if(!ritmo){
+    status = 'semdados';
+  } else {
+    diasRestantes = f.saldoFinal/ritmo;
+    status = diasRestantes<=3 ? 'critico' : diasRestantes<=10 ? 'atencao' : 'confortavel';
+    const baseDate = planBaseDate();
+    if(baseDate) dataProjetada = addDaysIso(baseDate, Math.ceil(diasRestantes));
+  }
+  return {status, ritmo, lastDate, diasRestantes, diasEstouro, dataProjetada};
+}
 function computePlanRows(){
   const rows = filteredOS();
-  const agg = planAggregates();
-  // Âncora da projeção pra frente: a data mais recente da base (não a
-  // última data daquele cargo específico) — senão um cargo cujo ritmo foi
-  // apurado há semanas, mas com saldo ainda positivo, projetaria uma data
-  // de esgotamento no passado, o que confunde mais do que ajuda.
-  const baseDate = DATA.datas_saldo && DATA.datas_saldo.length ? DATA.datas_saldo[DATA.datas_saldo.length-1] : null;
   const out = [];
   rows.forEach(r=>{
     const funcoes = funcoesForOs(r.os);
@@ -2174,25 +2203,13 @@ function computePlanRows(){
     const summary = computeOsSummary(r, funcoes);
     summary.funcRows.forEach(f=>{
       if(!f.funcao || (!f.previsto && !f.totalRealizado)) return;
-      const a = agg[r.os+'|'+f.funcao];
-      const ritmo = a && a.dates.size>0 ? a.totalHh/a.dates.size : null;
-      const lastDate = a && a.dates.size>0 ? Array.from(a.dates).sort().pop() : null;
-      let status, diasRestantes=null, diasEstouro=null, dataProjetada=null;
-      if(f.saldoFinal<0){
-        status = 'estourado';
-        if(ritmo) diasEstouro = Math.abs(f.saldoFinal)/ritmo;
-      } else if(!ritmo){
-        status = 'semdados';
-      } else {
-        diasRestantes = f.saldoFinal/ritmo;
-        status = diasRestantes<=3 ? 'critico' : diasRestantes<=10 ? 'atencao' : 'confortavel';
-        if(baseDate) dataProjetada = addDaysIso(baseDate, Math.ceil(diasRestantes));
-      }
+      const proj = projecaoCargo(r.os, f);
       const pctConsumido = f.previsto>0 ? Math.max(0, f.totalRealizado/f.previsto) : (f.totalRealizado>0 ? 1 : 0);
       out.push({
         os:r.os, osLabel:r.os_label, contrato:r.contrato, funcao:f.funcao,
         previsto:f.previsto, totalRealizado:f.totalRealizado, saldoFinal:f.saldoFinal,
-        ritmo, lastDate, status, diasRestantes, diasEstouro, dataProjetada, pctConsumido,
+        ritmo:proj.ritmo, lastDate:proj.lastDate, status:proj.status, diasRestantes:proj.diasRestantes,
+        diasEstouro:proj.diasEstouro, dataProjetada:proj.dataProjetada, pctConsumido,
       });
     });
   });
@@ -2309,6 +2326,36 @@ function renderOsModalActions(){
     </div>
     <button type="button" class="os-detail-close" id="os-detail-close-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>Sair</button>`;
 }
+/* Mini "pista de consumo" por cargo, mesma linguagem visual da aba
+   Planejamento (barra + contador de dias), só que compacta o bastante pra
+   caber numa célula de tabela — dá a leitura de "quanto tempo falta pra
+   essa função" sem precisar trocar de aba. */
+function renderProjecaoCell(os, f){
+  const proj = projecaoCargo(os, f);
+  const color = {estourado:'var(--critical)', critico:'var(--critical)', atencao:'var(--warning)', confortavel:'var(--good)', semdados:'var(--slate)'}[proj.status];
+  const pct = f.previsto>0 ? Math.min(1, Math.max(0, f.totalRealizado/f.previsto)) : (f.totalRealizado>0 ? 1 : 0);
+  const overflow = proj.status==='estourado';
+  let big, small, title;
+  if(proj.status==='estourado'){
+    if(proj.diasEstouro!=null){
+      big = '+'+Math.ceil(proj.diasEstouro); small = 'dias estourado';
+      title = `Estourou em ${fmtH(Math.abs(f.saldoFinal))}h — equivalente a ${Math.ceil(proj.diasEstouro)} dia(s) no ritmo de ${fmtH(proj.ritmo)}h/dia`;
+    } else {
+      big = '—'; small = 'estourado';
+      title = `Estourou em ${fmtH(Math.abs(f.saldoFinal))}h — sem apontamento diário no período para estimar em dias`;
+    }
+  } else if(proj.status==='semdados'){
+    big = '—'; small = 'sem ritmo';
+    title = 'Saldo positivo, mas sem apontamento diário (Aprop./Mobile) no período filtrado para projetar consumo';
+  } else {
+    big = Math.ceil(proj.diasRestantes); small = 'dias restantes';
+    title = `Ritmo atual de ${fmtH(proj.ritmo)}h/dia — projeção de esgotar em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}`;
+  }
+  return `<div class="odf-proj-cell" title="${escHtml(title)}">
+      <span class="odf-proj-label" style="color:${color};"><span class="n">${big}</span> ${small}</span>
+      <div class="odf-proj-bar"><div class="odf-proj-bar-fill" style="width:${(pct*100).toFixed(0)}%; background:${color};"></div>${overflow ? '<div class="odf-proj-bar-overflow"></div>' : ''}</div>
+    </div>`;
+}
 function renderOsDetailPanel(r, funcoes){
   const s = computeOsSummary(r, funcoes);
   const sfClass = s.saldoFinal >= 0 ? 'good' : 'critical';
@@ -2328,8 +2375,9 @@ function renderOsDetailPanel(r, funcoes){
       <td class="num-col">${fmtH(f.prov)}</td>
       <td class="num-col">${fmtH(f.totalRealizado)}</td>
       <td class="num-col"><span class="chip ${sfCls}">${sfSgn}${fmtH(f.saldoFinal)}</span></td>
+      <td class="num-col">${renderProjecaoCell(r.os, f)}</td>
     </tr>`;
-  }).join('') : `<tr><td colspan="8" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
+  }).join('') : `<tr><td colspan="9" class="empty-state" style="padding:16px;">Sem detalhamento por função para esta OS.</td></tr>`;
 
   return `<div class="os-detail-panel">
     <div class="os-detail-head">
@@ -2380,7 +2428,7 @@ function renderOsDetailPanel(r, funcoes){
     <div class="os-detail-body">
       <div class="os-detail-func-wrap">
         <table class="os-detail-func-table">
-          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">HH Realizado</th><th class="num-col">HH Saldo</th><th class="num-col">HH Pendência</th><th class="num-col">Aprop. + Mob. (HH)</th><th class="num-col">HH Total Realizado</th><th class="num-col">HH Saldo Final</th></tr></thead>
+          <thead><tr><th>Função</th><th class="num-col">HH Previsto</th><th class="num-col">HH Realizado</th><th class="num-col">HH Saldo</th><th class="num-col">HH Pendência</th><th class="num-col">Aprop. + Mob. (HH)</th><th class="num-col">HH Total Realizado</th><th class="num-col">HH Saldo Final</th><th class="num-col">Projeção</th></tr></thead>
           <tbody>${funcRows}</tbody>
         </table>
       </div>
@@ -2694,8 +2742,15 @@ function exportOsResumoXlsx(r, funcoes){
     ['Saldo Final (R$)', s.saldoFinalRs],
   ];
   const funcAoa = [
-    ['Função', 'HH Previsto', 'HH Realizado', 'HH Saldo', 'HH Pendência', 'Aprop. + Mob. (HH)', 'HH Total Realizado', 'HH Saldo Final'],
-    ...s.funcRows.map(f => [f.funcao + (f.semPrevisto ? ' (sem previsto)' : ''), f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal]),
+    ['Função', 'HH Previsto', 'HH Realizado', 'HH Saldo', 'HH Pendência', 'Aprop. + Mob. (HH)', 'HH Total Realizado', 'HH Saldo Final', 'Ritmo (h/dia)', 'Projeção'],
+    ...s.funcRows.map(f => {
+      const proj = projecaoCargo(r.os, f);
+      const projTxt = proj.status==='estourado'
+        ? (proj.diasEstouro!=null ? `Estourado há ${Math.ceil(proj.diasEstouro)} dia(s)` : 'Estourado (sem ritmo para estimar dias)')
+        : proj.status==='semdados' ? 'Sem apontamento diário para projetar'
+        : `${Math.ceil(proj.diasRestantes)} dia(s) restante(s) — esgota em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}`;
+      return [f.funcao + (f.semPrevisto ? ' (sem previsto)' : ''), f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal, proj.ritmo!=null ? proj.ritmo : '', projTxt];
+    }),
   ];
   downloadWorkbook([
     { name: 'Resumo', aoa: resumoAoa },
