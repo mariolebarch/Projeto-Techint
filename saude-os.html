@@ -522,13 +522,15 @@ table.os-detail-func-table tbody tr:nth-child(even) td{background:var(--sand);}
 .odf-name{display:flex; flex-direction:column; gap:1px;}
 .odf-name .n{font-weight:600; color:var(--text-primary);}
 .odf-flag{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--critical); background:var(--critical-soft); border-radius:4px; padding:1px 6px; width:fit-content; cursor:help;}
-.odf-proj-cell{display:flex; flex-direction:column; align-items:center; gap:4px; min-width:96px; cursor:help;}
-.odf-proj-label{font-family:var(--font-mono); font-size:10.5px; font-weight:700; white-space:nowrap;}
-.odf-proj-label .n{font-size:13px;}
-.odf-proj-bar{position:relative; width:100%; height:5px; border-radius:4px; background:var(--border-soft);}
-.odf-proj-bar-fill{height:100%; border-radius:4px;}
-.odf-proj-bar-overflow{position:absolute; top:-2px; bottom:-2px; right:-2px; width:5px; border-radius:4px; background:var(--critical); box-shadow:0 0 4px 1px var(--critical);}
-.odf-proj-est{font-size:7.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:700;}
+/* Projeção por cargo — mini "readout" navy/glow (mesmo DNA dos heroes
+   navy/lime do painel), embutido na célula: lê como um display digital
+   dentro da tabela clara, em vez de mais uma barra de progresso. */
+.proj-chip{display:inline-flex; align-items:center; gap:6px; background:var(--navy); border-radius:8px; padding:5px 10px 5px 9px; cursor:help; line-height:1;}
+.proj-chip svg{width:12px; height:12px; stroke:var(--pc,#7a93b8); flex:none;}
+.proj-chip-n{font-family:var(--font-mono); font-weight:800; font-size:14px; color:var(--pc,#7a93b8); text-shadow:0 0 7px var(--pc,transparent);}
+.proj-chip-k{font-family:var(--font-mono); font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.65); margin-left:1px;}
+.proj-chip-est{font-family:var(--font-mono); font-size:11px; font-weight:800; color:rgba(255,255,255,.45); margin-left:2px;}
+.proj-none{display:inline-flex; align-items:center; justify-content:center; color:var(--text-muted); font-family:var(--font-mono); font-size:12px;}
 .os-detail-close{display:flex; align-items:center; justify-content:center; gap:5px; width:100%; height:34px; padding:0 8px; border-radius:17px; border:1px solid rgba(255,255,255,.32); background:rgba(255,255,255,.1); color:#fff; font-family:var(--font-mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .15s, border-color .15s;}
 .os-detail-close:hover{background:rgba(255,255,255,.22); border-color:#fff;}
 .os-detail-close svg{width:12px; height:12px; flex:none;}
@@ -2128,28 +2130,26 @@ function renderOsModalActions(){
    Planejamento (barra + contador de dias), só que compacta o bastante pra
    caber numa célula de tabela — dá a leitura de "quanto tempo falta pra
    essa função" sem precisar trocar de aba. */
+const PROJ_ICON_CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3.5 2"/></svg>';
+const PROJ_ICON_ALERT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>';
 function renderProjecaoCell(os, f){
   const proj = projecaoCargo(os, f);
   if(proj.status==='semdados'){
-    return `<div class="odf-proj-cell" title="Sem Previsto e sem Realizado para este cargo"><span class="odf-proj-label" style="color:var(--slate);"><span class="n">—</span></span></div>`;
+    return `<span class="proj-none" title="Sem Previsto e sem Realizado para este cargo">—</span>`;
   }
-  const color = {estourado:'var(--critical)', critico:'var(--critical)', atencao:'var(--warning)', confortavel:'var(--good)'}[proj.status];
-  const pct = f.previsto>0 ? Math.min(1, Math.max(0, f.totalRealizado/f.previsto)) : (f.totalRealizado>0 ? 1 : 0);
-  const overflow = proj.status==='estourado';
+  const color = {estourado:'#ff6b63', critico:'#ff6b63', atencao:'#ffcf5c', confortavel:'#8ed45a'}[proj.status];
   const ritmoTxt = proj.estimado ? `estimativa de jornada padrão (${fmtH(proj.ritmo)}h/dia) — sem apontamento diário (Aprop./Mobile) suficiente para calcular o ritmo real` : `ritmo real apontado de ${fmtH(proj.ritmo)}h/dia`;
-  let big, small, title;
+  let icon, big, small, title;
   if(proj.status==='estourado'){
-    big = '+'+Math.ceil(proj.diasEstouro); small = 'dias estourado';
+    icon = PROJ_ICON_ALERT;
+    big = '+'+Math.ceil(proj.diasEstouro); small = 'd estourado';
     title = `Estourou em ${fmtH(Math.abs(f.saldoFinal))}h — equivalente a ${Math.ceil(proj.diasEstouro)} dia(s) de trabalho, com base em ${ritmoTxt}`;
   } else {
-    big = Math.ceil(proj.diasRestantes); small = 'dias restantes';
+    icon = PROJ_ICON_CLOCK;
+    big = Math.ceil(proj.diasRestantes); small = 'd restantes';
     title = `Saldo para ${big} dia(s) de trabalho (esgota em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}), com base em ${ritmoTxt}`;
   }
-  return `<div class="odf-proj-cell" title="${escHtml(title)}">
-      <span class="odf-proj-label" style="color:${color};"><span class="n">${big}</span> ${small}</span>
-      <div class="odf-proj-bar"><div class="odf-proj-bar-fill" style="width:${(pct*100).toFixed(0)}%; background:${color};"></div>${overflow ? '<div class="odf-proj-bar-overflow"></div>' : ''}</div>
-      ${proj.estimado ? '<span class="odf-proj-est">estimado</span>' : ''}
-    </div>`;
+  return `<span class="proj-chip" style="--pc:${color};" title="${escHtml(title)}">${icon}<span class="proj-chip-n">${big}</span><span class="proj-chip-k">${small}</span>${proj.estimado ? '<span class="proj-chip-est">*</span>' : ''}</span>`;
 }
 function renderOsDetailPanel(r, funcoes){
   const s = computeOsSummary(r, funcoes);
