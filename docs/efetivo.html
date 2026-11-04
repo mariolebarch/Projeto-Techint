@@ -3801,6 +3801,21 @@ function parseWorkbookToBundle(wb){
     for(let c=1;c<=esMaxCol;c++){ if(predicate(cellVal(wsEs,row,c))) return c; }
     return null;
   }
+  // A linha dos rótulos "Sem. NN" também já veio deslocada pra baixo numa
+  // planilha real (uma linha em branco extra inserida no topo da aba) — em
+  // vez de linha fixa, localiza pelo texto, com fallback pro layout
+  // histórico (linha 2). A linha dos nomes dos dias (Seg..Dom) e dos
+  // cabeçalhos de coluna (Status/Mão de Obra Direta) sempre fica 3 linhas
+  // abaixo da linha "Sem.", nos dois layouts vistos até aqui.
+  let semRow = null;
+  for(let r=1;r<=Math.min(esMax,20) && semRow===null;r++){
+    for(let c=1;c<=esMaxCol;c++){
+      const v = cellVal(wsEs,r,c);
+      if(typeof v==='string' && v.trim().toLowerCase().startsWith('sem')){ semRow = r; break; }
+    }
+  }
+  if(semRow===null) semRow = 2;
+  const dayHeaderRow = semRow+3;
   let headerTableRow = null;
   for(let r=1;r<=Math.min(esMax,60);r++){
     if(normStr(cellVal(wsEs,r,2))==='nº os'){ headerTableRow = r; break; }
@@ -3808,15 +3823,15 @@ function parseWorkbookToBundle(wb){
   if(headerTableRow===null) headerTableRow = 27;
   const dataStartRow = headerTableRow+1;
   const colTitulo = findHeaderCol(headerTableRow, v=>normStr(v)==='titulo os') || 6;
-  const colCargo = findHeaderCol(5, v=>normStr(v)==='mão de obra direta') || 8;
-  const colStatus = findHeaderCol(5, v=>normStr(v)==='status');
+  const colCargo = findHeaderCol(dayHeaderRow, v=>normStr(v)==='mão de obra direta') || 8;
+  const colStatus = findHeaderCol(dayHeaderRow, v=>normStr(v)==='status');
 
   const weekBlocks = [];
   {
     let c=1;
     const maxWeekCol = Math.max(esMaxCol, 40);
     while(c<=maxWeekCol){
-      const v2 = cellVal(wsEs,2,c);
+      const v2 = cellVal(wsEs,semRow,c);
       if(typeof v2==='string' && v2.startsWith('Sem')){
         const m = v2.match(/\d+/);
         const wk = m ? parseInt(m[0],10) : null;
@@ -3824,7 +3839,7 @@ function parseWorkbookToBundle(wb){
         const dayNamesOrder = Object.keys(DAY_ISO_IMPORT);
         for(let i=0;i<=6;i++){
           const dc = c+i;
-          const raw = cellVal(wsEs,5,dc);
+          const raw = cellVal(wsEs,dayHeaderRow,dc);
           const rawNorm = typeof raw==='string' ? raw.trim().toLowerCase() : null;
           // Casa o nome do dia ignorando maiúsculas/minúsculas e, se a célula
           // vier vazia ou com erro de digitação (já aconteceu: célula em
