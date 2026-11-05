@@ -1234,6 +1234,12 @@ const sb = (window.supabase && window.supabase.createClient) ? window.supabase.c
 function escHtml(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 const fmtInt = n => Math.round(n||0).toLocaleString('pt-BR');
 const fmtH = n => (n||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1});
+// Arredonda na mesma casa decimal que fmtH mostra (1 casa) — usado antes de
+// dividir por um ritmo diário pra projetar dias, senão um resíduo invisível
+// no display (ex.: 18,02h, mostrado como "18,0h") empurra o teto pra um dia
+// inteiro a mais do que o valor exibido sugere, e dois cargos com o mesmo
+// "18,0h" na tela acabavam com contagens de dias diferentes.
+const roundH = n => Math.round((n||0)*10)/10;
 const fmtPct = n => ((n||0)*100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
 const fmtRs = n => (n||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
 
@@ -2105,12 +2111,12 @@ function projecaoCargo(os, f){
   let status, diasRestantes=null, diasEstouro=null, dataProjetada=null;
   if(f.saldoFinal<0){
     status = 'estourado';
-    diasEstouro = Math.abs(f.saldoFinal)/ritmo;
+    diasEstouro = Math.ceil(roundH(Math.abs(f.saldoFinal))/ritmo);
   } else {
-    diasRestantes = f.saldoFinal/ritmo;
+    diasRestantes = Math.ceil(roundH(f.saldoFinal)/ritmo);
     status = diasRestantes<=3 ? 'critico' : diasRestantes<=10 ? 'atencao' : 'confortavel';
     const baseDate = planBaseDate();
-    if(baseDate) dataProjetada = addDaysIso(baseDate, Math.ceil(diasRestantes));
+    if(baseDate) dataProjetada = addDaysIso(baseDate, diasRestantes);
   }
   return {status, ritmo, estimado, lastDate, diasRestantes, diasEstouro, dataProjetada};
 }
@@ -2142,11 +2148,11 @@ function renderProjecaoCell(os, f){
   let icon, big, small, title;
   if(proj.status==='estourado'){
     icon = PROJ_ICON_ALERT;
-    big = '+'+Math.ceil(proj.diasEstouro); small = 'd estourado';
-    title = `Estourou em ${fmtH(Math.abs(f.saldoFinal))}h — equivalente a ${Math.ceil(proj.diasEstouro)} dia(s) de trabalho, com base em ${ritmoTxt}`;
+    big = '+'+proj.diasEstouro; small = 'd estourado';
+    title = `Estourou em ${fmtH(Math.abs(f.saldoFinal))}h — equivalente a ${proj.diasEstouro} dia(s) de trabalho, com base em ${ritmoTxt}`;
   } else {
     icon = PROJ_ICON_CLOCK;
-    big = Math.ceil(proj.diasRestantes); small = 'd restantes';
+    big = proj.diasRestantes; small = 'd restantes';
     title = `Saldo para ${big} dia(s) de trabalho (esgota em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}), com base em ${ritmoTxt}`;
   }
   return `<span class="proj-chip" style="--pc:${color};" title="${escHtml(title)}">${icon}<span class="proj-chip-n">${big}</span><span class="proj-chip-k">${small}</span>${proj.estimado ? '<span class="proj-chip-est">*</span>' : ''}</span>`;
@@ -2542,8 +2548,8 @@ function exportOsResumoXlsx(r, funcoes){
       const proj = projecaoCargo(r.os, f);
       const estTxt = proj.estimado ? ' (estimado, jornada padrão)' : '';
       const projTxt = proj.status==='semdados' ? 'Sem Previsto e sem Realizado'
-        : proj.status==='estourado' ? `Estourado há ${Math.ceil(proj.diasEstouro)} dia(s)${estTxt}`
-        : `${Math.ceil(proj.diasRestantes)} dia(s) restante(s) — esgota em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}${estTxt}`;
+        : proj.status==='estourado' ? `Estourado há ${proj.diasEstouro} dia(s)${estTxt}`
+        : `${proj.diasRestantes} dia(s) restante(s) — esgota em ${proj.dataProjetada ? fmtDateShort(proj.dataProjetada) : '—'}${estTxt}`;
       return [f.funcao + (f.semPrevisto ? ' (sem previsto)' : ''), f.previsto, f.realizado, f.saldo, f.pend, f.prov, f.totalRealizado, f.saldoFinal, proj.ritmo!=null ? proj.ritmo : '', projTxt];
     }),
   ];
